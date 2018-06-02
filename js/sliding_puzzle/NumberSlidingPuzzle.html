@@ -1,0 +1,293 @@
+﻿<html>
+<head>
+<META NAME="Description" CONTENT="盲解滑塊 / Blindfold Sliding Puzzle">
+<META NAME="gg:Description" CONTENT="盲解滑塊 / Blindfold Sliding Puzzle">
+<META NAME="og:image" CONTENT="http://etrex.tw/a/Game/SlidingPuzzle.png">
+
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+<script src="./share.min.js"></script>
+<link rel="stylesheet" href="http://netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+<title>盲解滑塊 / Blindfold Sliding Puzzle</title>
+<style>
+body{
+	font-family:"微軟正黑體", sans-serif;
+}
+.title{
+	margin:0px 0px 20px 0px;
+	padding:1px 100px 20px 100px;
+	background-color:eee;
+	text-align:center;
+}
+.game{
+	margin:auto auto 20px auto;
+}
+img {
+	margin:2px;
+}
+.alert{
+	text-align:center;
+}
+p {
+	font-size:16px;
+}
+#Footer{
+	margin:50px auto auto auto;
+	text-align:center;
+}
+#Share{
+	margin:auto auto 20px auto;
+}
+</style>
+<script>
+var imageSize = 130;
+var keyInputMapping = [];
+keyInputMapping[0] = "A";
+keyInputMapping[1] = "W";
+keyInputMapping[2] = "D";
+keyInputMapping[3] = "S";
+keyInputMapping[37] = "A";
+keyInputMapping[38] = "W";
+keyInputMapping[39] = "D";
+keyInputMapping[40] = "S";
+keyInputMapping[65] = "A";
+keyInputMapping[87] = "W";
+keyInputMapping[68] = "D";
+keyInputMapping[83] = "S";
+
+var gameChar = [0,1,2,3,4,5,6,7,8];
+var gameState = [1,2,3,4,5,6,7,8,0];
+
+function getImageUrl(number)
+{
+	size = imageSize;
+	number = number||0;
+	return "./" + gameChar[number] + ".png";
+}
+function isGameEnd()
+{
+	if(gameState[0] ==1 &&
+	   gameState[1] ==2 &&
+	   gameState[2] ==3 &&
+	   gameState[3] ==4 &&
+	   gameState[4] ==5 &&
+	   gameState[5] ==6 &&
+	   gameState[6] ==7 &&
+	   gameState[7] ==8 &&
+	   gameState[8] ==0)
+	   return true;
+   else
+		return false;
+}
+function shuffle()
+{
+	for(var i = 0 ; i < 1000 ; i++)
+	{
+		move(keyInputMapping[parseInt(Math.random()*4)]);
+	}
+	moveCount = 0;
+}
+
+var isVisible = true;
+function showGameState()
+{
+	var i;
+	var imgList = $("img");
+	if(isVisible)
+	{
+		for(i= 0 ; i < 9 ;i++)
+		{
+			if(gameState[i] == 0)
+				imgList.eq(i).attr("src" , getImageUrl());
+			else
+				imgList.eq(i).attr("src" , getImageUrl(gameState[i]));
+		}
+	}
+	else
+	{
+		imgList.attr("src" , getImageUrl());
+	}
+}
+var moveCount = 0;
+function move(direction){
+	//console.log("move:" + direction);
+	var zero = gameState.indexOf(0);
+	if(direction == "A")
+	{
+		if(zero%3<2)
+		{
+			swap(zero,zero+1);
+			return true;
+		}
+	}
+	else if(direction == "W")
+	{
+		if(parseInt(zero/3)<2)
+		{
+			swap(zero,zero+3);
+			return true;
+		}
+	}
+	else if(direction == "D")
+	{
+		if(zero%3>0)
+		{
+			swap(zero,zero-1);
+			return true;
+		}
+	}
+	else if(direction == "S")
+	{
+		if(parseInt(zero/3)>0)
+		{
+			swap(zero,zero-3);
+			return true;
+		}
+	}
+	return false;
+}
+
+function swap(x,y)
+{
+	//console.log("swap:" +x + " " + y);
+	var temp = gameState[x];
+	gameState[x] = gameState[y];
+	gameState[y] = temp;
+	moveCount ++;
+}
+var startTime;
+function startGame()
+{
+	startTime = new Date().valueOf();
+	$("body").keydown(function(a){
+		var direction = keyInputMapping[a.keyCode];
+		var hasMove = move(direction);
+		if(hasMove){
+			showGameState();
+		}
+		if(isGameEnd()){
+			endGame();
+		}
+	});
+}
+
+var isGiveUp = false;
+function endGame()
+{
+	if($("#TryAgain").is(":visible")) {
+		return;
+	}
+	$("#GiveUp").hide();
+	$("#TryAgain").show();
+	var version = "[3x3][Number]";
+	version += isVisible?"[Normal]":"[Blindfold]";
+	
+	var useTime = new Date().valueOf() - startTime;
+	var message = "used move : " + moveCount + " times.";
+	message += "<br/>used time : " + (useTime/ 1000) + " sec.";
+	message += "<br/>version : " + version;
+	if(isGiveUp)
+	{
+		$(".messageTitle").text("");		
+	}
+	else
+	{
+		$("#TryAgain").text("Play Again!");
+		$(".messageTitle").text("Congratulations!!");
+	}
+	if(isVisible)
+	{
+		$(".message").parent().addClass("alert-info");
+	}
+	else
+	{
+		$(".message").parent().addClass("alert-warning");
+	}
+	$(".message").parent().show();
+	$(".message").html(message);
+	isVisible = true;
+	showGameState();
+	
+}
+$(function(){
+	$("#GiveUp").hide();
+	$("#TryAgain").hide();
+	$(".message").parent().hide();
+	showGameState();
+	shuffle();
+	$(".game").width(imageSize * 3.1);
+	$("#Normal").click(function(){
+		$("#Normal").hide();
+		$("#Blindfold").hide();
+		$("#GiveUp").addClass("btn-info");
+		$("#GiveUp").show();
+		showGameState();
+		isVisible = true;
+		startGame();
+	});
+	$("#Blindfold").click(function(){
+		$("#Normal").hide();
+		$("#Blindfold").hide();
+		$("#GiveUp").addClass("btn-warning");
+		$("#GiveUp").show();
+		showGameState();
+		isVisible = false;
+		startGame();
+	});
+	$("#GiveUp").click(function(){
+		isGiveUp = true;
+		endGame();
+	});
+	$("#TryAgain").click(function(){
+		location.reload();
+	});
+	var share = new Share("#Share", {
+	  networks: {
+		facebook: {
+			load_sdk: false
+		}
+	  }
+	});
+	$("body").keydown(function(a){
+		if(a.keyCode == 13){
+			var buttons = $("button:visible");
+			buttons.eq(-1).click();
+		}
+	});
+});
+</script>
+</head>
+<body>
+<div class="title">
+	<h1>盲解滑塊 / Blindfold Sliding Puzzle</h1>
+	<p>在隱形模式下，第一次的移動將會觸發隱形。點選下面的按鈕選擇遊戲類型，然後使用鍵盤的[W][S][A][D] 或 [↑][↓][←][→]進行遊戲，[Enter]等於按下右邊按鈕</p>
+	<p>In Blindfold mode, your first move will trigger blindfold. Click following button to choice game type. Then using Keyboard [W][S][A][D] or [↑][↓][←][→] to play game. Press [Enter] is equal to click button on the right-hand side.</p>
+	
+	<button id="Normal" type="button" class="btn btn-lg btn-info">Normal</button>
+	<button id="Blindfold" type="button" class="btn btn-lg btn-warning">Blindfold</button>
+	<button id="GiveUp" type="button" class="btn btn-lg ">Give Up</button>
+	<button id="TryAgain" type="button" class="btn btn-lg btn-info">Try Again!</button>
+</div>	
+<div class="alert">
+	<strong class="messageTitle"></strong> 
+	<p class="message"></p>
+</div>
+<div class="game">
+<img src=""/><img src=""/><img src=""/><img src=""/><img src=""/><img src=""/><img src=""/><img src=""/><img src=""/>
+</div>
+
+<div id="Footer">
+	<a id="Share" href="javascript:void(0);">Share</a>
+	Create by <a href="http://etrex.blogspot.tw/">ETREX</a></div>
+</body>
+<script type="text/javascript">
+	var _gaq = _gaq || [];
+	_gaq.push(['_setAccount', 'UA-4362785-5']);
+	_gaq.push(['_trackPageview']);
+
+	(function() {
+		var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+		ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+		var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+	})();
+</script>
+</html>
