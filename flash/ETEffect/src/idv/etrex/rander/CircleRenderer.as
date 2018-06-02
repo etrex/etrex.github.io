@@ -1,0 +1,22 @@
+package idv.etrex.rander 
+{
+	import flash.display.Graphics;
+	import idv.etrex.point.IPoint2D;
+	/**
+	 * ...
+	 * @author etrex
+	 */
+	public class CircleRenderer implements IRenderer
+	{
+		public function draw(g:Graphics, vector: Vector.<IPoint2D>, size:Number=1, color:uint=0, alpha:Number = 1):void
+		{
+			for each(var p:IPoint2D in vector)
+			{
+				g.beginFill(color,alpha);
+				g.drawCircle(p.x, p.y, size);
+				g.endFill();
+			}
+		}
+	}
+
+}
