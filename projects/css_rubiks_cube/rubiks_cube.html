@@ -47,7 +47,7 @@
     }
 
     .container{
-      width: 900px;
+      width: 600px;
       height: 500px;
       border: 1px solid black;
       perspective: 1000px;
@@ -341,6 +341,18 @@
           this.rotate_animation(rotateZ3);
         }
       }
+
+      X(){
+        this.rotate_animation(rotateX);
+      }
+
+      Y(){
+        this.rotate_animation(rotateY);
+      }
+
+      Z(){
+        this.rotate_animation(rotateZ);
+      }
     }
 
     class RubiksCube{
@@ -400,6 +412,24 @@
           cube.D();
         })
       }
+
+      X(){
+        this.cubes.forEach((cube)=>{
+          cube.X();
+        })
+      }
+
+      Y(){
+        this.cubes.forEach((cube)=>{
+          cube.Y();
+        })
+      }
+
+      Z(){
+        this.cubes.forEach((cube)=>{
+          cube.Z();
+        })
+      }
     }
 
     rubiks_cube = new RubiksCube();
@@ -407,7 +437,7 @@
       $(".container").append(rubiks_cube.element);
       $(document).keypress(function(e){
         var key = e.key.toUpperCase();
-        if('UDFBLR'.indexOf(key) >= 0){
+        if('UDFBLRXYZ'.indexOf(key) >= 0){
           rubiks_cube[key]();
         }
       });
@@ -429,9 +459,12 @@
     <li>D</li>
     <li>L</li>
     <li>R</li>
+    <li>X</li>
+    <li>Y</li>
+    <li>Z</li>
   </ul>
   <footer>
-    可用鍵盤輸入 FBUDLR 或者點擊畫面上的按鈕來控制魔術方塊。
+    可用鍵盤輸入 FBUDLRXYZ 或者點擊畫面上的按鈕來控制魔術方塊。
   </footer>
 </body>
 </html>
