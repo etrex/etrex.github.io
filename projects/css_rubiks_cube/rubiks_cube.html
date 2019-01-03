@@ -563,17 +563,36 @@
       }
     }
 
+    keyboard_mapping = {
+      '5':'U',
+      '2':'D',
+      '1':'L',
+      '3':'R',
+      '4':'F',
+      '6':'B',
+      'ARROWLEFT':'Y',
+      'ARROWUP':'X',
+      'ARROWRIGHT':'Y3',
+      'ARROWDOWN':'X3'
+    }
+
     rubiks_cube = new RubiksCube();
     $(function(){
       $(".container").append(rubiks_cube.element);
-      $(document).keypress(function(e){
+      $(document).keydown(function(e){
         var key = e.key.toUpperCase();
-        if('UDFBLRMXYZ'.indexOf(key) >= 0){
-          if(e.shiftKey){
-            rubiks_cube[key+'3']();
+        key = keyboard_mapping[key] || key;
+        if(e.shiftKey){
+          if(key.indexOf('3')>=0){
+            key = key.replace('3', '')
           }else{
-            rubiks_cube[key]();
+            key = key + '3'
           }
+        }
+        console.log(key);
+
+        if(rubiks_cube[key]){
+          rubiks_cube[key]();
         }
       });
 
