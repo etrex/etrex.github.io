@@ -20,15 +20,27 @@
     }
     .controller li{
       display: inline-block;
-      width: 100px;
+      width: 40px;
       height: 40px;
       background-color: white;
       line-height: 40px;
       text-align: center;
-      border-radius: 20px;
-      border: 3px solid black;
+      border-radius: 5px;
+      border: 2px solid black;
       cursor: pointer;
+      -webkit-touch-callout: none; /* iOS Safari */
+        -webkit-user-select: none; /* Safari */
+        -khtml-user-select: none; /* Konqueror HTML */
+          -moz-user-select: none; /* Firefox */
+            -ms-user-select: none; /* Internet Explorer/Edge */
+                user-select: none; /* Non-prefixed version, currently
+                                      supported by Chrome and Opera */
     }
+
+    .controller li:hover{
+      background-color: #ccc;
+    }
+
     footer{
       position: fixed;
       top: 20px;
@@ -311,10 +323,20 @@
           this.rotate_animation(rotateY);
         }
       }
+      U3(){
+        if(this.current_position()[1] < 0){
+          this.rotate_animation(rotateY3);
+        }
+      }
 
       D(){
         if(this.current_position()[1] > 0){
           this.rotate_animation(rotateY3);
+        }
+      }
+      D3(){
+        if(this.current_position()[1] > 0){
+          this.rotate_animation(rotateY);
         }
       }
 
@@ -323,10 +345,20 @@
           this.rotate_animation(rotateX);
         }
       }
+      R3(){
+        if(this.current_position()[0] > 0){
+          this.rotate_animation(rotateX3);
+        }
+      }
 
       L(){
         if(this.current_position()[0] < 0){
           this.rotate_animation(rotateX3);
+        }
+      }
+      L3(){
+        if(this.current_position()[0] < 0){
+          this.rotate_animation(rotateX);
         }
       }
 
@@ -336,22 +368,54 @@
         }
       }
 
+      F3(){
+        if(this.current_position()[2] > 0){
+          this.rotate_animation(rotateZ3);
+        }
+      }
+
       B(){
         if(this.current_position()[2] < 0){
           this.rotate_animation(rotateZ3);
+        }
+      }
+      B3(){
+        if(this.current_position()[2] < 0){
+          this.rotate_animation(rotateZ);
+        }
+      }
+
+      M(){
+        if(this.current_position()[0] == 0){
+          this.rotate_animation(rotateX3);
+        }
+      }
+
+      M3(){
+        if(this.current_position()[0] == 0){
+          this.rotate_animation(rotateX);
         }
       }
 
       X(){
         this.rotate_animation(rotateX);
       }
+      X3(){
+        this.rotate_animation(rotateX3);
+      }
 
       Y(){
         this.rotate_animation(rotateY);
       }
+      Y3(){
+        this.rotate_animation(rotateY3);
+      }
 
       Z(){
         this.rotate_animation(rotateZ);
+      }
+      Z3(){
+        this.rotate_animation(rotateZ3);
       }
     }
 
@@ -383,9 +447,21 @@
         })
       }
 
+      U3(){
+        this.cubes.forEach((cube)=>{
+          cube.U3();
+        })
+      }
+
       R(){
         this.cubes.forEach((cube)=>{
           cube.R();
+        })
+      }
+
+      R3(){
+        this.cubes.forEach((cube)=>{
+          cube.R3();
         })
       }
 
@@ -395,9 +471,34 @@
         })
       }
 
+      F3(){
+        this.cubes.forEach((cube)=>{
+          cube.F3();
+        })
+      }
+
+      M(){
+        this.cubes.forEach((cube)=>{
+          cube.M();
+        })
+      }
+
+      M3(){
+        this.cubes.forEach((cube)=>{
+          cube.M3();
+        })
+      }
+
+
       B(){
         this.cubes.forEach((cube)=>{
           cube.B();
+        })
+      }
+
+      B3(){
+        this.cubes.forEach((cube)=>{
+          cube.B3();
         })
       }
 
@@ -407,9 +508,21 @@
         })
       }
 
+      L3(){
+        this.cubes.forEach((cube)=>{
+          cube.L3();
+        })
+      }
+
       D(){
         this.cubes.forEach((cube)=>{
           cube.D();
+        })
+      }
+
+      D3(){
+        this.cubes.forEach((cube)=>{
+          cube.D3();
         })
       }
 
@@ -419,15 +532,33 @@
         })
       }
 
+      X3(){
+        this.cubes.forEach((cube)=>{
+          cube.X3();
+        })
+      }
+
       Y(){
         this.cubes.forEach((cube)=>{
           cube.Y();
         })
       }
 
+      Y3(){
+        this.cubes.forEach((cube)=>{
+          cube.Y3();
+        })
+      }
+
       Z(){
         this.cubes.forEach((cube)=>{
           cube.Z();
+        })
+      }
+
+      Z3(){
+        this.cubes.forEach((cube)=>{
+          cube.Z3();
         })
       }
     }
@@ -437,13 +568,18 @@
       $(".container").append(rubiks_cube.element);
       $(document).keypress(function(e){
         var key = e.key.toUpperCase();
-        if('UDFBLRXYZ'.indexOf(key) >= 0){
-          rubiks_cube[key]();
+        if('UDFBLRMXYZ'.indexOf(key) >= 0){
+          if(e.shiftKey){
+            rubiks_cube[key+'3']();
+          }else{
+            rubiks_cube[key]();
+          }
         }
       });
 
       $(".controller li").click(function(){
         var key = $(this).text();
+        key = key.replace("'", '3');
         rubiks_cube[key]();
       });
     });
@@ -454,17 +590,28 @@
   </div>
   <ul class="controller">
     <li>F</li>
-    <li>B</li>
+    <li>F'</li>
     <li>U</li>
-    <li>D</li>
-    <li>L</li>
+    <li>U'</li>
     <li>R</li>
+    <li>R'</li>
+    <li>L</li>
+    <li>L'</li>
+    <li>B</li>
+    <li>B'</li>
+    <li>D</li>
+    <li>D'</li>
+    <li>M</li>
+    <li>M'</li>
     <li>X</li>
+    <li>X'</li>
     <li>Y</li>
+    <li>Y'</li>
     <li>Z</li>
+    <li>Z'</li>
   </ul>
   <footer>
-    可用鍵盤輸入 FBUDLRXYZ 或者點擊畫面上的按鈕來控制魔術方塊。
+    可用鍵盤輸入 FBUDLRMXYZ 搭配 shift 鍵，或者點擊畫面上的按鈕來控制魔術方塊。
   </footer>
 </body>
 </html>
