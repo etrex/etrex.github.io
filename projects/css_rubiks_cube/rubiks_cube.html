@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>css3 魔術方塊</title>
+  <style>
+    *{
+      margin: 0;
+      padding: 0;
+    }
+
+    .controller {
+      position: fixed;
+      z-index: 1;
+      width: 100vw;
+      bottom: 50px;
+      text-align: center;
+    }
+    .controller li{
+      display: inline-block;
+      width: 100px;
+      height: 40px;
+      background-color: white;
+      line-height: 40px;
+      text-align: center;
+      border-radius: 20px;
+      border: 3px solid black;
+      cursor: pointer;
+    }
+    footer{
+      position: fixed;
+      bottom: 20px;
+      left: 0px;
+      right: 0px;
+      text-align: center;
+    }
+
+    div{
+      margin: auto;
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
+    }
+
+    .container{
+      width: 900px;
+      height: 500px;
+      border: 1px solid black;
+      perspective: 1000px;
+      background-color: #eee;
+    }
+
+    .container div{
+      transform-style: preserve-3d;
+    }
+
+    .rubiks_cube{
+      width: 300px;
+      height: 300px;
+      transform: rotateX(-45deg) rotateY(-30deg) rotateZ(0deg);
+      transition: .5s;
+      transform-style: preserve-3d;
+    }
+    .rubiks_cube:hover{
+      transform: rotateX(45deg) rotateY(-120deg) rotateZ(0deg);
+    }
+    .cube{
+      width: 100px;
+      height: 100px;
+      transition: 1s;
+    }
+    .cube > div{
+      width: 80px;
+      height: 80px;
+    }
+    .F{
+      background-color: rgba(0,0,255, .9);
+      transform: translateZ(40px);
+    }
+    .B{
+      background-color: rgba(0,200,0, .9);
+      transform: rotateY(180deg) translateZ(40px);
+    }
+    .L{
+      background-color: rgba(255,128,0, .9);
+      transform: rotateY(-90deg) translateZ(40px);
+    }
+    .R{
+      background-color: rgba(255,0,0, .9);
+      transform: rotateY(90deg) translateZ(40px);
+    }
+    .U{
+      background-color: rgba(255,255,0, .9);
+      transform: rotateX(90deg) translateZ(40px);
+    }
+    .D{
+      background-color: rgba(255,255,255, 0.9);
+      transform: rotateX(-90deg) translateZ(40px);
+    }
+    .inside{
+      background-color: rgba(0,0,0,1);
+    }
+
+    /* .ftl .face,
+    .ftm .face,
+    .ftr .face,
+    .fml .face,
+    .fmm .face,
+    .fmr .face,
+    .fbl .face,
+    .fbm .face,
+    .fbr .face,
+
+    .mtl .face,
+    .mtm .face,
+    .mtr .face,
+    .mml .face,
+    .mmm .face,
+    .mmr .face,
+    .mbl .face,
+    .mbm .face,
+    .mbr .face,
+
+    .btl .face,
+    .btm .face,
+    .btr .face,
+    .bml .face,
+    .bmm .face,
+    .bmr .face,
+    .bbl .face,
+    .bbm .face, */
+    /* .bbr .face
+    {
+      background-color: rgba(0,0,0,.6);
+    } */
+
+  </style>
+  <!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script> -->
+  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/5.4.0/math.min.js"></script> -->
+  <script src="jquery.min.js"></script>
+  <script src="math.min.js"></script>
+  <script>
+
+    let init_translate = {
+      // X
+      "L": math.matrix([
+        [1, 0, 0, 0],
+        [0, 1, 0, 0],
+        [0, 0, 1, 0],
+        [-100, 0, 0, 1]
+      ]),
+      "R": math.matrix([
+        [1, 0, 0, 0],
+        [0, 1, 0, 0],
+        [0, 0, 1, 0],
+        [100, 0, 0, 1]
+      ]),
+
+      // Y
+      "U": math.matrix([
+        [1, 0, 0, 0],
+        [0, 1, 0, 0],
+        [0, 0, 1, 0],
+        [0, -100, 0, 1]
+      ]),
+      "D": math.matrix([
+        [1, 0, 0, 0],
+        [0, 1, 0, 0],
+        [0, 0, 1, 0],
+        [0, 100, 0, 1]
+      ]),
+
+      // Z
+      "F": math.matrix([
+        [1, 0, 0, 0],
+        [0, 1, 0, 0],
+        [0, 0, 1, 0],
+        [0, 0, 100, 1]
+      ]),
+      "B": math.matrix([
+        [1, 0, 0, 0],
+        [0, 1, 0, 0],
+        [0, 0, 1, 0],
+        [0, 0, -100, 1]
+      ]),
+
+      "M": [
+        [1, 0, 0, 0],
+        [0, 1, 0, 0],
+        [0, 0, 1, 0],
+        [0, 0, 0, 1]
+      ]
+    }
+
+    let rotateX = math.matrix([
+      [1, 0, 0, 0],
+      [0, 0, 1, 0],
+      [0, -1, 0, 0],
+      [0, 0, 0, 1]
+    ])
+
+    let rotateX3 = math.matrix([
+      [1, 0, 0, 0],
+      [0, 0, -1, 0],
+      [0, 1, 0, 0],
+      [0, 0, 0, 1]
+    ])
+
+    let rotateY = math.matrix([
+      [0, 0, 1, 0],
+      [0, 1, 0, 0],
+      [-1, 0, 0, 0],
+      [0, 0, 0, 1]
+    ])
+
+    let rotateY3 = math.matrix([
+      [0, 0, -1, 0],
+      [0, 1, 0, 0],
+      [1, 0, 0, 0],
+      [0, 0, 0, 1]
+    ])
+
+    let rotateZ = math.matrix([
+      [0, 1, 0, 0],
+      [-1, 0, 0, 0],
+      [0, 0, 1, 0],
+      [0, 0, 0, 1]
+    ])
+
+    let rotateZ3 = math.matrix([
+      [0, -1, 0, 0],
+      [1, 0, 0, 0],
+      [0, 0, 1, 0],
+      [0, 0, 0, 1]
+    ])
+
+    class Cube{
+      constructor(options){
+        this.face = options.face
+        this.init_orientation()
+        this.create_element()
+        this.apply_transform()
+      }
+
+      // 初始位置
+      init_orientation(){
+        this.rotate_buffer = math.identity(4)
+        this.orientation = math.identity(4)
+        this.face.map((face)=>{
+          this.orientation = math.multiply(this.orientation, init_translate[face])
+        })
+      }
+
+      current_orientation(){
+        return math.multiply(this.orientation, this.rotate_buffer);
+      }
+
+      current_position(){
+        return this.current_orientation()._data[3];
+      }
+
+      // 生成元素
+      create_element(){
+        this.element = $('<div class="cube">')
+        let element = this.element
+        element.append($('<div class="F inside"></div>'))
+        element.append($('<div class="B inside"></div>'))
+        element.append($('<div class="U inside"></div>'))
+        element.append($('<div class="D inside"></div>'))
+        element.append($('<div class="L inside"></div>'))
+        element.append($('<div class="R inside"></div>'))
+        this.face.forEach((face)=>{
+          element.find("." + face).removeClass("inside")
+        });
+      }
+      // 更新畫面
+      apply_transform(duration){
+        duration = duration || 0;
+        this.element.css("transition", duration + 's');
+        this.element.css("transform",
+          this.css_matrix(this.rotate_buffer) +
+          this.css_matrix(this.orientation)
+        )
+      }
+
+      rotate_animation(rotate_matrix){
+        // 合併 buffer
+        this.orientation = this.current_orientation()
+        this.rotate_buffer = math.identity(4)
+        this.apply_transform(0);
+
+        // 設定新的 buffer
+        var cube = this;
+        this.rotate_buffer = rotate_matrix
+        setTimeout(function(){
+          cube.apply_transform(0.2);
+        }, 1);
+      }
+
+      css_matrix(matrix){
+        return "matrix3d(" + matrix._data.map((x)=>{return x.join(',')}).join(',') + ") "
+      }
+
+      // 旋轉上面 90度
+      U(){
+        if(this.current_position()[1] < 0){
+          this.rotate_animation(rotateY);
+        }
+      }
+
+      D(){
+        if(this.current_position()[1] > 0){
+          this.rotate_animation(rotateY3);
+        }
+      }
+
+      R(){
+        if(this.current_position()[0] > 0){
+          this.rotate_animation(rotateX);
+        }
+      }
+
+      L(){
+        if(this.current_position()[0] < 0){
+          this.rotate_animation(rotateX3);
+        }
+      }
+
+      F(){
+        if(this.current_position()[2] > 0){
+          this.rotate_animation(rotateZ);
+        }
+      }
+
+      B(){
+        if(this.current_position()[2] < 0){
+          this.rotate_animation(rotateZ3);
+        }
+      }
+    }
+
+    class RubiksCube{
+      constructor(){
+        this.cubes_init();
+      }
+
+      cubes_init(){
+        this.element = $('<div class="rubiks_cube">');
+        this.cubes = [];
+
+        ["U", "M", "D"].forEach((ud)=>{
+          ["F", "M", "B"].forEach((fb)=>{
+            ["L", "M", "R"].forEach((lr)=>{
+              let cube = new Cube({
+                face: [ud, fb, lr]
+              });
+              this.cubes.push(cube);
+              this.element.append(cube.element);
+            })
+          })
+        })
+      }
+
+      U(){
+        this.cubes.forEach((cube)=>{
+          cube.U();
+        })
+      }
+
+      R(){
+        this.cubes.forEach((cube)=>{
+          cube.R();
+        })
+      }
+
+      F(){
+        this.cubes.forEach((cube)=>{
+          cube.F();
+        })
+      }
+
+      B(){
+        this.cubes.forEach((cube)=>{
+          cube.B();
+        })
+      }
+
+      L(){
+        this.cubes.forEach((cube)=>{
+          cube.L();
+        })
+      }
+
+      D(){
+        this.cubes.forEach((cube)=>{
+          cube.D();
+        })
+      }
+    }
+
+    rubiks_cube = new RubiksCube();
+    $(function(){
+      $(".container").append(rubiks_cube.element);
+      $(document).keypress(function(e){
+        var key = e.key.toUpperCase();
+        if('UDFBLR'.indexOf(key) >= 0){
+          rubiks_cube[key]();
+        }
+      });
+
+      $(".controller li").click(function(){
+        var key = $(this).text();
+        rubiks_cube[key]();
+      });
+    });
+  </script>
+</head>
+<body>
+  <div class="container">
+  </div>
+  <ul class="controller">
+    <li>F</li>
+    <li>B</li>
+    <li>U</li>
+    <li>D</li>
+    <li>L</li>
+    <li>R</li>
+  </ul>
+  <footer>
+    可用鍵盤輸入 FBUDLR 或者點擊畫面上的按鈕來控制魔術方塊。
+  </footer>
+</body>
+</html>
