@@ -608,7 +608,7 @@
       Scramble(){
         var commands = ['F','F3', 'U', 'U3', 'R', 'R3', 'L', 'L3', 'B', 'B3', 'D', 'D3']
         this.scramble_state = []
-        while(this.scramble_state.length < 2){
+        while(this.scramble_state.length < 20){
           var command = commands[Math.floor(Math.random() * 12)];
           if(this.scramble_state.length == 0 || command[0] != this.scramble_state[this.scramble_state.length-1][0] ){
             this.scramble_state.push(command);
