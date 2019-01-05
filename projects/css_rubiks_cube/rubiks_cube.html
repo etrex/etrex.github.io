@@ -20,7 +20,7 @@
     }
     .controller li{
       display: inline-block;
-      width: 40px;
+      min-width: 40px;
       height: 40px;
       background-color: white;
       line-height: 40px;
@@ -42,20 +42,12 @@
     }
 
     footer{
-      position: fixed;
-      top: 20px;
-      left: 0px;
-      right: 0px;
       text-align: center;
     }
 
-    div{
-      margin: auto;
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: 0;
-      right: 0;
+    .state{
+      text-align: center;
+      z-index: 1;
     }
 
     .container{
@@ -64,10 +56,23 @@
       border: 1px solid black;
       perspective: 1000px;
       background-color: #eee;
+
+      margin: auto;
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
     }
 
     .container div{
       transform-style: preserve-3d;
+      margin: auto;
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
     }
 
     .rubiks_cube{
@@ -265,6 +270,7 @@
         this.face.map((face)=>{
           this.orientation = math.multiply(this.orientation, init_translate[face])
         })
+        this.original = this.orientation;
       }
 
       current_orientation(){
@@ -273,6 +279,14 @@
 
       current_position(){
         return this.current_orientation()._data[3];
+      }
+
+      current_rotation(){
+        var matrix = this.current_orientation();
+        matrix._data[3][0] = 0;
+        matrix._data[3][1] = 0;
+        matrix._data[3][2] = 0;
+        return matrix;
       }
 
       // 生成元素
@@ -309,7 +323,7 @@
         var cube = this;
         this.rotate_buffer = rotate_matrix
         setTimeout(function(){
-          cube.apply_transform(0.2);
+          cube.apply_transform(0.1);
         }, 1);
       }
 
@@ -422,6 +436,8 @@
     class RubiksCube{
       constructor(){
         this.cubes_init();
+        this.state = [];
+        this.scramble_state = [];
       }
 
       cubes_init(){
@@ -441,125 +457,219 @@
         })
       }
 
-      U(){
+      rotate(command){
+        this.state.push(command);
         this.cubes.forEach((cube)=>{
-          cube.U();
+          cube[command]();
         })
+        this.state_change();
+      }
+
+      is_reset(){
+        var cube_0 = this.cubes[0]
+        for(var i = 1; i < this.cubes.length; i++){
+          var cube_i = this.cubes[i];
+          if(math.deepEqual(cube_0.current_rotation(), cube_i.current_rotation()) == false)
+            return false;
+        }
+        return true;
+      }
+      state_change(){
+        this.element[0].dispatchEvent(new Event('change'));
+      }
+
+      toString(){
+        return this.state_to_print(this.state);
+      }
+
+      state_to_print(state){
+        return state.join('').replace(/3/g, "'");
+      }
+
+      solve(){
+        return this.state_to_print(this.state.slice(this.scramble_state.length));
+      }
+
+      scramble(){
+        return this.state_to_print(this.scramble_state);
+      }
+
+      has_scramble(){
+        return this.scramble_state.length > 0;
+      }
+
+      state_inverse(state){
+        return state.slice(0).reverse().map(function(command){
+          if(command.length > 1){
+            return command[0];
+          }else{
+            return command + "3";
+          }
+        });
+      }
+
+      Reset(callback){
+        this.Process(this.state_inverse(this.state), function(){
+          this.state = [];
+          this.state_change();
+          if(callback)
+            callback.call(this);
+        });
+      }
+
+      Inverse(){
+        var inverse_state = this.state_inverse(this.state);
+        this.Reset(function(){
+          this.Process(inverse_state);
+        })
+      }
+
+      U(){
+        this.rotate('U');
       }
 
       U3(){
-        this.cubes.forEach((cube)=>{
-          cube.U3();
-        })
+        this.rotate('U3');
       }
 
       R(){
-        this.cubes.forEach((cube)=>{
-          cube.R();
-        })
+        this.rotate('R');
       }
 
       R3(){
-        this.cubes.forEach((cube)=>{
-          cube.R3();
-        })
+        this.rotate('R3');
       }
 
       F(){
-        this.cubes.forEach((cube)=>{
-          cube.F();
-        })
+        this.rotate('F');
       }
 
       F3(){
-        this.cubes.forEach((cube)=>{
-          cube.F3();
-        })
+        this.rotate('F3');
       }
 
       M(){
-        this.cubes.forEach((cube)=>{
-          cube.M();
-        })
+        this.rotate('M');
       }
 
       M3(){
-        this.cubes.forEach((cube)=>{
-          cube.M3();
-        })
+        this.rotate('M3');
       }
 
 
       B(){
-        this.cubes.forEach((cube)=>{
-          cube.B();
-        })
+        this.rotate('B');
       }
 
       B3(){
-        this.cubes.forEach((cube)=>{
-          cube.B3();
-        })
+        this.rotate('B3');
       }
 
       L(){
-        this.cubes.forEach((cube)=>{
-          cube.L();
-        })
+        this.rotate('L');
       }
 
       L3(){
-        this.cubes.forEach((cube)=>{
-          cube.L3();
-        })
+        this.rotate('L3');
       }
 
       D(){
-        this.cubes.forEach((cube)=>{
-          cube.D();
-        })
+        this.rotate('D');
       }
 
       D3(){
-        this.cubes.forEach((cube)=>{
-          cube.D3();
-        })
+        this.rotate('D3');
       }
 
       X(){
-        this.cubes.forEach((cube)=>{
-          cube.X();
-        })
+        this.rotate('X');
       }
 
       X3(){
-        this.cubes.forEach((cube)=>{
-          cube.X3();
-        })
+        this.rotate('X3');
       }
 
       Y(){
-        this.cubes.forEach((cube)=>{
-          cube.Y();
-        })
+        this.rotate('Y');
       }
 
       Y3(){
-        this.cubes.forEach((cube)=>{
-          cube.Y3();
-        })
+        this.rotate('Y3');
       }
 
       Z(){
-        this.cubes.forEach((cube)=>{
-          cube.Z();
-        })
+        this.rotate('Z');
       }
 
       Z3(){
-        this.cubes.forEach((cube)=>{
-          cube.Z3();
+        this.rotate('Z3');
+      }
+
+      Scramble(){
+        var commands = ['F','F3', 'U', 'U3', 'R', 'R3', 'L', 'L3', 'B', 'B3', 'D', 'D3']
+        this.scramble_state = []
+        while(this.scramble_state.length < 2){
+          var command = commands[Math.floor(Math.random() * 12)];
+          if(this.scramble_state.length == 0 || command[0] != this.scramble_state[this.scramble_state.length-1][0] ){
+            this.scramble_state.push(command);
+          }
+        }
+        this.Reset(function(){
+          this.Process(this.scramble_state);
+        });
+
+      }
+
+      Process(commands, onCompleted){
+        var rubiks_cube = this;
+        var i = 0;
+        var interval = setInterval(function(){
+          var command = commands[i];
+          if(command){
+            rubiks_cube[command]();
+            i++;
+          }else{
+            clearInterval(interval);
+            if(onCompleted){
+              onCompleted.call(rubiks_cube);
+            }
+          }
+        }, 101);
+      }
+    }
+
+    class RubiksCubeTimer{
+      constructor(rubiks_cube){
+        var timer = this;
+        this.rubiks_cube = rubiks_cube;
+        this.rubiks_cube.element[0].addEventListener('change', ()=>{
+          if(rubiks_cube.has_scramble()){
+            var step = rubiks_cube.solve().length;
+            if(step == 1){
+              timer.start();
+            }else if(step > 1 && rubiks_cube.is_reset()){
+              timer.end();
+            }
+          }
         })
+      }
+
+      start(){
+        this.start_at = new Date().valueOf();
+        this.scramble = rubiks_cube.scramble();
+      }
+      end(){
+        if(this.start_at == undefined){
+          return;
+        }
+        if(this.scramble == null){
+          return;
+        }
+
+        this.end_at = new Date().valueOf();
+        var second = (this.end_at - this.start_at)/1000;
+        alert('scramble: '+ this.scramble +'\n你花了' + second + '秒。');
+        this.scramble = null;
       }
     }
 
@@ -576,7 +686,8 @@
       'ARROWDOWN':'X3'
     }
 
-    rubiks_cube = new RubiksCube();
+    var rubiks_cube = new RubiksCube();
+    var timer = new RubiksCubeTimer(rubiks_cube);
     $(function(){
       $(".container").append(rubiks_cube.element);
       $(document).keydown(function(e){
@@ -589,8 +700,6 @@
             key = key + '3'
           }
         }
-        console.log(key);
-
         if(rubiks_cube[key]){
           rubiks_cube[key]();
         }
@@ -601,6 +710,13 @@
         key = key.replace("'", '3');
         rubiks_cube[key]();
       });
+
+      rubiks_cube.element[0].addEventListener('change', function(){
+        $(".state").html("scramble: " + rubiks_cube.scramble() + "<br/>" +
+                         "solve: " + rubiks_cube.solve()).hide().show(0);
+      });
+
+
     });
   </script>
 </head>
@@ -628,9 +744,14 @@
     <li>Y'</li>
     <li>Z</li>
     <li>Z'</li>
+    <li>Scramble</li>
+    <li>Reset</li>
+    <li>Inverse</li>
   </ul>
+
   <footer>
-    可用鍵盤輸入 FBUDLRMXYZ 搭配 shift 鍵，或者點擊畫面上的按鈕來控制魔術方塊。
+    <div>可用鍵盤輸入 FBUDLRMXYZ 搭配 shift 鍵，或者點擊畫面上的按鈕來控制魔術方塊。</div>
   </footer>
+  <div class="state"></div>
 </body>
 </html>
