@@ -469,6 +469,9 @@
         var cube_0 = this.cubes[0]
         for(var i = 1; i < this.cubes.length; i++){
           var cube_i = this.cubes[i];
+          if(cube_i.face.filter(face => face == 'M').length > 1){
+            continue;
+          }
           if(math.deepEqual(cube_0.current_rotation(), cube_i.current_rotation()) == false)
             return false;
         }
@@ -715,6 +718,7 @@
         $(".state").html("scramble: " + rubiks_cube.scramble() + "<br/>" +
                          "solve: " + rubiks_cube.solve()).hide().show(0);
       });
+
 
 
     });
