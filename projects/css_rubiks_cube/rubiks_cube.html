@@ -18,6 +18,18 @@
       bottom: 50px;
       text-align: center;
     }
+
+    .controller.macro {
+      right: 0;
+      top: 0;
+      width: auto;
+      bottom: auto;
+    }
+    .controller.macro li{
+      display: block;
+    }
+
+
     .controller li{
       display: inline-block;
       min-width: 40px;
@@ -512,6 +524,7 @@
       }
 
       Reset(callback){
+        this.scramble_state = [];
         this.Process(this.state_inverse(this.state), function(){
           this.state = [];
           this.state_change();
@@ -521,6 +534,7 @@
       }
 
       Inverse(){
+        this.scramble_state = [];
         var inverse_state = this.state_inverse(this.state);
         this.Reset(function(){
           this.Process(inverse_state);
@@ -610,14 +624,15 @@
 
       Scramble(){
         var commands = ['F','F3', 'U', 'U3', 'R', 'R3', 'L', 'L3', 'B', 'B3', 'D', 'D3']
-        this.scramble_state = []
-        while(this.scramble_state.length < 20){
+        var scramble = [];
+        while(scramble.length < 20){
           var command = commands[Math.floor(Math.random() * 12)];
-          if(this.scramble_state.length == 0 || command[0] != this.scramble_state[this.scramble_state.length-1][0] ){
-            this.scramble_state.push(command);
+          if(scramble.length == 0 || command[0] != scramble[scramble.length-1][0] ){
+            scramble.push(command);
           }
         }
         this.Reset(function(){
+          this.scramble_state = scramble;
           this.Process(this.scramble_state);
         });
 
@@ -719,8 +734,6 @@
                          "solve: " + rubiks_cube.solve()).hide().show(0);
       });
 
-
-
     });
   </script>
 </head>
@@ -748,6 +761,9 @@
     <li>Y'</li>
     <li>Z</li>
     <li>Z'</li>
+  </ul>
+
+  <ul class="controller macro">
     <li>Scramble</li>
     <li>Reset</li>
     <li>Inverse</li>
