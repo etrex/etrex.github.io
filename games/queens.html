@@ -447,7 +447,7 @@
     nodes:[], history:[],
     wins:0, hints:0, pick:null, sizeWins:{},
     t0:0, timer:null, elapsed:0,
-    playing:false, dragging:false, dragMark:false
+    playing:false, dragging:false, dragStart:-1, dragMoved:false, dragErase:false, snapped:false
   };
 
   const $ = id => document.getElementById(id);
@@ -606,31 +606,53 @@
     return cell && cell.parentElement === board ? +cell.dataset.i : -1;
   }
 
+  // 一次手勢只存一次快照（延遲到真正改動時才存）
+  function ensureSnap(){ if(!G.snapped){ snapshot(); G.snapped = true; } }
+
   board.addEventListener("pointerdown", e => {
     if(!G.playing) return;
     const i = cellFrom(e);
     if(i < 0) return;
     e.preventDefault();
     board.setPointerCapture(e.pointerId);
-    snapshot();
-    const res = cycle(i);
-    G.dragging = true; G.dragMark = (res === 1);
+    // 先不改動；等到放開（同格）才做循環，或拖曳時才連續標記
+    G.dragging = true; G.dragStart = i; G.dragMoved = false; G.snapped = false;
+    // 依起始格決定拖曳模式：起始為 ✕ → 連續取消標記，否則 → 連續標記 ✕
+    G.dragErase = (G.cells[i] === 1);
     say("");
-    render();
   });
+
+  // 拖曳時對經過的格子套用目前模式（標記空白格，或清除 ✕ 格）
+  function paint(i){
+    if(G.dragErase){ if(G.cells[i] === 1){ ensureSnap(); G.cells[i] = 0; } }
+    else{ if(G.cells[i] === 0){ ensureSnap(); G.cells[i] = 1; } }
+  }
 
   board.addEventListener("pointermove", e => {
-    if(!G.playing || !G.dragging || !G.dragMark) return;
+    if(!G.playing || !G.dragging) return;
     const i = cellFrom(e);
-    if(i < 0 || G.cells[i] !== 0) return;
-    G.cells[i] = 1;
+    if(i < 0) return;
+    if(!G.dragMoved){
+      if(i === G.dragStart) return;      // 還沒離開起始格，視為點擊
+      G.dragMoved = true;                // 離開起始格 → 進入連續標記／取消模式
+      paint(G.dragStart);
+    }
+    paint(i);
     render();
   });
 
-  const stopDrag = () => { G.dragging = false; };
-  board.addEventListener("pointerup", stopDrag);
-  board.addEventListener("pointercancel", stopDrag);
-  window.addEventListener("pointerup", stopDrag);
+  const endDrag = () => {
+    if(!G.dragging) return;
+    G.dragging = false;
+    if(!G.dragMoved){                    // 同一格按下並放開 → 循環（✕→皇后→清除）
+      ensureSnap();
+      cycle(G.dragStart);
+      render();
+    }
+  };
+  board.addEventListener("pointerup", endDrag);
+  board.addEventListener("pointercancel", endDrag);
+  window.addEventListener("pointerup", endDrag);
 
   /* ================= 按鈕 ================= */
   $("btn-undo").onclick = () => {
