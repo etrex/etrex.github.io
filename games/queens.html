@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>皇后 · Queens</title>
+<style>
+  :root{
+    --ink:#0d1b23;
+    --ink-2:#13252e;
+    --ink-3:#1b3038;
+    --brass:#d9a441;
+    --brass-dim:#8b6a2b;
+    --ivory:#f1ebdf;
+    --muted:#8fa3ac;
+    --line:rgba(241,235,223,.13);
+    --bad:#e5674f;
+    --good:#7fc9a0;
+    --radius:3px;
+    --board-max:min(92vw, 30rem);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:
+      radial-gradient(120% 80% at 50% -10%, #1b3641 0%, transparent 60%),
+      var(--ink);
+    color:var(--ivory);
+    font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei","Hiragino Sans",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    -webkit-tap-highlight-color:transparent;
+    display:flex; flex-direction:column; align-items:center;
+    padding:1.4rem 1rem 3rem;
+    min-height:100%;
+  }
+  .mono{font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+
+  /* ---------- 標題 ---------- */
+  header{text-align:center;margin-bottom:1.1rem}
+  .eyebrow{
+    font-size:.62rem;letter-spacing:.42em;text-transform:uppercase;
+    color:var(--brass-dim);margin:0 0 .5rem;padding-left:.42em;
+  }
+  h1{
+    margin:0;font-size:2.5rem;font-weight:600;letter-spacing:.34em;
+    padding-left:.34em;line-height:1;
+    background:linear-gradient(180deg,#f6e6bd 0%,var(--brass) 55%,#9d762f 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+
+  /* ---------- 銅牌儀表 ---------- */
+  .plate{
+    width:var(--board-max);
+    border:1px solid rgba(217,164,65,.28);
+    border-radius:var(--radius);
+    background:linear-gradient(180deg,rgba(217,164,65,.09),rgba(217,164,65,.02));
+    padding:.7rem .85rem .55rem;
+    margin-bottom:.9rem;
+  }
+  .plate-row{display:flex;justify-content:space-between;gap:.5rem}
+  .stat{flex:1;min-width:0}
+  .stat + .stat{border-left:1px solid var(--line);padding-left:.85rem}
+  .stat-k{font-size:.58rem;letter-spacing:.24em;color:var(--muted);text-transform:uppercase}
+  .stat-v{font-size:1.15rem;margin-top:.15rem;color:var(--ivory)}
+  .stat-v small{font-size:.7rem;color:var(--muted);margin-left:.15rem}
+  .bar{height:2px;background:rgba(241,235,223,.1);margin-top:.7rem;overflow:hidden}
+  .bar > i{display:block;height:100%;width:0;background:var(--brass);transition:width .5s ease}
+
+  /* ---------- 棋盤 ---------- */
+  /* ---------- 等級選擇 ---------- */
+  .levels{width:var(--board-max);display:flex;gap:.3rem;margin:-.35rem 0 .8rem}
+  .chip{
+    flex:1;padding:.42rem .1rem;font-size:.66rem;letter-spacing:.04em;
+    color:var(--muted);background:transparent;border:1px solid var(--line);
+    border-radius:var(--radius);cursor:pointer;transition:all .15s ease;white-space:nowrap;
+  }
+  .chip:hover{color:var(--ivory);border-color:rgba(217,164,65,.4)}
+  .chip.on{color:#12212a;background:var(--brass);border-color:var(--brass);font-weight:600}
+  .chip:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+
+  .board-wrap{position:relative;width:var(--board-max)}
+  #board{
+    display:grid;width:100%;aspect-ratio:1/1;
+    border:2px solid #050d12;
+    background:#050d12;
+    box-shadow:0 18px 40px -18px rgba(0,0,0,.9), 0 0 0 6px rgba(241,235,223,.03);
+    touch-action:none;user-select:none;
+  }
+  .cell{
+    position:relative;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;transition:filter .12s ease;
+  }
+  .cell:hover{filter:brightness(1.08)}
+  .cell svg{width:64%;height:64%;fill:#12212a;pointer-events:none;
+            filter:drop-shadow(0 1px 0 rgba(255,255,255,.35));
+            transform:scale(0);transition:transform .16s cubic-bezier(.34,1.56,.64,1)}
+  .cell.queen svg{transform:scale(1)}
+  .cell.mark::after,.cell.automark::after{
+    content:"";position:absolute;width:26%;height:26%;
+    background:
+      linear-gradient(45deg,transparent 43%,currentColor 43%,currentColor 57%,transparent 57%),
+      linear-gradient(-45deg,transparent 43%,currentColor 43%,currentColor 57%,transparent 57%);
+  }
+  .cell.mark::after{color:rgba(18,33,42,.75)}
+  .cell.automark::after{color:rgba(18,33,42,.3)}
+  .cell.conflict::before{
+    content:"";position:absolute;inset:6%;border:2px solid var(--bad);border-radius:2px;
+    animation:pulse .9s ease-in-out infinite;
+  }
+  .cell.hint::before{
+    content:"";position:absolute;inset:4%;border:2px solid #fff;border-radius:2px;
+    animation:pulse .7s ease-in-out 4;
+  }
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+  @keyframes settle{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1)}}
+  .won .cell.queen svg{animation:settle .5s ease both;animation-delay:var(--d,0s)}
+
+  /* ---------- 遮罩 ---------- */
+  .veil{
+    position:absolute;inset:0;display:none;flex-direction:column;
+    align-items:center;justify-content:center;gap:.5rem;text-align:center;
+    background:rgba(9,20,26,.9);backdrop-filter:blur(2px);z-index:5;padding:1rem;
+  }
+  .veil.on{display:flex}
+  .veil h2{margin:0;font-size:1.5rem;letter-spacing:.3em;padding-left:.3em;color:var(--brass)}
+  .veil p{margin:0;color:var(--muted);font-size:.85rem}
+  .veil .big{font-size:2rem;color:var(--ivory);letter-spacing:.1em}
+  .spinner{width:26px;height:26px;border:2px solid rgba(217,164,65,.25);border-top-color:var(--brass);
+           border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ---------- 控制列 ---------- */
+  .controls{width:var(--board-max);display:grid;grid-template-columns:repeat(4,1fr);gap:.4rem;margin-top:.9rem}
+  button{
+    font:inherit;font-size:.8rem;letter-spacing:.12em;padding:.62rem .2rem;
+    color:var(--ivory);background:var(--ink-2);
+    border:1px solid var(--line);border-radius:var(--radius);cursor:pointer;
+    transition:background .15s ease,border-color .15s ease,color .15s ease;
+  }
+  button:hover:not(:disabled){background:var(--ink-3);border-color:rgba(217,164,65,.45);color:#fff}
+  button:disabled{opacity:.35;cursor:not-allowed}
+  button:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+  .primary{background:var(--brass);color:#12212a;border-color:var(--brass);font-weight:600}
+  .primary:hover:not(:disabled){background:#eab84f;color:#12212a}
+
+  .toggle{
+    width:var(--board-max);display:flex;align-items:center;justify-content:space-between;
+    margin-top:.6rem;font-size:.75rem;color:var(--muted);
+    border:1px solid var(--line);border-radius:var(--radius);padding:.5rem .7rem;
+  }
+  .switch{position:relative;width:38px;height:20px;background:var(--ink-3);border:1px solid var(--line);
+          border-radius:20px;cursor:pointer;transition:background .18s ease}
+  .switch::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+                 background:var(--muted);transition:transform .18s ease,background .18s ease}
+  .switch.on{background:rgba(217,164,65,.28);border-color:rgba(217,164,65,.5)}
+  .switch.on::after{transform:translateX(18px);background:var(--brass)}
+
+  /* ---------- 規則 ---------- */
+  details{width:var(--board-max);margin-top:1.1rem;border-top:1px solid var(--line);padding-top:.8rem}
+  summary{cursor:pointer;font-size:.72rem;letter-spacing:.24em;color:var(--brass-dim);text-transform:uppercase;list-style:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"— "}
+  details[open] summary::before{content:"× "}
+  details ol{margin:.8rem 0 0;padding-left:1.1rem;color:var(--muted);font-size:.82rem;line-height:1.75}
+  details li::marker{color:var(--brass-dim)}
+  .msg{width:var(--board-max);min-height:1.2rem;margin-top:.6rem;font-size:.78rem;color:var(--brass);text-align:center}
+
+  @media (max-width:380px){
+    h1{font-size:2rem}
+    .controls{grid-template-columns:repeat(2,1fr)}
+    .levels{gap:.2rem}
+    .chip{font-size:.56rem;letter-spacing:0;padding:.4rem 0}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <p class="eyebrow">Queens 復刻版</p>
+  <h1>皇后</h1>
+</header>
+
+<div class="plate">
+  <div class="plate-row">
+    <div class="stat"><div class="stat-k">等級</div><div class="stat-v mono" id="s-level">1 <small id="s-size">5×5</small></div></div>
+    <div class="stat"><div class="stat-k">過關場次</div><div class="stat-v mono" id="s-wins">0</div></div>
+    <div class="stat"><div class="stat-k">時間</div><div class="stat-v mono" id="s-time">00:00</div></div>
+  </div>
+  <div class="bar"><i id="s-bar"></i></div>
+</div>
+
+<div class="levels" id="levels"></div>
+
+<div class="board-wrap">
+  <div id="board"></div>
+  <div class="veil on" id="veil-load">
+    <div class="spinner"></div>
+    <p>正在產生題目…</p>
+  </div>
+  <div class="veil" id="veil-win">
+    <h2>過關</h2>
+    <div class="big mono" id="win-time">00:00</div>
+    <p id="win-note"></p>
+    <button class="primary" id="btn-next" style="width:60%;margin-top:.6rem">下一局</button>
+  </div>
+</div>
+
+<div class="controls">
+  <button id="btn-undo">復原</button>
+  <button id="btn-clear">重來</button>
+  <button id="btn-hint">提示</button>
+  <button id="btn-new">新題目</button>
+</div>
+
+<div class="toggle">
+  <span>自動標記：淡淡標出皇后的攻擊範圍</span>
+  <div class="switch on" id="sw-auto" role="switch" aria-checked="true" tabindex="0"></div>
+</div>
+
+<div class="msg" id="msg"></div>
+
+<details>
+  <summary>規則</summary>
+  <ol>
+    <li>每一橫列、每一直行、每一個顏色區域，都要放進恰好一個皇后。</li>
+    <li>皇后不能互相接觸，上下左右和斜角相鄰都不行。</li>
+    <li>只要沒有相鄰，同一條斜線上仍然可以放置（這點和西洋棋不同）。</li>
+    <li>點一下標記 ✕，點兩下放皇后，點三下清除；按住拖曳可以連續標記。</li>
+    <li>難度會隨過關場次提升，也可以從盤面上方那排按鈕直接跳關。</li>
+  </ol>
+</details>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= 儲存 ================= */
+  const mem = {};
+  const store = {
+    async get(k){
+      try{ if(window.storage){ const r = await window.storage.get(k, false); return r ? JSON.parse(r.value) : null; } }catch(e){}
+      try{ const v = window.localStorage.getItem(k); return v ? JSON.parse(v) : (mem[k] ?? null); }catch(e){}
+      return mem[k] ?? null;
+    },
+    async set(k,v){
+      mem[k]=v;
+      try{ if(window.storage){ await window.storage.set(k, JSON.stringify(v), false); return; } }catch(e){}
+      try{ window.localStorage.setItem(k, JSON.stringify(v)); }catch(e){}
+    }
+  };
+
+  /* ================= 難度 ================= */
+  const BANDS = [
+    {n:5, len:2}, {n:6, len:3}, {n:7, len:4},
+    {n:8, len:5}, {n:9, len:6}, {n:10, len:8}
+  ];
+  function levelInfo(wins){
+    let w = Math.max(0, wins|0);
+    for(let i=0;i<BANDS.length;i++){
+      const b = BANDS[i];
+      if(w < b.len || i === BANDS.length-1){
+        const inBand = Math.min(w, b.len);
+        const frac = b.len > 1 ? Math.min(1, inBand/(b.len-1)) : 1;
+        return {level:i+1, n:b.n, frac, inBand, bandLen:b.len, last:i===BANDS.length-1};
+      }
+      w -= b.len;
+    }
+  }
+
+  /* ================= 產生器 ================= */
+  const PALETTE = ["#e9a09b","#f0c977","#a9cf85","#8fcfd1","#a3b0e8","#cfa7e0","#efaacd","#cdbd9a","#94d3b4","#dcd987"];
+
+  function shuffled(arr){
+    const a = arr.slice();
+    for(let i=a.length-1;i>0;i--){ const j = (Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; }
+    return a;
+  }
+
+  function genSolution(n){
+    const cols = new Array(n), used = new Array(n).fill(false);
+    function bt(r){
+      if(r===n) return true;
+      for(const c of shuffled([...Array(n).keys()])){
+        if(used[c]) continue;
+        if(r>0 && Math.abs(cols[r-1]-c) <= 1) continue;
+        used[c]=true; cols[r]=c;
+        if(bt(r+1)) return true;
+        used[c]=false;
+      }
+      return false;
+    }
+    return bt(0) ? cols.slice() : null;
+  }
+
+  function growRegions(n, sol){
+    const region = new Array(n*n).fill(-1);
+    const frontier = [];
+    const push = (idx, reg) => {
+      const r = (idx/n)|0, c = idx%n;
+      if(r>0) frontier.push([idx-n, reg]);
+      if(r<n-1) frontier.push([idx+n, reg]);
+      if(c>0) frontier.push([idx-1, reg]);
+      if(c<n-1) frontier.push([idx+1, reg]);
+    };
+    for(let r=0;r<n;r++){ const idx = r*n + sol[r]; region[idx] = r; push(idx, r); }
+    let left = n*n - n;
+    while(left > 0 && frontier.length){
+      const k = (Math.random()*frontier.length)|0;
+      const [idx, reg] = frontier[k];
+      frontier[k] = frontier[frontier.length-1];
+      frontier.pop();
+      if(region[idx] !== -1) continue;
+      region[idx] = reg; left--; push(idx, reg);
+    }
+    return left === 0 ? region : null;
+  }
+
+  // 計算解的數量；有傳入 ref 時，順便回傳一個與 ref 不同的解
+  function analyze(n, region, limit, ref){
+    let count = 0, nodes = 0, alt = null;
+    const uc = new Array(n).fill(false), ug = new Array(n).fill(false), cur = new Array(n);
+    function bt(r){
+      if(r === n){
+        count++;
+        if(!alt && ref){ for(let k=0;k<n;k++) if(cur[k] !== ref[k]){ alt = cur.slice(); break; } }
+        return;
+      }
+      for(let c=0;c<n;c++){
+        if(uc[c]) continue;
+        const g = region[r*n+c];
+        if(ug[g]) continue;
+        if(r>0 && Math.abs(cur[r-1]-c) <= 1) continue;
+        nodes++;
+        uc[c]=true; ug[g]=true; cur[r]=c;
+        bt(r+1);
+        uc[c]=false; ug[g]=false;
+        if(count >= limit) return;
+      }
+    }
+    bt(0);
+    return {count, nodes, alt};
+  }
+
+  function nbrs(n, i){
+    const r=(i/n)|0, c=i%n, o=[];
+    if(r>0) o.push(i-n);
+    if(r<n-1) o.push(i+n);
+    if(c>0) o.push(i-1);
+    if(c<n-1) o.push(i+1);
+    return o;
+  }
+
+  // 從區域 g 拿掉某一格之後，該區域是否仍然連通
+  function stillWhole(n, region, g, seed, removed){
+    let total = 0;
+    for(let i=0;i<n*n;i++) if(region[i]===g && i!==removed) total++;
+    if(total === 0) return false;
+    const st=[seed], seen=new Set([seed]);
+    while(st.length){
+      const i = st.pop();
+      for(const j of nbrs(n,i)){
+        if(j===removed || region[j]!==g || seen.has(j)) continue;
+        seen.add(j); st.push(j);
+      }
+    }
+    return seen.size === total;
+  }
+
+  // 反覆修正區域邊界，直到答案唯一
+  function makePuzzle(n, budget){
+    const t0 = performance.now();
+    while(performance.now() - t0 < budget){
+      const sol = genSolution(n);
+      if(!sol) return null;
+      const seeds = new Set(sol.map((c,r)=>r*n+c));
+      const region = growRegions(n, sol);
+      if(!region) continue;
+      let a = analyze(n, region, 400, sol), iter = 0;
+      while(a.count > 1 && iter < 800 && performance.now() - t0 < budget){
+        iter++;
+        const alt = a.alt;
+        if(!alt) break;
+        const rows = [];
+        for(let r=0;r<n;r++) if(alt[r] !== sol[r]) rows.push(r);
+        if(!rows.length) break;
+        const r = rows[(Math.random()*rows.length)|0];
+        const x = r*n + alt[r], g = region[x];
+        let moved = false;
+        if(!seeds.has(x) && stillWhole(n, region, g, g*n+sol[g], x)){
+          for(const g2 of shuffled([...new Set(nbrs(n,x).map(j=>region[j]).filter(v=>v!==g))])){
+            region[x] = g2;
+            const b = analyze(n, region, 400, sol);
+            if(b.count <= a.count){ a = b; moved = true; break; }
+            region[x] = g;
+          }
+        }
+        if(!moved){ // 隨機移動，用來跳出局部最佳解
+          const i = (Math.random()*n*n)|0;
+          if(seeds.has(i)) continue;
+          const gg = region[i];
+          const opt = [...new Set(nbrs(n,i).map(j=>region[j]).filter(v=>v!==gg))];
+          if(!opt.length) continue;
+          if(!stillWhole(n, region, gg, gg*n+sol[gg], i)) continue;
+          region[i] = opt[(Math.random()*opt.length)|0];
+          const b = analyze(n, region, 400, sol);
+          if(b.count <= a.count*1.15) a = b; else region[i] = gg;
+        }
+      }
+      if(a.count === 1) return {region, sol, nodes: analyze(n, region, 2, null).nodes};
+    }
+    return null;
+  }
+
+  // frac（0→1）用來調整同一盤面尺寸內的難度
+  function generate(n, frac){
+    const t0 = performance.now();
+    const budget = 1500, cap = n <= 7 ? 12 : (n === 8 ? 10 : 6);
+    const cands = [];
+    while(performance.now() - t0 < budget && cands.length < cap){
+      const p = makePuzzle(n, budget - (performance.now() - t0));
+      if(p) cands.push(p); else break;
+    }
+    if(!cands.length){
+      const sol = genSolution(n);
+      return {region: growRegions(n, sol), sol, nodes: 0};
+    }
+    const minSize = p => {
+      const c = new Array(n).fill(0);
+      for(const g of p.region) c[g]++;
+      return Math.min.apply(null, c);
+    };
+    const clean = cands.filter(p => minSize(p) >= 2);
+    const pool = clean.length ? clean : cands;
+    pool.sort((a,b)=>a.nodes-b.nodes);
+    const i = Math.min(pool.length-1, Math.max(0, Math.round(frac*(pool.length-1))));
+    return pool[i];
+  }
+  /* ================= 狀態 ================= */
+  const CROWN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.2 7.1c.9 0 1.6.7 1.6 1.6 0 .5-.2.9-.5 1.2l1.5 3.4 3.6-3.2-1.2-2.5c-.5-.2-.9-.7-.9-1.4 0-.9.7-1.6 1.6-1.6s1.6.7 1.6 1.6c0 .5-.2.9-.6 1.2l1.6 3.3h1.8l1.6-3.3c-.4-.3-.6-.7-.6-1.2 0-.9.7-1.6 1.6-1.6s1.6.7 1.6 1.6c0 .7-.4 1.2-.9 1.4l-1.2 2.5 3.6 3.2 1.5-3.4c-.3-.3-.5-.7-.5-1.2 0-.9.7-1.6 1.6-1.6s1.6.7 1.6 1.6-.7 1.6-1.5 1.6L19 18.2H5L3.1 10.3c-.8 0-1.5-.7-1.5-1.6 0-.9.7-1.6 1.6-1.6z"/><rect x="5" y="19.2" width="14" height="2.1" rx=".5"/></svg>';
+
+  const G = {
+    n:0, region:null, sol:null,
+    cells:null,          // 0 空 / 1 標記 / 2 皇后
+    nodes:[], history:[],
+    wins:0, hints:0, pick:null, sizeWins:{},
+    t0:0, timer:null, elapsed:0,
+    playing:false, dragging:false, dragMark:false
+  };
+
+  const $ = id => document.getElementById(id);
+  const board = $("board"), msgEl = $("msg");
+  let autoMark = true;
+
+  function say(t){ msgEl.textContent = t || ""; }
+
+  function fmt(ms){
+    const s = Math.floor(ms/1000);
+    return String(Math.floor(s/60)).padStart(2,"0") + ":" + String(s%60).padStart(2,"0");
+  }
+
+  function tick(){
+    G.elapsed = performance.now() - G.t0;
+    $("s-time").textContent = fmt(G.elapsed);
+  }
+
+  // 目前設定：有手動選擇就以它為準，否則依過關場次決定
+  function setup(){
+    if(G.pick !== null){
+      const b = BANDS[G.pick], sw = G.sizeWins[b.n] || 0;
+      return {
+        level: G.pick+1, n: b.n, manual: true,
+        frac: b.len > 1 ? Math.min(1, sw/(b.len-1)) : 1,
+        last: G.pick === BANDS.length-1
+      };
+    }
+    const i = levelInfo(G.wins);
+    i.manual = false;
+    return i;
+  }
+
+  function buildLevels(){
+    const box = $("levels");
+    box.innerHTML = "";
+    const mk = (label, val, title) => {
+      const b = document.createElement("button");
+      b.className = "chip"; b.textContent = label; b.dataset.p = val; b.title = title;
+      b.onclick = () => selectLevel(val);
+      box.appendChild(b);
+    };
+    mk("自動", "auto", "難度隨過關場次提升");
+    BANDS.forEach((b,i)=>mk(b.n + "×" + b.n, String(i), "直接跳到等級 " + (i+1)));
+  }
+
+  function markLevels(){
+    const cur = G.pick === null ? "auto" : String(G.pick);
+    $("levels").querySelectorAll(".chip").forEach(c => c.classList.toggle("on", c.dataset.p === cur));
+  }
+
+  function selectLevel(v){
+    const next = v === "auto" ? null : (+v);
+    if(next === G.pick) return;
+    G.pick = next;
+    store.set("queens.pick", G.pick);
+    markLevels();
+    newGame();
+    say(next === null ? "已切換回自動難度。" : "已跳到等級 " + (next+1) + "。");
+  }
+
+  function updatePlate(){
+    const s = setup();
+    $("s-level").innerHTML = s.level + ' <small>' + s.n + '×' + s.n + (s.manual ? ' · 手動' : '') + '</small>';
+    $("s-wins").textContent = G.wins;
+    $("s-bar").style.width = Math.round(s.frac*100) + "%";
+    markLevels();
+  }
+
+  /* ================= 棋盤 建構 ================= */
+  function buildBoard(n){
+    board.innerHTML = "";
+    board.style.gridTemplateColumns = "repeat(" + n + ",1fr)";
+    G.nodes = [];
+    for(let i=0;i<n*n;i++){
+      const d = document.createElement("div");
+      d.className = "cell";
+      d.dataset.i = i;
+      d.innerHTML = CROWN;
+      const r = (i/n)|0, c = i%n, g = G.region[i];
+      d.style.background = PALETTE[g % PALETTE.length];
+      const th = "2px solid #050d12", tn = "1px solid rgba(5,13,18,.16)";
+      d.style.borderTop    = (r===0   || G.region[i-n]!==g) ? th : tn;
+      d.style.borderBottom = (r===n-1 || G.region[i+n]!==g) ? th : tn;
+      d.style.borderLeft   = (c===0   || G.region[i-1]!==g) ? th : tn;
+      d.style.borderRight  = (c===n-1 || G.region[i+1]!==g) ? th : tn;
+      board.appendChild(d);
+      G.nodes.push(d);
+    }
+  }
+
+  /* ================= 判定 ================= */
+  function queens(){
+    const out = [];
+    for(let i=0;i<G.cells.length;i++) if(G.cells[i]===2) out.push(i);
+    return out;
+  }
+
+  function conflicts(qs){
+    const n = G.n, bad = new Set();
+    for(let a=0;a<qs.length;a++) for(let b=a+1;b<qs.length;b++){
+      const ra=(qs[a]/n)|0, ca=qs[a]%n, rb=(qs[b]/n)|0, cb=qs[b]%n;
+      if(ra===rb || ca===cb || G.region[qs[a]]===G.region[qs[b]] ||
+         (Math.abs(ra-rb)<=1 && Math.abs(ca-cb)<=1)){ bad.add(qs[a]); bad.add(qs[b]); }
+    }
+    return bad;
+  }
+
+  function attacked(qs){
+    const n = G.n, set = new Set();
+    for(const q of qs){
+      const r=(q/n)|0, c=q%n;
+      for(let k=0;k<n;k++){ set.add(r*n+k); set.add(k*n+c); }
+      for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+        const nr=r+dr, nc=c+dc;
+        if(nr>=0&&nr<n&&nc>=0&&nc<n) set.add(nr*n+nc);
+      }
+      for(let i=0;i<n*n;i++) if(G.region[i]===G.region[q]) set.add(i);
+    }
+    return set;
+  }
+
+  function render(){
+    const qs = queens(), bad = conflicts(qs);
+    const att = autoMark && qs.length ? attacked(qs) : null;
+    for(let i=0;i<G.cells.length;i++){
+      const d = G.nodes[i], v = G.cells[i];
+      d.classList.toggle("queen", v===2);
+      d.classList.toggle("mark", v===1);
+      d.classList.toggle("automark", v===0 && !!att && att.has(i));
+      d.classList.toggle("conflict", bad.has(i));
+    }
+    if(qs.length === G.n && bad.size === 0) win();
+  }
+
+  function snapshot(){
+    G.history.push(G.cells.slice());
+    if(G.history.length > 200) G.history.shift();
+    $("btn-undo").disabled = false;
+  }
+
+  /* ================= 操作 ================= */
+  function cycle(i){
+    const v = G.cells[i];
+    if(v === 2){ G.cells[i] = 0; return 0; }
+    if(v === 1){ G.cells[i] = 2; return 2; }
+    // 空白格：若已被自動標記，就直接放上皇后
+    const qs = queens();
+    if(autoMark && qs.length && attacked(qs).has(i)){ G.cells[i] = 2; return 2; }
+    G.cells[i] = 1; return 1;
+  }
+
+  function cellFrom(e){
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const cell = el && el.closest ? el.closest(".cell") : null;
+    return cell && cell.parentElement === board ? +cell.dataset.i : -1;
+  }
+
+  board.addEventListener("pointerdown", e => {
+    if(!G.playing) return;
+    const i = cellFrom(e);
+    if(i < 0) return;
+    e.preventDefault();
+    board.setPointerCapture(e.pointerId);
+    snapshot();
+    const res = cycle(i);
+    G.dragging = true; G.dragMark = (res === 1);
+    say("");
+    render();
+  });
+
+  board.addEventListener("pointermove", e => {
+    if(!G.playing || !G.dragging || !G.dragMark) return;
+    const i = cellFrom(e);
+    if(i < 0 || G.cells[i] !== 0) return;
+    G.cells[i] = 1;
+    render();
+  });
+
+  const stopDrag = () => { G.dragging = false; };
+  board.addEventListener("pointerup", stopDrag);
+  board.addEventListener("pointercancel", stopDrag);
+  window.addEventListener("pointerup", stopDrag);
+
+  /* ================= 按鈕 ================= */
+  $("btn-undo").onclick = () => {
+    if(!G.history.length) return;
+    G.cells = G.history.pop();
+    $("btn-undo").disabled = !G.history.length;
+    say(""); render();
+  };
+
+  $("btn-clear").onclick = () => {
+    snapshot();
+    G.cells.fill(0);
+    say("已清空盤面。"); render();
+  };
+
+  $("btn-hint").onclick = () => {
+    if(!G.playing) return;
+    const n = G.n;
+    // 優先指出放錯的皇后
+    for(const q of queens()){
+      const r = (q/n)|0;
+      if(G.sol[r] !== q%n){
+        flash(q); say("這個皇后放錯位置了。"); G.hints++; return;
+      }
+    }
+    const rows = [];
+    for(let r=0;r<n;r++) if(G.cells[r*n + G.sol[r]] !== 2) rows.push(r);
+    if(!rows.length){ say("目前不需要提示。"); return; }
+    const r = rows[(Math.random()*rows.length)|0], idx = r*n + G.sol[r];
+    snapshot();
+    G.cells[idx] = 2; G.hints++;
+    say("已公開第 " + (r+1) + " 列的皇后。");
+    flash(idx); render();
+  };
+
+  function flash(i){
+    const d = G.nodes[i];
+    d.classList.remove("hint"); void d.offsetWidth; d.classList.add("hint");
+    setTimeout(()=>d.classList.remove("hint"), 3000);
+  }
+
+  $("btn-new").onclick = () => newGame();
+  $("btn-next").onclick = () => newGame();
+
+  const sw = $("sw-auto");
+  function toggleAuto(){
+    autoMark = !autoMark;
+    sw.classList.toggle("on", autoMark);
+    sw.setAttribute("aria-checked", String(autoMark));
+    store.set("queens.auto", autoMark);
+    render();
+  }
+  sw.addEventListener("click", toggleAuto);
+  sw.addEventListener("keydown", e => { if(e.key===" "||e.key==="Enter"){ e.preventDefault(); toggleAuto(); } });
+
+  /* ================= 勝利 ================= */
+  function win(){
+    if(!G.playing) return;
+    G.playing = false;
+    clearInterval(G.timer);
+    tick();
+    board.parentElement.classList.add("won");
+    G.nodes.forEach((d,k)=>d.style.setProperty("--d", (k%7)*0.05 + "s"));
+
+    const before = setup();
+    G.wins++;
+    G.sizeWins[before.n] = (G.sizeWins[before.n] || 0) + 1;
+    store.set("queens.wins", G.wins);
+    store.set("queens.sizeWins", G.sizeWins);
+    const after = setup();
+    updatePlate();
+
+    $("win-time").textContent = fmt(G.elapsed);
+    let note = "難度 " + before.n + "×" + before.n + " · 使用提示 " + G.hints + " 次";
+    if(!before.manual && after.level > before.level)
+      note = "等級提升到 " + after.level + "，下一局是 " + after.n + "×" + after.n + "。";
+    else if(before.manual && after.frac > before.frac)
+      note = "同尺寸的難度再往上一級。";
+    $("win-note").textContent = note;
+    setTimeout(()=>$("veil-win").classList.add("on"), 450);
+  }
+
+  /* ================= 新局 ================= */
+  function newGame(){
+    $("veil-win").classList.remove("on");
+    board.parentElement.classList.remove("won");
+    $("veil-load").classList.add("on");
+    G.playing = false;
+    clearInterval(G.timer);
+    say("");
+    updatePlate();
+
+    setTimeout(() => {
+      const info = setup();
+      const puz = generate(info.n, info.frac);
+      G.n = info.n;
+      G.region = puz.region;
+      G.sol = puz.sol;
+      G.cells = new Array(info.n*info.n).fill(0);
+      G.history = [];
+      G.hints = 0;
+      $("btn-undo").disabled = true;
+      buildBoard(info.n);
+      render();
+      $("veil-load").classList.remove("on");
+      G.playing = true;
+      G.t0 = performance.now(); G.elapsed = 0;
+      $("s-time").textContent = "00:00";
+      G.timer = setInterval(tick, 250);
+    }, 40);
+  }
+
+  /* ================= 啟動 ================= */
+  (async function init(){
+    buildLevels();
+    const w = await store.get("queens.wins");
+    if(typeof w === "number") G.wins = w;
+    const pk = await store.get("queens.pick");
+    if(typeof pk === "number" && BANDS[pk]) G.pick = pk;
+    const sw = await store.get("queens.sizeWins");
+    if(sw && typeof sw === "object") G.sizeWins = sw;
+    markLevels();
+    const a = await store.get("queens.auto");
+    if(typeof a === "boolean"){
+      autoMark = a;
+      sw.classList.toggle("on", autoMark);
+      sw.setAttribute("aria-checked", String(autoMark));
+    }
+    newGame();
+  })();
+})();
+</script>
+</body>
+</html>
