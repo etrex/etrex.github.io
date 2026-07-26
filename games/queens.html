@@ -532,6 +532,8 @@
 
   // 退火＋重啟＋貪婪，切成可分幀執行的步進器：一張基底盤攤銷昂貴的 makeUnique
   function makeGen(n, targetD){
+    // 小盤 makeUnique 幾乎免費 → 卡住就馬上重啟（新基底命中稀有難度更快）；大盤 makeUnique 貴 → 多爬一會兒攤銷
+    const STUCK_MAX = n<=9 ? 12 : (n<=10 ? 30 : 80);
     let best=null, region=null, sol=null, seeds=null, solCell=null, cur=null, stuck=0, phase=0; // 0=restart 1=anneal
     function restart(){
       // 小預算：把單次同步阻塞壓短，讓爬山動畫不被長時間凍結（大盤有時要多試幾次才拿到基底）
@@ -558,7 +560,7 @@
         if(Math.abs(cur.D-targetD) < before) stuck=0; else stuck++;   // 只有嚴格變近才重置；平台期照樣累積 → 觸發重啟
         if(Math.abs(cur.D-targetD)<Math.abs(best.D-targetD)) best={region:region.slice(),sol,D:cur.D,h:cur.h};
       } else stuck++;
-      if(stuck>=80) phase=0;   // 多爬一會兒再重啟，減少昂貴的 makeUnique 凍結次數
+      if(stuck>=STUCK_MAX) phase=0;   // 卡住 → 換一個新基底重來
     }
     return {
       get working(){ return region; },
