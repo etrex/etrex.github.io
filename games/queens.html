@@ -66,17 +66,24 @@
   .bar{height:2px;background:rgba(241,235,223,.1);margin-top:.7rem;overflow:hidden}
   .bar > i{display:block;height:100%;width:0;background:var(--brass);transition:width .5s ease}
 
-  /* ---------- 棋盤 ---------- */
   /* ---------- 等級選擇 ---------- */
   .levels{width:var(--board-max);display:flex;gap:.3rem;margin:-.35rem 0 .8rem}
   .chip{
-    flex:1;padding:.42rem .1rem;font-size:.66rem;letter-spacing:.04em;
+    flex:0 0 auto;padding:.42rem .8rem;font-size:.66rem;letter-spacing:.04em;
     color:var(--muted);background:transparent;border:1px solid var(--line);
     border-radius:var(--radius);cursor:pointer;transition:all .15s ease;white-space:nowrap;
   }
   .chip:hover{color:var(--ivory);border-color:rgba(217,164,65,.4)}
   .chip.on{color:#12212a;background:var(--brass);border-color:var(--brass);font-weight:600}
   .chip:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+  .lv-sel{
+    flex:1;min-width:0;padding:.42rem .4rem;font-size:.68rem;
+    color:var(--ivory);background:var(--ink-2);border:1px solid var(--line);
+    border-radius:var(--radius);cursor:pointer;text-align:center;
+    -webkit-appearance:none;appearance:none;
+  }
+  .lv-sel:disabled{opacity:.4;cursor:not-allowed}
+  .lv-sel:focus{outline:none;border-color:rgba(217,164,65,.5)}
 
   .board-wrap{position:relative;width:var(--board-max)}
   #board{
@@ -118,7 +125,7 @@
   /* ---------- 遮罩 ---------- */
   .veil{
     position:absolute;inset:0;display:none;flex-direction:column;
-    align-items:center;justify-content:center;gap:.5rem;text-align:center;
+    align-items:center;justify-content:center;gap:.6rem;text-align:center;
     background:rgba(9,20,26,.9);backdrop-filter:blur(2px);z-index:5;padding:1rem;
   }
   .veil.on{display:flex}
@@ -128,6 +135,14 @@
   .spinner{width:26px;height:26px;border:2px solid rgba(217,164,65,.25);border-top-color:var(--brass);
            border-radius:50%;animation:spin .7s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
+  /* 生成中：讓底下的地圖爬山過程透出來 */
+  #veil-load{background:rgba(9,20,26,.42);backdrop-filter:none}
+  .load-dots{
+    background:rgba(9,20,26,.82);color:var(--ivory);
+    padding:.4rem 1rem;border-radius:20px;min-width:9rem;
+    letter-spacing:.14em;font-size:.85rem;
+    border:1px solid rgba(217,164,65,.3);
+  }
 
   /* ---------- 控制列 ---------- */
   .controls{width:var(--board-max);display:grid;grid-template-columns:repeat(4,1fr);gap:.4rem;margin-top:.9rem}
@@ -169,7 +184,8 @@
     h1{font-size:2rem}
     .controls{grid-template-columns:repeat(2,1fr)}
     .levels{gap:.2rem}
-    .chip{font-size:.56rem;letter-spacing:0;padding:.4rem 0}
+    .chip{font-size:.58rem;padding:.4rem .5rem}
+    .lv-sel{font-size:.6rem}
   }
   @media (prefers-reduced-motion:reduce){
     *{animation:none!important;transition:none!important}
@@ -185,8 +201,8 @@
 
 <div class="plate">
   <div class="plate-row">
-    <div class="stat"><div class="stat-k">等級</div><div class="stat-v mono" id="s-level">1 <small id="s-size">5×5</small></div></div>
-    <div class="stat"><div class="stat-k">過關場次</div><div class="stat-v mono" id="s-wins">0</div></div>
+    <div class="stat"><div class="stat-k">遊戲等級</div><div class="stat-v mono" id="s-level">1 <small>5×5</small></div></div>
+    <div class="stat"><div class="stat-k">難度</div><div class="stat-v mono" id="s-diff">1<small>/6 · 第 1/10 關</small></div></div>
     <div class="stat"><div class="stat-k">時間</div><div class="stat-v mono" id="s-time">00:00</div></div>
   </div>
   <div class="bar"><i id="s-bar"></i></div>
@@ -198,7 +214,7 @@
   <div id="board"></div>
   <div class="veil on" id="veil-load">
     <div class="spinner"></div>
-    <p>正在產生題目…</p>
+    <p class="load-dots" id="load-dots">題目生成中</p>
   </div>
   <div class="veil" id="veil-win">
     <h2>過關</h2>
@@ -228,8 +244,8 @@
     <li>每一橫列、每一直行、每一個顏色區域，都要放進恰好一個皇后。</li>
     <li>皇后不能互相接觸，上下左右和斜角相鄰都不行。</li>
     <li>只要沒有相鄰，同一條斜線上仍然可以放置（這點和西洋棋不同）。</li>
-    <li>點一下標記 ✕，點兩下放皇后，點三下清除；按住拖曳可以連續標記。</li>
-    <li>難度會隨過關場次提升，也可以從盤面上方那排按鈕直接跳關。</li>
+    <li>點一下標記 ✕，點兩下放皇后，點三下清除；按住拖曳可以連續標記／取消。</li>
+    <li>每過 10 關，難度會自動提升一階；也可以用盤面上方「地圖大小」「難度」兩個選單直接切換。難度越高，解題需要越深的推理。</li>
   </ol>
 </details>
 
@@ -252,200 +268,318 @@
     }
   };
 
-  /* ================= 難度 ================= */
-  const BANDS = [
-    {n:5, len:2}, {n:6, len:3}, {n:7, len:4},
-    {n:8, len:5}, {n:9, len:6}, {n:10, len:8}
-  ];
-  function levelInfo(wins){
-    let w = Math.max(0, wins|0);
-    for(let i=0;i<BANDS.length;i++){
-      const b = BANDS[i];
-      if(w < b.len || i === BANDS.length-1){
-        const inBand = Math.min(w, b.len);
-        const frac = b.len > 1 ? Math.min(1, inBand/(b.len-1)) : 1;
-        return {level:i+1, n:b.n, frac, inBand, bandLen:b.len, last:i===BANDS.length-1};
-      }
-      w -= b.len;
-    }
+  /* ================= 等級表（離線校準）================= */
+  // 每尺寸 → 由易到難的難度分數 D 列表；等級 N = 索引 N-1。
+  // D = c1 + c2*(n+1) + c3*(n+1)^2，其中 cK = 需要 TK 技巧才推得出的顏色數。
+  const LEVEL_TABLE = {
+    5:[1,2,3,6,7,8],
+    6:[1,2,3,7,8,9,10,14],
+    7:[1,2,3,8,9,10,11,16,17,18],
+    8:[1,2,3,9,10,11,12,18,19,82,90,91],
+    9:[1,2,3,10,11,12,13,20,21,22,101,102,110,111,112,120,200],
+    10:[1,2,3,11,12,13,14,22,23,24,122,132,133,242,253,254,364,374],
+    11:[1,2,3,12,13,14,15,24,25,26,36,37,146,156,157,158,168,169,300],
+    12:[1,2,3,13,14,15,16,26,27,28,182,340,351]
+  };
+  const SIZES = [5,6,7,8,9,10,11,12];
+  const maxLevel = s => LEVEL_TABLE[s].length;
+  const targetD  = (s,l) => LEVEL_TABLE[s][Math.max(1,Math.min(maxLevel(s),l))-1];
+  // 自動難度：把所有尺寸的等級攤平成一條全域階梯
+  // 由 D 解回各 tier 的顏色數
+  function decode(n, D){
+    const sq=(n+1)*(n+1), c3=Math.floor(D/sq), rem=D%sq, c2=Math.floor(rem/(n+1)), c1=rem%(n+1);
+    return {c0:n-c1-c2-c3, c1, c2, c3};
+  }
+  function tierLabel(n, D){
+    const h=decode(n,D), p=[];
+    if(h.c1)p.push("T1×"+h.c1); if(h.c2)p.push("T2×"+h.c2); if(h.c3)p.push("T3×"+h.c3);
+    return p.length?p.join(" "):"全 T0";
   }
 
-  /* ================= 產生器 ================= */
-  const PALETTE = ["#e9a09b","#f0c977","#a9cf85","#8fcfd1","#a3b0e8","#cfa7e0","#efaacd","#cdbd9a","#94d3b4","#dcd987"];
+  /* ================= 產生器 + 分級解題器（已驗證）================= */
+  // 12 個色相均勻分佈的粉彩色，確保 5～12 色都彼此可分辨（顏色 = 區域身分，不可撞色）
+  const PALETTE = ["#e79aa0","#e8b183","#ddd07f","#b8d488","#8fd0a0","#7fcfc0","#85c9d6","#93b8e8","#a7a9e8","#c2a0e0","#e0a0d0","#e69ab8"];
+  const CROWN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.2 7.1c.9 0 1.6.7 1.6 1.6 0 .5-.2.9-.5 1.2l1.5 3.4 3.6-3.2-1.2-2.5c-.5-.2-.9-.7-.9-1.4 0-.9.7-1.6 1.6-1.6s1.6.7 1.6 1.6c0 .5-.2.9-.6 1.2l1.6 3.3h1.8l1.6-3.3c-.4-.3-.6-.7-.6-1.2 0-.9.7-1.6 1.6-1.6s1.6.7 1.6 1.6c0 .7-.4 1.2-.9 1.4l-1.2 2.5 3.6 3.2 1.5-3.4c-.3-.3-.5-.7-.5-1.2 0-.9.7-1.6 1.6-1.6s1.6.7 1.6 1.6-.7 1.6-1.5 1.6L19 18.2H5L3.1 10.3c-.8 0-1.5-.7-1.5-1.6 0-.9.7-1.6 1.6-1.6z"/><rect x="5" y="19.2" width="14" height="2.1" rx=".5"/></svg>';
 
   function shuffled(arr){
     const a = arr.slice();
-    for(let i=a.length-1;i>0;i--){ const j = (Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; }
+    for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; }
     return a;
   }
-
   function genSolution(n){
-    const cols = new Array(n), used = new Array(n).fill(false);
+    const cols=new Array(n), used=new Array(n).fill(false);
     function bt(r){
       if(r===n) return true;
       for(const c of shuffled([...Array(n).keys()])){
         if(used[c]) continue;
-        if(r>0 && Math.abs(cols[r-1]-c) <= 1) continue;
+        if(r>0 && Math.abs(cols[r-1]-c)<=1) continue;
         used[c]=true; cols[r]=c;
         if(bt(r+1)) return true;
         used[c]=false;
       }
       return false;
     }
-    return bt(0) ? cols.slice() : null;
+    return bt(0)?cols.slice():null;
   }
-
+  function nbrs(n,i){ const r=(i/n)|0,c=i%n,o=[]; if(r>0)o.push(i-n); if(r<n-1)o.push(i+n); if(c>0)o.push(i-1); if(c<n-1)o.push(i+1); return o; }
   function growRegions(n, sol){
-    const region = new Array(n*n).fill(-1);
-    const frontier = [];
-    const push = (idx, reg) => {
-      const r = (idx/n)|0, c = idx%n;
-      if(r>0) frontier.push([idx-n, reg]);
-      if(r<n-1) frontier.push([idx+n, reg]);
-      if(c>0) frontier.push([idx-1, reg]);
-      if(c<n-1) frontier.push([idx+1, reg]);
-    };
-    for(let r=0;r<n;r++){ const idx = r*n + sol[r]; region[idx] = r; push(idx, r); }
-    let left = n*n - n;
-    while(left > 0 && frontier.length){
-      const k = (Math.random()*frontier.length)|0;
-      const [idx, reg] = frontier[k];
-      frontier[k] = frontier[frontier.length-1];
-      frontier.pop();
-      if(region[idx] !== -1) continue;
-      region[idx] = reg; left--; push(idx, reg);
+    const region=new Array(n*n).fill(-1), frontier=[];
+    const push=(idx,reg)=>{ for(const j of nbrs(n,idx)) if(region[j]===-1) frontier.push([j,reg]); };
+    const seedCells=[];
+    for(let r=0;r<n;r++){ const idx=r*n+sol[r]; region[idx]=r; seedCells.push(idx); }
+    for(let r=0;r<n;r++){ const opts=shuffled(nbrs(n,seedCells[r]).filter(j=>region[j]===-1)); if(opts.length) region[opts[0]]=r; }
+    let left=0; for(let i=0;i<n*n;i++) if(region[i]!==-1) push(i,region[i]); else left++;
+    while(left>0 && frontier.length){
+      const k=(Math.random()*frontier.length)|0;
+      const [idx,reg]=frontier[k];
+      frontier[k]=frontier[frontier.length-1]; frontier.pop();
+      if(region[idx]!==-1) continue;
+      region[idx]=reg; left--; push(idx,reg);
     }
-    return left === 0 ? region : null;
+    return left===0?region:null;
   }
-
-  // 計算解的數量；有傳入 ref 時，順便回傳一個與 ref 不同的解
-  function analyze(n, region, limit, ref){
-    let count = 0, nodes = 0, alt = null;
-    const uc = new Array(n).fill(false), ug = new Array(n).fill(false), cur = new Array(n);
-    function bt(r){
-      if(r === n){
-        count++;
-        if(!alt && ref){ for(let k=0;k<n;k++) if(cur[k] !== ref[k]){ alt = cur.slice(); break; } }
-        return;
-      }
-      for(let c=0;c<n;c++){
-        if(uc[c]) continue;
-        const g = region[r*n+c];
-        if(ug[g]) continue;
-        if(r>0 && Math.abs(cur[r-1]-c) <= 1) continue;
-        nodes++;
-        uc[c]=true; ug[g]=true; cur[r]=c;
-        bt(r+1);
-        uc[c]=false; ug[g]=false;
-        if(count >= limit) return;
-      }
-    }
-    bt(0);
-    return {count, nodes, alt};
-  }
-
-  function nbrs(n, i){
-    const r=(i/n)|0, c=i%n, o=[];
-    if(r>0) o.push(i-n);
-    if(r<n-1) o.push(i+n);
-    if(c>0) o.push(i-1);
-    if(c<n-1) o.push(i+1);
-    return o;
-  }
-
-  // 從區域 g 拿掉某一格之後，該區域是否仍然連通
+  function regionSize(n, region, g){ let s=0; for(let i=0;i<n*n;i++) if(region[i]===g) s++; return s; }
+  function minRegionSize(n, region){ const c=new Array(n).fill(0); for(const g of region) c[g]++; return Math.min.apply(null,c); }
   function stillWhole(n, region, g, seed, removed){
-    let total = 0;
-    for(let i=0;i<n*n;i++) if(region[i]===g && i!==removed) total++;
-    if(total === 0) return false;
+    let total=0; for(let i=0;i<n*n;i++) if(region[i]===g && i!==removed) total++;
+    if(total===0) return false;
     const st=[seed], seen=new Set([seed]);
-    while(st.length){
-      const i = st.pop();
-      for(const j of nbrs(n,i)){
-        if(j===removed || region[j]!==g || seen.has(j)) continue;
-        seen.add(j); st.push(j);
-      }
-    }
-    return seen.size === total;
+    while(st.length){ const i=st.pop(); for(const j of nbrs(n,i)){ if(j===removed||region[j]!==g||seen.has(j))continue; seen.add(j); st.push(j);} }
+    return seen.size===total;
   }
 
-  // 反覆修正區域邊界，直到答案唯一
-  function makePuzzle(n, budget){
-    const t0 = performance.now();
-    while(performance.now() - t0 < budget){
-      const sol = genSolution(n);
-      if(!sol) return null;
-      const seeds = new Set(sol.map((c,r)=>r*n+c));
-      const region = growRegions(n, sol);
-      if(!region) continue;
-      let a = analyze(n, region, 400, sol), iter = 0;
-      while(a.count > 1 && iter < 800 && performance.now() - t0 < budget){
-        iter++;
-        const alt = a.alt;
-        if(!alt) break;
-        const rows = [];
-        for(let r=0;r<n;r++) if(alt[r] !== sol[r]) rows.push(r);
-        if(!rows.length) break;
-        const r = rows[(Math.random()*rows.length)|0];
-        const x = r*n + alt[r], g = region[x];
-        let moved = false;
-        if(!seeds.has(x) && stillWhole(n, region, g, g*n+sol[g], x)){
-          for(const g2 of shuffled([...new Set(nbrs(n,x).map(j=>region[j]).filter(v=>v!==g))])){
-            region[x] = g2;
-            const b = analyze(n, region, 400, sol);
-            if(b.count <= a.count){ a = b; moved = true; break; }
-            region[x] = g;
-          }
-        }
-        if(!moved){ // 隨機移動，用來跳出局部最佳解
-          const i = (Math.random()*n*n)|0;
-          if(seeds.has(i)) continue;
-          const gg = region[i];
-          const opt = [...new Set(nbrs(n,i).map(j=>region[j]).filter(v=>v!==gg))];
-          if(!opt.length) continue;
-          if(!stillWhole(n, region, gg, gg*n+sol[gg], i)) continue;
-          region[i] = opt[(Math.random()*opt.length)|0];
-          const b = analyze(n, region, 400, sol);
-          if(b.count <= a.count*1.15) a = b; else region[i] = gg;
-        }
+  // 傳播剪枝求解器：找到一個「與 ref 不同的解」就回傳（沒有 → null＝唯一）
+  function altSolution(n, region, ref){
+    const N=n*n;
+    const regCells=Array.from({length:n},()=>[]);
+    for(let i=0;i<N;i++) regCells[region[i]].push(i);
+    let found=null, nodes=0; const LIMIT=400000;
+    function doPlace(cand,rd,cd,gd,rc,i){
+      const r=(i/n)|0,c=i%n,g=region[i];
+      rd[r]=1;cd[c]=1;gd[g]=1;rc[r]=c;
+      for(let k=0;k<n;k++){cand[r*n+k]=0;cand[k*n+c]=0;}
+      for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){const nr=r+dr,nc=c+dc;if(nr>=0&&nr<n&&nc>=0&&nc<n)cand[nr*n+nc]=0;}
+      for(const j of regCells[g]) cand[j]=0;
+    }
+    function rec(cand,rd,cd,gd,rc){
+      if(found) return;
+      if(++nodes>LIMIT) return;
+      let again=true;
+      while(again){ again=false;
+        for(let r=0;r<n;r++) if(!rd[r]){ let cnt=0,last=-1; for(let c=0;c<n;c++){const i=r*n+c; if(cand[i]){cnt++;last=i;}} if(cnt===0)return; if(cnt===1){doPlace(cand,rd,cd,gd,rc,last);again=true;} }
+        for(let c=0;c<n;c++) if(!cd[c]){ let cnt=0,last=-1; for(let r=0;r<n;r++){const i=r*n+c; if(cand[i]){cnt++;last=i;}} if(cnt===0)return; if(cnt===1){doPlace(cand,rd,cd,gd,rc,last);again=true;} }
+        for(let g=0;g<n;g++) if(!gd[g]){ let cnt=0,last=-1; for(const i of regCells[g]){if(cand[i]){cnt++;last=i;}} if(cnt===0)return; if(cnt===1){doPlace(cand,rd,cd,gd,rc,last);again=true;} }
       }
-      if(a.count === 1) return {region, sol, nodes: analyze(n, region, 2, null).nodes};
+      let allDone=true; for(let r=0;r<n;r++) if(!rd[r]){allDone=false;break;}
+      if(allDone){ for(let r=0;r<n;r++) if(rc[r]!==ref[r]){ found=rc.slice(); return; } return; }
+      let bc=1e9, bcells=null;
+      for(let g=0;g<n;g++) if(!gd[g]){ const cc=[]; for(const i of regCells[g]) if(cand[i]) cc.push(i); if(cc.length<bc){bc=cc.length; bcells=cc;} }
+      if(!bcells) return;
+      for(const i of bcells){
+        if(found) return;
+        const c2=cand.slice(),r2=rd.slice(),d2=cd.slice(),g2=gd.slice(),rc2=rc.slice();
+        doPlace(c2,r2,d2,g2,rc2,i);
+        rec(c2,r2,d2,g2,rc2);
+      }
+    }
+    rec(new Uint8Array(N).fill(1), new Uint8Array(n), new Uint8Array(n), new Uint8Array(n), new Int8Array(n).fill(-1));
+    return found;
+  }
+
+  // 產生「解唯一 + 每色 ≥2」的盤面：反覆找一個第二解並打掉它
+  function makeUnique(n, budget){
+    const t0=Date.now();
+    while(Date.now()-t0<budget){
+      const sol=genSolution(n); if(!sol) return null;
+      const region=growRegions(n,sol); if(!region) continue;
+      const solCell=new Array(n); for(let r=0;r<n;r++) solCell[region[r*n+sol[r]]]=r*n+sol[r];
+      let ok=true, guard=0;
+      while(Date.now()-t0<budget){
+        const alt=altSolution(n,region,sol);
+        if(!alt) break;
+        if(++guard>4000){ ok=false; break; }
+        const rows=[]; for(let r=0;r<n;r++) if(alt[r]!==sol[r]) rows.push(r);
+        if(!rows.length){ ok=false; break; }
+        let moved=false;
+        for(const r of shuffled(rows)){
+          const x=r*n+alt[r], g=region[x];
+          if(regionSize(n,region,g)<3) continue;
+          if(!stillWhole(n,region,g,solCell[g],x)) continue;
+          const opts=shuffled([...new Set(nbrs(n,x).map(j=>region[j]).filter(v=>v!==g))]);
+          if(!opts.length) continue;
+          region[x]=opts[0]; moved=true; break;
+        }
+        if(!moved){ ok=false; break; }
+      }
+      if(ok && minRegionSize(n,region)>=2 && !altSolution(n,region,sol)) return {region, sol};
     }
     return null;
   }
 
-  // frac（0→1）用來調整同一盤面尺寸內的難度
-  function generate(n, frac){
-    const t0 = performance.now();
-    const budget = 1500, cap = n <= 7 ? 12 : (n === 8 ? 10 : 6);
-    const cands = [];
-    while(performance.now() - t0 < budget && cands.length < cap){
-      const p = makePuzzle(n, budget - (performance.now() - t0));
-      if(p) cands.push(p); else break;
+  // 分級邏輯解題器 → {c0,c1,c2,c3}（各 tier 的顏色數）
+  function difficulty(n, region, sol){
+    const N=n*n;
+    const cand=new Uint8Array(N).fill(1);
+    const rowDone=new Uint8Array(n), colDone=new Uint8Array(n), regDone=new Uint8Array(n);
+    const tierOf=new Int8Array(n).fill(-1);
+    const solCellOfReg=new Array(n);
+    for(let r=0;r<n;r++){ const cell=r*n+sol[r]; solCellOfReg[region[cell]]=cell; }
+    let placed=0;
+    function elimAround(c, i){
+      const r=(i/n)|0, col=i%n, g=region[i];
+      for(let k=0;k<n;k++){ c[r*n+k]=0; c[k*n+col]=0; }
+      for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){ const nr=r+dr,nc=col+dc; if(nr>=0&&nr<n&&nc>=0&&nc<n) c[nr*n+nc]=0; }
+      for(let j=0;j<N;j++) if(region[j]===g) c[j]=0;
     }
-    if(!cands.length){
-      const sol = genSolution(n);
-      return {region: growRegions(n, sol), sol, nodes: 0};
+    const placedCellOfReg=new Array(n).fill(-1);
+    function place(i, tier){
+      const r=(i/n)|0, col=i%n, g=region[i];
+      rowDone[r]=1; colDone[col]=1; regDone[g]=1;
+      elimAround(cand,i); tierOf[g]=tier; placedCellOfReg[g]=i; placed++;
     }
-    const minSize = p => {
-      const c = new Array(n).fill(0);
-      for(const g of p.region) c[g]++;
-      return Math.min.apply(null, c);
-    };
-    const clean = cands.filter(p => minSize(p) >= 2);
-    const pool = clean.length ? clean : cands;
-    pool.sort((a,b)=>a.nodes-b.nodes);
-    const i = Math.min(pool.length-1, Math.max(0, Math.round(frac*(pool.length-1))));
-    return pool[i];
+    function unitCandsRow(r){ const o=[]; for(let c=0;c<n;c++){const i=r*n+c; if(cand[i])o.push(i);} return o; }
+    function unitCandsCol(c){ const o=[]; for(let r=0;r<n;r++){const i=r*n+c; if(cand[i])o.push(i);} return o; }
+    function unitCandsReg(g){ const o=[]; for(let i=0;i<N;i++) if(region[i]===g&&cand[i]) o.push(i); return o; }
+    function placeOneSingle(tier){
+      for(let r=0;r<n;r++) if(!rowDone[r]){ const cc=unitCandsRow(r); if(cc.length===0)return -1; if(cc.length===1){place(cc[0],tier); return 1;} }
+      for(let c=0;c<n;c++) if(!colDone[c]){ const cc=unitCandsCol(c); if(cc.length===0)return -1; if(cc.length===1){place(cc[0],tier); return 1;} }
+      for(let g=0;g<n;g++) if(!regDone[g]){ const cc=unitCandsReg(g); if(cc.length===0)return -1; if(cc.length===1){place(cc[0],tier); return 1;} }
+      return 0;
+    }
+    function applyT1(){
+      let changed=false;
+      for(let g=0;g<n;g++) if(!regDone[g]){
+        const cc=unitCandsReg(g); if(!cc.length) continue;
+        const rows=new Set(cc.map(i=>(i/n)|0));
+        if(rows.size===1){ const r=[...rows][0]; for(let c=0;c<n;c++){const i=r*n+c; if(cand[i]&&region[i]!==g){cand[i]=0;changed=true;}} }
+        const cols=new Set(cc.map(i=>i%n));
+        if(cols.size===1){ const c=[...cols][0]; for(let r=0;r<n;r++){const i=r*n+c; if(cand[i]&&region[i]!==g){cand[i]=0;changed=true;}} }
+      }
+      for(let r=0;r<n;r++) if(!rowDone[r]){
+        const cc=unitCandsRow(r); if(!cc.length) continue;
+        const regs=new Set(cc.map(i=>region[i]));
+        if(regs.size===1){ const g=[...regs][0]; for(let i=0;i<N;i++){ if(cand[i]&&region[i]===g&&((i/n)|0)!==r){cand[i]=0;changed=true;} } }
+      }
+      for(let c=0;c<n;c++) if(!colDone[c]){
+        const cc=unitCandsCol(c); if(!cc.length) continue;
+        const regs=new Set(cc.map(i=>region[i]));
+        if(regs.size===1){ const g=[...regs][0]; for(let i=0;i<N;i++){ if(cand[i]&&region[i]===g&&(i%n)!==c){cand[i]=0;changed=true;} } }
+      }
+      return changed;
+    }
+    function contradictionIfPlace(i){
+      const c=cand.slice(), rd=rowDone.slice(), cd=colDone.slice(), gd=regDone.slice();
+      const stack=[i];
+      while(stack.length){
+        const p=stack.pop();
+        if(!c[p]) continue;
+        const r=(p/n)|0, col=p%n, g=region[p];
+        rd[r]=1; cd[col]=1; gd[g]=1;
+        elimAround(c,p);
+        for(let rr=0;rr<n;rr++) if(!rd[rr]){ let cnt=0,last=-1; for(let x=0;x<n;x++){const idx=rr*n+x; if(c[idx]){cnt++;last=idx;}} if(cnt===0)return true; if(cnt===1)stack.push(last); }
+        for(let cc=0;cc<n;cc++) if(!cd[cc]){ let cnt=0,last=-1; for(let x=0;x<n;x++){const idx=x*n+cc; if(c[idx]){cnt++;last=idx;}} if(cnt===0)return true; if(cnt===1)stack.push(last); }
+        for(let gg=0;gg<n;gg++) if(!gd[gg]){ let cnt=0,last=-1; for(let x=0;x<N;x++){ if(region[x]===gg&&c[x]){cnt++;last=x;}} if(cnt===0)return true; if(cnt===1)stack.push(last); }
+      }
+      return false;
+    }
+    function applyT2(){
+      let changed=false;
+      for(let i=0;i<N;i++){ if(!cand[i]) continue; if(contradictionIfPlace(i)){ cand[i]=0; changed=true; } }
+      return changed;
+    }
+    function t3place(){
+      let best=-1, bc=1e9;
+      for(let g=0;g<n;g++) if(!regDone[g]){ const cc=unitCandsReg(g); if(cc.length<bc){bc=cc.length; best=g;} }
+      if(best<0) return false;
+      place(solCellOfReg[best], 3); return true;
+    }
+    let guard=0;
+    while(placed<n){
+      if(++guard>100000) return null;
+      let r0=placeOneSingle(0);
+      if(r0===1) continue;
+      if(r0===-1) return null;
+      if(placed===n) break;
+      if(applyT1()){ if(placeOneSingle(1)===-1) return null; continue; }
+      if(applyT2()){ if(placeOneSingle(2)===-1) return null; continue; }
+      if(t3place()) continue;
+      return null;
+    }
+    for(let g=0;g<n;g++){ if(tierOf[g]<3 && placedCellOfReg[g]!==solCellOfReg[g]) return null; }
+    const h={c0:0,c1:0,c2:0,c3:0};
+    for(let g=0;g<n;g++){ const t=tierOf[g]; if(t===0)h.c0++; else if(t===1)h.c1++; else if(t===2)h.c2++; else if(t===3)h.c3++; }
+    return h;
   }
-  /* ================= 狀態 ================= */
-  const CROWN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.2 7.1c.9 0 1.6.7 1.6 1.6 0 .5-.2.9-.5 1.2l1.5 3.4 3.6-3.2-1.2-2.5c-.5-.2-.9-.7-.9-1.4 0-.9.7-1.6 1.6-1.6s1.6.7 1.6 1.6c0 .5-.2.9-.6 1.2l1.6 3.3h1.8l1.6-3.3c-.4-.3-.6-.7-.6-1.2 0-.9.7-1.6 1.6-1.6s1.6.7 1.6 1.6c0 .7-.4 1.2-.9 1.4l-1.2 2.5 3.6 3.2 1.5-3.4c-.3-.3-.5-.7-.5-1.2 0-.9.7-1.6 1.6-1.6s1.6.7 1.6 1.6-.7 1.6-1.5 1.6L19 18.2H5L3.1 10.3c-.8 0-1.5-.7-1.5-1.6 0-.9.7-1.6 1.6-1.6z"/><rect x="5" y="19.2" width="14" height="2.1" rx=".5"/></svg>';
+  function histD(n,h){ return h.c1 + h.c2*(n+1) + h.c3*(n+1)*(n+1); }
+  function scoreOf(n,region,sol){ const h=difficulty(n,region,sol); if(!h) return null; return {D:histD(n,h),h}; }
 
+  function tryTransfer(n,region,sol,seeds,solCell){
+    const N=n*n;
+    for(const x of shuffled([...Array(N).keys()])){
+      if(seeds.has(x)) continue;
+      const A=region[x];
+      let sizeA=0; for(let i=0;i<N;i++) if(region[i]===A) sizeA++;
+      if(sizeA<3) continue;
+      const opts=shuffled([...new Set(nbrs(n,x).map(j=>region[j]).filter(v=>v!==A))]);
+      if(!opts.length) continue;
+      if(!stillWhole(n,region,A,solCell[A],x)) continue;
+      const nr=region.slice(); nr[x]=opts[0];
+      if(altSolution(n,nr,sol)) continue;
+      return nr;
+    }
+    return null;
+  }
+
+  // 退火＋重啟＋貪婪，切成可分幀執行的步進器：一張基底盤攤銷昂貴的 makeUnique
+  function makeGen(n, targetD){
+    let best=null, region=null, sol=null, seeds=null, solCell=null, cur=null, stuck=0, phase=0; // 0=restart 1=anneal
+    function restart(){
+      // 小預算：把單次同步阻塞壓短，讓爬山動畫不被長時間凍結（大盤有時要多試幾次才拿到基底）
+      const base=makeUnique(n, 900);
+      if(!base || minRegionSize(n,base.region)<2) return;
+      region=base.region.slice(); sol=base.sol;
+      seeds=new Set(sol.map((c,r)=>r*n+c));
+      solCell=new Array(n); for(let r=0;r<n;r++) solCell[region[r*n+sol[r]]]=r*n+sol[r];
+      cur=scoreOf(n,region,sol); if(!cur){ region=null; return; }
+      if(!best||Math.abs(cur.D-targetD)<Math.abs(best.D-targetD)) best={region:region.slice(),sol,D:cur.D,h:cur.h};
+      stuck=0; phase=1;
+    }
+    function anneal(){
+      const before = Math.abs(cur.D-targetD);
+      let mv=null, mvDist=before;
+      for(let s=0;s<6;s++){
+        const nr=tryTransfer(n,region,sol,seeds,solCell); if(!nr) continue;
+        const sc=scoreOf(n,nr,sol); if(!sc) continue;
+        const d=Math.abs(sc.D-targetD);
+        if(d<mvDist || (d===mvDist && Math.random()<0.4)){ mvDist=d; mv={nr,sc}; }
+      }
+      if(mv){
+        region=mv.nr; cur=mv.sc;
+        if(Math.abs(cur.D-targetD) < before) stuck=0; else stuck++;   // 只有嚴格變近才重置；平台期照樣累積 → 觸發重啟
+        if(Math.abs(cur.D-targetD)<Math.abs(best.D-targetD)) best={region:region.slice(),sol,D:cur.D,h:cur.h};
+      } else stuck++;
+      if(stuck>=80) phase=0;   // 多爬一會兒再重啟，減少昂貴的 makeUnique 凍結次數
+    }
+    return {
+      get working(){ return region; },
+      get best(){ return best; },
+      get hit(){ return !!(best && best.D===targetD); },
+      step(ms){
+        const t0=performance.now();
+        do{
+          if(best && best.D===targetD) return;
+          if(phase===0) restart(); else anneal();
+        }while(performance.now()-t0 < ms);
+      }
+    };
+  }
+
+  /* ================= 狀態 ================= */
   const G = {
     n:0, region:null, sol:null,
     cells:null,          // 0 空 / 1 標記 / 2 皇后
     nodes:[], history:[],
-    wins:0, hints:0, pick:null, sizeWins:{},
+    wins:0, hints:0, size:5, glevel:{},
     t0:0, timer:null, elapsed:0,
     playing:false, dragging:false, dragStart:-1, dragMoved:false, dragErase:false, snapped:false
   };
@@ -453,68 +587,61 @@
   const $ = id => document.getElementById(id);
   const board = $("board"), msgEl = $("msg");
   let autoMark = true;
+  let genRaf = 0, dotsTimer = 0;
 
   function say(t){ msgEl.textContent = t || ""; }
-
   function fmt(ms){
     const s = Math.floor(ms/1000);
     return String(Math.floor(s/60)).padStart(2,"0") + ":" + String(s%60).padStart(2,"0");
   }
-
   function tick(){
     G.elapsed = performance.now() - G.t0;
     $("s-time").textContent = fmt(G.elapsed);
   }
 
-  // 目前設定：有手動選擇就以它為準，否則依過關場次決定
+  // 某尺寸內每 10 關升一難度階；遊戲等級 = 該尺寸的累積關卡數（過一關 +1）
+  function gLevel(size){ return Math.max(1, G.glevel[size] || 1); }
   function setup(){
-    if(G.pick !== null){
-      const b = BANDS[G.pick], sw = G.sizeWins[b.n] || 0;
-      return {
-        level: G.pick+1, n: b.n, manual: true,
-        frac: b.len > 1 ? Math.min(1, sw/(b.len-1)) : 1,
-        last: G.pick === BANDS.length-1
-      };
-    }
-    const i = levelInfo(G.wins);
-    i.manual = false;
-    return i;
+    const n = G.size, gl = gLevel(n), maxT = maxLevel(n);
+    const tier = Math.min(maxT, Math.ceil(gl/10));     // 難度 = ⌈遊戲等級 / 10⌉
+    const round = ((gl-1) % 10) + 1;                   // 第幾關 = (遊戲等級-1) mod 10 + 1
+    return { n, glevel:gl, tier, round, maxTier:maxT, targetD:targetD(n,tier) };
   }
 
+  /* ================= 等級選擇 UI ================= */
   function buildLevels(){
     const box = $("levels");
-    box.innerHTML = "";
-    const mk = (label, val, title) => {
-      const b = document.createElement("button");
-      b.className = "chip"; b.textContent = label; b.dataset.p = val; b.title = title;
-      b.onclick = () => selectLevel(val);
-      box.appendChild(b);
+    box.innerHTML =
+      '<select class="lv-sel" id="sel-size" aria-label="地圖大小"></select>' +
+      '<select class="lv-sel" id="sel-diff" aria-label="難度"></select>';
+    $("sel-size").innerHTML = SIZES.map(s=>'<option value="'+s+'">'+s+'×'+s+'</option>').join("");
+    $("sel-size").onchange = () => {
+      G.size = +$("sel-size").value; store.set("queens.size", G.size);
+      newGame();
     };
-    mk("自動", "auto", "難度隨過關場次提升");
-    BANDS.forEach((b,i)=>mk(b.n + "×" + b.n, String(i), "直接跳到等級 " + (i+1)));
+    $("sel-diff").onchange = () => {
+      const tier = +$("sel-diff").value;
+      G.glevel[G.size] = (tier-1)*10 + 1;            // 跳到該難度的第 1 關
+      store.set("queens.glevels", G.glevel);
+      newGame();
+    };
   }
 
-  function markLevels(){
-    const cur = G.pick === null ? "auto" : String(G.pick);
-    $("levels").querySelectorAll(".chip").forEach(c => c.classList.toggle("on", c.dataset.p === cur));
-  }
-
-  function selectLevel(v){
-    const next = v === "auto" ? null : (+v);
-    if(next === G.pick) return;
-    G.pick = next;
-    store.set("queens.pick", G.pick);
-    markLevels();
-    newGame();
-    say(next === null ? "已切換回自動難度。" : "已跳到等級 " + (next+1) + "。");
+  // 讓選單反映目前設定
+  function syncSelectors(){
+    const s = setup(), ss = $("sel-size"), sd = $("sel-diff");
+    if(!ss) return;
+    ss.value = String(s.n);
+    sd.innerHTML = LEVEL_TABLE[s.n].map((D,i)=>'<option value="'+(i+1)+'">難度'+(i+1)+' · '+tierLabel(s.n,D)+'</option>').join("");
+    sd.value = String(s.tier);
   }
 
   function updatePlate(){
     const s = setup();
-    $("s-level").innerHTML = s.level + ' <small>' + s.n + '×' + s.n + (s.manual ? ' · 手動' : '') + '</small>';
-    $("s-wins").textContent = G.wins;
-    $("s-bar").style.width = Math.round(s.frac*100) + "%";
-    markLevels();
+    $("s-level").innerHTML = s.glevel + ' <small>' + s.n + '×' + s.n + '</small>';
+    $("s-diff").innerHTML = s.tier + '<small>/' + s.maxTier + ' · 第 ' + s.round + '/10 關</small>';
+    $("s-bar").style.width = Math.round(s.round/10*100) + "%";   // 進度條 = 這一難度的第幾關（10 關填滿→升難度）
+    syncSelectors();
   }
 
   /* ================= 棋盤 建構 ================= */
@@ -539,13 +666,26 @@
     }
   }
 
+  // 只重畫顏色與邊界（生成動畫用，重用現有格子）
+  function paintRegion(region){
+    const n = G.n, th = "2px solid #050d12", tn = "1px solid rgba(5,13,18,.16)";
+    for(let i=0;i<n*n;i++){
+      const d = G.nodes[i]; if(!d) continue;
+      const g = region[i], r = (i/n)|0, c = i%n;
+      d.style.background = PALETTE[g % PALETTE.length];
+      d.style.borderTop    = (r===0   || region[i-n]!==g) ? th : tn;
+      d.style.borderBottom = (r===n-1 || region[i+n]!==g) ? th : tn;
+      d.style.borderLeft   = (c===0   || region[i-1]!==g) ? th : tn;
+      d.style.borderRight  = (c===n-1 || region[i+1]!==g) ? th : tn;
+    }
+  }
+
   /* ================= 判定 ================= */
   function queens(){
     const out = [];
     for(let i=0;i<G.cells.length;i++) if(G.cells[i]===2) out.push(i);
     return out;
   }
-
   function conflicts(qs){
     const n = G.n, bad = new Set();
     for(let a=0;a<qs.length;a++) for(let b=a+1;b<qs.length;b++){
@@ -555,7 +695,6 @@
     }
     return bad;
   }
-
   function attacked(qs){
     const n = G.n, set = new Set();
     for(const q of qs){
@@ -569,7 +708,6 @@
     }
     return set;
   }
-
   function render(){
     const qs = queens(), bad = conflicts(qs);
     const att = autoMark && qs.length ? attacked(qs) : null;
@@ -582,7 +720,6 @@
     }
     if(qs.length === G.n && bad.size === 0) win();
   }
-
   function snapshot(){
     G.history.push(G.cells.slice());
     if(G.history.length > 200) G.history.shift();
@@ -594,19 +731,15 @@
     const v = G.cells[i];
     if(v === 2){ G.cells[i] = 0; return 0; }
     if(v === 1){ G.cells[i] = 2; return 2; }
-    // 空白格：若已被自動標記，就直接放上皇后
     const qs = queens();
     if(autoMark && qs.length && attacked(qs).has(i)){ G.cells[i] = 2; return 2; }
     G.cells[i] = 1; return 1;
   }
-
   function cellFrom(e){
     const el = document.elementFromPoint(e.clientX, e.clientY);
     const cell = el && el.closest ? el.closest(".cell") : null;
     return cell && cell.parentElement === board ? +cell.dataset.i : -1;
   }
-
-  // 一次手勢只存一次快照（延遲到真正改動時才存）
   function ensureSnap(){ if(!G.snapped){ snapshot(); G.snapped = true; } }
 
   board.addEventListener("pointerdown", e => {
@@ -615,14 +748,11 @@
     if(i < 0) return;
     e.preventDefault();
     board.setPointerCapture(e.pointerId);
-    // 先不改動；等到放開（同格）才做循環，或拖曳時才連續標記
     G.dragging = true; G.dragStart = i; G.dragMoved = false; G.snapped = false;
-    // 依起始格決定拖曳模式：起始為 ✕ → 連續取消標記，否則 → 連續標記 ✕
     G.dragErase = (G.cells[i] === 1);
     say("");
   });
 
-  // 拖曳時對經過的格子套用目前模式（標記空白格，或清除 ✕ 格）
   function paint(i){
     if(G.dragErase){ if(G.cells[i] === 1){ ensureSnap(); G.cells[i] = 0; } }
     else{ if(G.cells[i] === 0){ ensureSnap(); G.cells[i] = 1; } }
@@ -633,8 +763,8 @@
     const i = cellFrom(e);
     if(i < 0) return;
     if(!G.dragMoved){
-      if(i === G.dragStart) return;      // 還沒離開起始格，視為點擊
-      G.dragMoved = true;                // 離開起始格 → 進入連續標記／取消模式
+      if(i === G.dragStart) return;
+      G.dragMoved = true;
       paint(G.dragStart);
     }
     paint(i);
@@ -644,7 +774,7 @@
   const endDrag = () => {
     if(!G.dragging) return;
     G.dragging = false;
-    if(!G.dragMoved){                    // 同一格按下並放開 → 循環（✕→皇后→清除）
+    if(!G.dragMoved){
       ensureSnap();
       cycle(G.dragStart);
       render();
@@ -661,17 +791,15 @@
     $("btn-undo").disabled = !G.history.length;
     say(""); render();
   };
-
   $("btn-clear").onclick = () => {
+    if(!G.playing) return;
     snapshot();
     G.cells.fill(0);
     say("已清空盤面。"); render();
   };
-
   $("btn-hint").onclick = () => {
     if(!G.playing) return;
     const n = G.n;
-    // 優先指出放錯的皇后
     for(const q of queens()){
       const r = (q/n)|0;
       if(G.sol[r] !== q%n){
@@ -687,13 +815,11 @@
     say("已公開第 " + (r+1) + " 列的皇后。");
     flash(idx); render();
   };
-
   function flash(i){
     const d = G.nodes[i];
     d.classList.remove("hint"); void d.offsetWidth; d.classList.add("hint");
     setTimeout(()=>d.classList.remove("hint"), 3000);
   }
-
   $("btn-new").onclick = () => newGame();
   $("btn-next").onclick = () => newGame();
 
@@ -703,7 +829,7 @@
     sw.classList.toggle("on", autoMark);
     sw.setAttribute("aria-checked", String(autoMark));
     store.set("queens.auto", autoMark);
-    render();
+    if(G.playing) render();
   }
   sw.addEventListener("click", toggleAuto);
   sw.addEventListener("keydown", e => { if(e.key===" "||e.key==="Enter"){ e.preventDefault(); toggleAuto(); } });
@@ -718,22 +844,29 @@
     G.nodes.forEach((d,k)=>d.style.setProperty("--d", (k%7)*0.05 + "s"));
 
     const before = setup();
+    G.glevel[before.n] = gLevel(before.n) + 1;     // 過一關 → 該尺寸遊戲等級 +1（每 10 關升難度）
     G.wins++;
-    G.sizeWins[before.n] = (G.sizeWins[before.n] || 0) + 1;
+    store.set("queens.glevels", G.glevel);
     store.set("queens.wins", G.wins);
-    store.set("queens.sizeWins", G.sizeWins);
     const after = setup();
     updatePlate();
 
     $("win-time").textContent = fmt(G.elapsed);
-    let note = "難度 " + before.n + "×" + before.n + " · 使用提示 " + G.hints + " 次";
-    if(!before.manual && after.level > before.level)
-      note = "等級提升到 " + after.level + "，下一局是 " + after.n + "×" + after.n + "。";
-    else if(before.manual && after.frac > before.frac)
-      note = "同尺寸的難度再往上一級。";
+    let note = before.n + "×" + before.n + " · 難度 " + before.tier + " · 第 " + before.round + "/10 關 · 使用提示 " + G.hints + " 次";
+    if(after.tier > before.tier)
+      note = "難度提升到 " + after.tier + "（" + tierLabel(after.n, after.targetD) + "）！";
     $("win-note").textContent = note;
     setTimeout(()=>$("veil-win").classList.add("on"), 450);
   }
+
+  /* ================= 生成動畫 ================= */
+  function startDots(){
+    const el = $("load-dots"); let k = 0;
+    clearInterval(dotsTimer);
+    el.textContent = "題目生成中";
+    dotsTimer = setInterval(()=>{ k=(k+1)%4; el.textContent = "題目生成中" + ".".repeat(k); }, 380);
+  }
+  function stopDots(){ clearInterval(dotsTimer); dotsTimer = 0; }
 
   /* ================= 新局 ================= */
   function newGame(){
@@ -742,27 +875,49 @@
     $("veil-load").classList.add("on");
     G.playing = false;
     clearInterval(G.timer);
+    clearTimeout(genRaf);
+    $("s-time").textContent = "00:00";
     say("");
     updatePlate();
 
-    setTimeout(() => {
-      const info = setup();
-      const puz = generate(info.n, info.frac);
-      G.n = info.n;
-      G.region = puz.region;
-      G.sol = puz.sol;
-      G.cells = new Array(info.n*info.n).fill(0);
-      G.history = [];
-      G.hints = 0;
-      $("btn-undo").disabled = true;
-      buildBoard(info.n);
-      render();
-      $("veil-load").classList.remove("on");
-      G.playing = true;
-      G.t0 = performance.now(); G.elapsed = 0;
-      $("s-time").textContent = "00:00";
-      G.timer = setInterval(tick, 250);
-    }, 40);
+    const info = setup();
+    G.n = info.n;
+    G.region = new Array(info.n*info.n).fill(0);
+    G.cells = new Array(info.n*info.n).fill(0);
+    buildBoard(info.n);
+    startDots();
+
+    const gen = makeGen(info.n, info.targetD);
+    const start = performance.now();
+    (function frame(){
+      gen.step(22);
+      const w = gen.working; if(w) paintRegion(w);
+      if(gen.hit || performance.now() - start > 10000){ finishGame(gen.best, info); return; }
+      genRaf = setTimeout(frame, 16);   // setTimeout（非 rAF）→ 分頁切到背景也照跑，10 秒上限一定會觸發
+    })();
+  }
+
+  function finishGame(best, info){
+    stopDots();
+    if(!best){ let p=null; while(!p){ p = makeUnique(info.n, 5000); } best = {region:p.region, sol:p.sol, D:0}; }
+    G.n = info.n;
+    G.region = best.region;
+    G.sol = best.sol;
+    G.cells = new Array(info.n*info.n).fill(0);
+    G.history = [];
+    G.hints = 0;
+    $("btn-undo").disabled = true;
+    buildBoard(info.n);
+    render();
+    $("veil-load").classList.remove("on");
+    G.playing = true;
+    G.t0 = performance.now(); G.elapsed = 0;
+    $("s-time").textContent = "00:00";
+    clearInterval(G.timer);
+    G.timer = setInterval(tick, 250);
+    const gotD = best.D, wantD = info.targetD;
+    if(gotD !== wantD && gotD !== undefined)
+      say("已用最接近的等級（" + tierLabel(info.n, gotD) + "）。");
   }
 
   /* ================= 啟動 ================= */
@@ -770,14 +925,13 @@
     buildLevels();
     const w = await store.get("queens.wins");
     if(typeof w === "number") G.wins = w;
-    const pk = await store.get("queens.pick");
-    if(typeof pk === "number" && BANDS[pk]) G.pick = pk;
-    const sw = await store.get("queens.sizeWins");
-    if(sw && typeof sw === "object") G.sizeWins = sw;
-    markLevels();
-    const a = await store.get("queens.auto");
-    if(typeof a === "boolean"){
-      autoMark = a;
+    const sz = await store.get("queens.size");
+    if(SIZES.indexOf(sz) >= 0) G.size = sz;
+    const gls = await store.get("queens.glevels");
+    if(gls && typeof gls === "object") G.glevel = gls;
+    const am = await store.get("queens.auto");
+    if(typeof am === "boolean"){
+      autoMark = am;
       sw.classList.toggle("on", autoMark);
       sw.setAttribute("aria-checked", String(autoMark));
     }
