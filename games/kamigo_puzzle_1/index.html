@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>皇后 · Queens</title>
+<title>Kamigo Puzzle 1</title>
 <style>
   :root{
     --ink:#0d1b23;
@@ -98,10 +98,10 @@
     cursor:pointer;transition:filter .12s ease;
   }
   .cell:hover{filter:brightness(1.08)}
-  .cell svg{width:64%;height:64%;fill:#12212a;pointer-events:none;
-            filter:drop-shadow(0 1px 0 rgba(255,255,255,.35));
+  .cell .piece{width:80%;height:auto;pointer-events:none;
+            filter:drop-shadow(0 1px 2px rgba(0,0,0,.4));
             transform:scale(0);transition:transform .16s cubic-bezier(.34,1.56,.64,1)}
-  .cell.queen svg{transform:scale(1)}
+  .cell.queen .piece{transform:scale(1)}
   .cell.mark::after,.cell.automark::after{
     content:"";position:absolute;width:26%;height:26%;
     background:
@@ -120,7 +120,7 @@
   }
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
   @keyframes settle{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1)}}
-  .won .cell.queen svg{animation:settle .5s ease both;animation-delay:var(--d,0s)}
+  .won .cell.queen .piece{animation:settle .5s ease both;animation-delay:var(--d,0s)}
 
   /* ---------- 遮罩 ---------- */
   .veil{
@@ -195,8 +195,8 @@
 <body>
 
 <header>
-  <p class="eyebrow">Queens 復刻版</p>
-  <h1>皇后</h1>
+  <p class="eyebrow">卡米狗拼圖</p>
+  <h1 style="font-size:1.85rem;letter-spacing:.08em;padding-left:.08em">Kamigo Puzzle 1</h1>
 </header>
 
 <div class="plate">
@@ -272,7 +272,6 @@
   // 每尺寸 → 由易到難的難度分數 D 列表；等級 N = 索引 N-1。
   // D = c1 + c2*(n+1) + c3*(n+1)^2，其中 cK = 需要 TK 技巧才推得出的顏色數。
   const LEVEL_TABLE = {
-    5:[1,2,3,6,7,8],
     6:[1,2,3,7,8,9,10,14],
     7:[1,2,3,8,9,10,11,16,17,18],
     8:[1,2,3,9,10,11,12,18,19,82,90,91],
@@ -281,7 +280,7 @@
     11:[1,2,3,12,13,14,15,24,25,26,36,37,146,156,157,158,168,169,300],
     12:[1,2,3,13,14,15,16,26,27,28,182,340,351]
   };
-  const SIZES = [5,6,7,8,9,10,11,12];
+  const SIZES = [6,7,8,9,10,11,12];
   const maxLevel = s => LEVEL_TABLE[s].length;
   const targetD  = (s,l) => LEVEL_TABLE[s][Math.max(1,Math.min(maxLevel(s),l))-1];
   // 自動難度：把所有尺寸的等級攤平成一條全域階梯
@@ -296,10 +295,48 @@
     return p.length?p.join(" "):"全 T0";
   }
 
+  /* ================= 題庫（離線窮舉的稀有難度）================= */
+  // 這些 (尺寸,難度) 的即時生成 10 秒內湊不到 12 張新盤 → 改用預存題庫抽選；其餘即時生成。
+  const BANK_D = {6:[14],7:[18],8:[82,90,91],9:[22,101,102,110,111,112,120,200],10:[24,122,242,253,254,364,374],11:[1,3,36,37,146,156,157,158,169,300],12:[1,2,3,13,14,15,16,26,27,28,182,340,351]};
+  const isBank = (n,D) => !!(BANK_D[n] && BANK_D[n].indexOf(D) >= 0);
+  const lastD = n => LEVEL_TABLE[n][LEVEL_TABLE[n].length-1];   // 該尺寸最難難度的 D
+  const isLastDiff = (n,D) => D === lastD(n);
+  const BANKS = {};   // n → { D: [{region,sol,key}, ...] }
+  async function loadBank(n){
+    if(BANKS[n]) return BANKS[n];
+    try{
+      const res = await fetch("banks/"+n+".json");
+      if(!res.ok) throw 0;
+      const raw = await res.json();                 // { "D": ["boardStr", ...] }
+      const out = {};
+      for(const D in raw){
+        out[D] = raw[D].map(str=>{
+          const region = str.slice(0,n*n).split("").map(c=>parseInt(c,36));
+          const sol = str.slice(n*n).split("").map(c=>parseInt(c,36));
+          return { region, sol, key: canonSym(n, region) };
+        });
+      }
+      BANKS[n] = out; return out;
+    }catch(e){ return null; }
+  }
+
+  // 盤面的對稱標準式（換色 + 8 個旋轉/鏡射取最小字串）→ 用來判「同一張盤面」
+  function relabelKey(n, arr){
+    const m=new Map(); let k=0; const o=new Array(n*n);
+    for(let i=0;i<n*n;i++){ const g=arr[i]; if(!m.has(g))m.set(g,k++); o[i]=m.get(g); }
+    return o.join(",");
+  }
+  function canonSym(n, region){
+    const F=[(r,c)=>[r,c],(r,c)=>[c,n-1-r],(r,c)=>[n-1-r,n-1-c],(r,c)=>[n-1-c,r],(r,c)=>[r,n-1-c],(r,c)=>[n-1-r,c],(r,c)=>[c,r],(r,c)=>[n-1-c,n-1-r]];
+    let best=null;
+    for(const f of F){ const t=new Array(n*n); for(let r=0;r<n;r++)for(let c=0;c<n;c++){const[R,C]=f(r,c);t[R*n+C]=region[r*n+c];} const s=relabelKey(n,t); if(best===null||s<best)best=s; }
+    return best;
+  }
+
   /* ================= 產生器 + 分級解題器（已驗證）================= */
   // 12 個色相均勻分佈的粉彩色，確保 5～12 色都彼此可分辨（顏色 = 區域身分，不可撞色）
   const PALETTE = ["#e79aa0","#e8b183","#ddd07f","#b8d488","#8fd0a0","#7fcfc0","#85c9d6","#93b8e8","#a7a9e8","#c2a0e0","#e0a0d0","#e69ab8"];
-  const CROWN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.2 7.1c.9 0 1.6.7 1.6 1.6 0 .5-.2.9-.5 1.2l1.5 3.4 3.6-3.2-1.2-2.5c-.5-.2-.9-.7-.9-1.4 0-.9.7-1.6 1.6-1.6s1.6.7 1.6 1.6c0 .5-.2.9-.6 1.2l1.6 3.3h1.8l1.6-3.3c-.4-.3-.6-.7-.6-1.2 0-.9.7-1.6 1.6-1.6s1.6.7 1.6 1.6c0 .7-.4 1.2-.9 1.4l-1.2 2.5 3.6 3.2 1.5-3.4c-.3-.3-.5-.7-.5-1.2 0-.9.7-1.6 1.6-1.6s1.6.7 1.6 1.6-.7 1.6-1.5 1.6L19 18.2H5L3.1 10.3c-.8 0-1.5-.7-1.5-1.6 0-.9.7-1.6 1.6-1.6z"/><rect x="5" y="19.2" width="14" height="2.1" rx=".5"/></svg>';
+  const CROWN = '<img class="piece" src="kamigo.png" alt="" aria-hidden="true">';
 
   function shuffled(arr){
     const a = arr.slice();
@@ -531,10 +568,18 @@
   }
 
   // 退火＋重啟＋貪婪，切成可分幀執行的步進器：一張基底盤攤銷昂貴的 makeUnique
-  function makeGen(n, targetD){
+  function makeGen(n, targetD, avoid){
     // 小盤 makeUnique 幾乎免費 → 卡住就馬上重啟（新基底命中稀有難度更快）；大盤 makeUnique 貴 → 多爬一會兒攤銷
     const STUCK_MAX = n<=9 ? 12 : (n<=10 ? 30 : 80);
-    let best=null, region=null, sol=null, seeds=null, solCell=null, cur=null, stuck=0, phase=0; // 0=restart 1=anneal
+    let found=null, best=null, region=null, sol=null, seeds=null, solCell=null, cur=null, stuck=0, phase=0; // 0=restart 1=anneal
+    function consider(){
+      if(!best||Math.abs(cur.D-targetD)<Math.abs(best.D-targetD)) best={region:region.slice(),sol,D:cur.D,h:cur.h};
+      // 命中目標難度、且不在「最近玩過」集合 → 就是可用的新盤
+      if(!found && cur.D===targetD){
+        const key = canonSym(n, region);
+        if(!avoid || !avoid.has(key)) found={region:region.slice(),sol,D:cur.D,key};
+      }
+    }
     function restart(){
       // 小預算：把單次同步阻塞壓短，讓爬山動畫不被長時間凍結（大盤有時要多試幾次才拿到基底）
       const base=makeUnique(n, 900);
@@ -543,7 +588,7 @@
       seeds=new Set(sol.map((c,r)=>r*n+c));
       solCell=new Array(n); for(let r=0;r<n;r++) solCell[region[r*n+sol[r]]]=r*n+sol[r];
       cur=scoreOf(n,region,sol); if(!cur){ region=null; return; }
-      if(!best||Math.abs(cur.D-targetD)<Math.abs(best.D-targetD)) best={region:region.slice(),sol,D:cur.D,h:cur.h};
+      consider();
       stuck=0; phase=1;
     }
     function anneal(){
@@ -558,18 +603,18 @@
       if(mv){
         region=mv.nr; cur=mv.sc;
         if(Math.abs(cur.D-targetD) < before) stuck=0; else stuck++;   // 只有嚴格變近才重置；平台期照樣累積 → 觸發重啟
-        if(Math.abs(cur.D-targetD)<Math.abs(best.D-targetD)) best={region:region.slice(),sol,D:cur.D,h:cur.h};
+        consider();
       } else stuck++;
       if(stuck>=STUCK_MAX) phase=0;   // 卡住 → 換一個新基底重來
     }
     return {
       get working(){ return region; },
       get best(){ return best; },
-      get hit(){ return !!(best && best.D===targetD); },
+      get found(){ return found; },
       step(ms){
         const t0=performance.now();
         do{
-          if(best && best.D===targetD) return;
+          if(found) return;
           if(phase===0) restart(); else anneal();
         }while(performance.now()-t0 < ms);
       }
@@ -581,7 +626,7 @@
     n:0, region:null, sol:null,
     cells:null,          // 0 空 / 1 標記 / 2 皇后
     nodes:[], history:[],
-    wins:0, hints:0, size:5, glevel:{},
+    wins:0, hints:0, size:6, glevel:{}, recent:{}, cleared:{},
     t0:0, timer:null, elapsed:0,
     playing:false, dragging:false, dragStart:-1, dragMoved:false, dragErase:false, snapped:false
   };
@@ -605,9 +650,11 @@
   function gLevel(size){ return Math.max(1, G.glevel[size] || 1); }
   function setup(){
     const n = G.size, gl = gLevel(n), maxT = maxLevel(n);
-    const tier = Math.min(maxT, Math.ceil(gl/10));     // 難度 = ⌈遊戲等級 / 10⌉
-    const round = ((gl-1) % 10) + 1;                   // 第幾關 = (遊戲等級-1) mod 10 + 1
-    return { n, glevel:gl, tier, round, maxTier:maxT, targetD:targetD(n,tier) };
+    const atMax = Math.ceil(gl/10) >= maxT;            // 已達最高難度
+    const tier = Math.min(maxT, Math.ceil(gl/10));     // 難度 = ⌈遊戲等級 / 10⌉（封頂於最高難度）
+    // 未滿級：第幾關在 1~10 之間循環，滿 10 升難度；滿級後：改成累積場次（不再有 /10 上限）
+    const round = atMax ? (gl - (maxT-1)*10) : (((gl-1) % 10) + 1);
+    return { n, glevel:gl, tier, round, maxTier:maxT, atMax, targetD:targetD(n,tier) };
   }
 
   /* ================= 等級選擇 UI ================= */
@@ -641,8 +688,20 @@
   function updatePlate(){
     const s = setup();
     $("s-level").innerHTML = s.glevel + ' <small>' + s.n + '×' + s.n + '</small>';
-    $("s-diff").innerHTML = s.tier + '<small>/' + s.maxTier + ' · 第 ' + s.round + '/10 關</small>';
-    $("s-bar").style.width = Math.round(s.round/10*100) + "%";   // 進度條 = 這一難度的第幾關（10 關填滿→升難度）
+    const bank = s.atMax && isBank(s.n, s.targetD) && BANKS[s.n] && BANKS[s.n][s.targetD];
+    let diffTxt;
+    if(bank){
+      const done = Math.min((G.cleared[s.n+":"+s.targetD]||[]).length, bank.length);
+      diffTxt = done>=bank.length
+        ? s.tier + '<small>/' + s.maxTier + ' · ★ 已破關</small>'
+        : s.tier + '<small>/' + s.maxTier + ' · 最難 已破 ' + done + '/' + bank.length + '</small>';
+    }else if(s.atMax){
+      diffTxt = s.tier + '<small>/' + s.maxTier + ' · 已玩 ' + s.round + ' 關（最高）</small>';
+    }else{
+      diffTxt = s.tier + '<small>/' + s.maxTier + ' · 第 ' + s.round + '/10 關</small>';
+    }
+    $("s-diff").innerHTML = diffTxt;
+    $("s-bar").style.width = (s.atMax ? 100 : Math.round(s.round/10*100)) + "%";
     syncSelectors();
   }
 
@@ -845,8 +904,20 @@
     board.parentElement.classList.add("won");
     G.nodes.forEach((d,k)=>d.style.setProperty("--d", (k%7)*0.05 + "s"));
 
-    const before = setup();
-    G.glevel[before.n] = gLevel(before.n) + 1;     // 過一關 → 該尺寸遊戲等級 +1（每 10 關升難度）
+    const before = setup(), n = before.n, D = before.targetD;
+    // 記錄玩過的盤面（避免重複）；最難難度另外累積全破進度
+    const key = canonSym(n, G.region), rk = n+":"+D;
+    const rec = G.recent[rk] || []; rec.push(key); while(rec.length>9) rec.shift();
+    G.recent[rk] = rec; store.set("queens.recent", G.recent);
+    let clearedNow = false, clearProg = null;
+    if(isLastDiff(n, D)){
+      const cl = G.cleared[rk] || []; if(cl.indexOf(key)<0) cl.push(key);
+      G.cleared[rk] = cl; store.set("queens.cleared", G.cleared);
+      const bank = BANKS[n] && BANKS[n][D];
+      if(bank){ clearProg = {done: Math.min(cl.length, bank.length), total: bank.length}; clearedNow = cl.length >= bank.length; }
+    }
+
+    G.glevel[n] = gLevel(n) + 1;     // 過一關 → 該尺寸遊戲等級 +1（每 10 關升難度）
     G.wins++;
     store.set("queens.glevels", G.glevel);
     store.set("queens.wins", G.wins);
@@ -854,9 +925,15 @@
     updatePlate();
 
     $("win-time").textContent = fmt(G.elapsed);
-    let note = before.n + "×" + before.n + " · 難度 " + before.tier + " · 第 " + before.round + "/10 關 · 使用提示 " + G.hints + " 次";
+    let note = before.atMax
+      ? (n + "×" + n + " · 難度 " + before.tier + "（最高）· 已玩 " + before.round + " 關 · 使用提示 " + G.hints + " 次")
+      : (n + "×" + n + " · 難度 " + before.tier + " · 第 " + before.round + "/10 關 · 使用提示 " + G.hints + " 次");
     if(after.tier > before.tier)
       note = "難度提升到 " + after.tier + "（" + tierLabel(after.n, after.targetD) + "）！";
+    if(clearProg)
+      note = clearedNow
+        ? "★ 已破關！最難難度「" + tierLabel(n,D) + "」全 " + clearProg.total + " 張版面都玩過了。"
+        : (n + "×" + n + " · 最難難度 · 已破 " + clearProg.done + "/" + clearProg.total + " 張");
     $("win-note").textContent = note;
     setTimeout(()=>$("veil-win").classList.add("on"), 450);
   }
@@ -871,6 +948,42 @@
   function stopDots(){ clearInterval(dotsTimer); dotsTimer = 0; }
 
   /* ================= 新局 ================= */
+  // 即時生成：爬到「命中目標難度且不在最近 9 張」的新盤；10 秒上限後退讓 best
+  function runLive(n, D, info){
+    const avoid = new Set(G.recent[n+":"+D] || []);
+    const gen = makeGen(n, D, avoid);
+    const start = performance.now();
+    (function frame(){
+      gen.step(22);
+      const w = gen.working; if(w) paintRegion(w);
+      if(gen.found || performance.now() - start > 10000){ finishGame(gen.found || gen.best, info); return; }
+      genRaf = setTimeout(frame, 16);   // setTimeout（非 rAF）→ 分頁切到背景也照跑，10 秒上限一定會觸發
+    })();
+  }
+  // 題庫抽一張（避開最近玩過；最難難度追蹤全破）
+  function serveBank(n, D, info){
+    const t0 = performance.now();
+    loadBank(n).then(bank => {
+      const pool = bank && bank[D];
+      if(!pool || !pool.length){ runLive(n, D, info); return; }   // 題庫載入失敗 → 退回即時生成
+      const rk = n+":"+D;
+      let chosen;
+      if(isLastDiff(n, D)){
+        const cleared = new Set(G.cleared[rk] || []);
+        const unplayed = pool.filter(b=>!cleared.has(b.key));
+        const arr = unplayed.length ? unplayed : pool;         // 全破後照樣隨機給（可重複）
+        chosen = arr[(Math.random()*arr.length)|0];
+      }else{
+        const recent = G.recent[rk] || [];
+        const fresh = pool.filter(b=>recent.indexOf(b.key)<0);
+        const arr = fresh.length ? fresh : pool;
+        chosen = arr[(Math.random()*arr.length)|0];
+      }
+      updatePlate();   // 題庫載入後刷新（顯示破關進度）
+      const wait = Math.max(0, 350 - (performance.now()-t0));    // 至少讓「題目生成中」閃一下，體感一致
+      setTimeout(()=>finishGame({region:chosen.region.slice(), sol:chosen.sol.slice(), D:D}, info), wait);
+    });
+  }
   function newGame(){
     $("veil-win").classList.remove("on");
     board.parentElement.classList.remove("won");
@@ -882,21 +995,15 @@
     say("");
     updatePlate();
 
-    const info = setup();
-    G.n = info.n;
-    G.region = new Array(info.n*info.n).fill(0);
-    G.cells = new Array(info.n*info.n).fill(0);
-    buildBoard(info.n);
+    const info = setup(), n = info.n, D = info.targetD;
+    G.n = n;
+    G.region = new Array(n*n).fill(0);
+    G.cells = new Array(n*n).fill(0);
+    buildBoard(n);
     startDots();
 
-    const gen = makeGen(info.n, info.targetD);
-    const start = performance.now();
-    (function frame(){
-      gen.step(22);
-      const w = gen.working; if(w) paintRegion(w);
-      if(gen.hit || performance.now() - start > 10000){ finishGame(gen.best, info); return; }
-      genRaf = setTimeout(frame, 16);   // setTimeout（非 rAF）→ 分頁切到背景也照跑，10 秒上限一定會觸發
-    })();
+    if(isBank(n, D)) serveBank(n, D, info);
+    else runLive(n, D, info);
   }
 
   function finishGame(best, info){
@@ -931,6 +1038,10 @@
     if(SIZES.indexOf(sz) >= 0) G.size = sz;
     const gls = await store.get("queens.glevels");
     if(gls && typeof gls === "object") G.glevel = gls;
+    const rec = await store.get("queens.recent");
+    if(rec && typeof rec === "object") G.recent = rec;
+    const cl = await store.get("queens.cleared");
+    if(cl && typeof cl === "object") G.cleared = cl;
     const am = await store.get("queens.auto");
     if(typeof am === "boolean"){
       autoMark = am;
