@@ -232,7 +232,12 @@
   }
   .toast.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
 
-  .msg{width:var(--board-max);min-height:1.2rem;margin-top:.6rem;font-size:.78rem;color:var(--brass);text-align:center}
+  /* 提示說明就放在盤面正下方：按「提示」時它一定在視線和拇指之間，不用捲。
+     min-height 先留兩行的高度，多數說明不會把下面的按鈕頂走。
+     flex-shrink:0：body 是高度 100% 的直向 flex，不鎖住的話多行文字會被壓扁、溢出框外。 */
+  .msg{width:var(--board-max);min-height:2.6rem;flex-shrink:0;
+       margin-top:.55rem;padding:0 .2rem;display:flex;align-items:center;justify-content:center;
+       font-size:.78rem;line-height:1.7;color:var(--brass);text-align:center}
 
   @media (max-width:380px){
     h1{font-size:2rem}
@@ -280,6 +285,8 @@
   </div>
 </div>
 
+<div class="msg" id="msg"></div>
+
 <div class="controls">
   <button id="btn-undo">復原</button>
   <button id="btn-clear">重來</button>
@@ -292,8 +299,6 @@
   <div class="switch on" id="sw-auto" role="switch" aria-checked="true" tabindex="0"></div>
 </div>
 
-<div class="msg" id="msg"></div>
-
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <div class="modal" id="modal-rules" role="dialog" aria-modal="true" aria-labelledby="rules-title">
@@ -305,6 +310,7 @@
       <li>好狗不擋路：狗狗不能碰到隔壁的狗，上下左右和斜角相鄰都不行。</li>
       <li>只要沒有相鄰，同一條斜線上還是可以住（這點和西洋棋的皇后不一樣）。</li>
       <li>點一下蓋腳印，標記「這格不放狗」；點兩下放上卡米狗；點三下清空。按住拖曳可以連續蓋／擦腳印。</li>
+      <li>「提示」不會直接告訴你狗在哪，而是幫你標出確定沒有狗的格子，並說明是怎麼推出來的。</li>
       <li>按左上角「分享」會把這張盤面做成連結，朋友打開就是同一張，可以比誰快。</li>
       <li>每過 10 關，難度會自動提升一階；也可以用盤面上方「地圖大小」「難度」兩個選單直接切換。難度越高，越需要多繞幾層推理才找得到狗窩。</li>
     </ol>
@@ -396,22 +402,25 @@
   }
 
   /* ================= 盤面分享碼 ================= */
-  // 格式同題庫：n*n 個區域字元 + n 個解答字元（base36）。
-  // 長度 n(n+1) 在 6~12 各不相同（42/56/72/90/110/132/156）→ 不必另外標尺寸。
-  function encodeBoard(n, region, sol){
-    return region.map(v=>v.toString(36)).join("") + sol.map(v=>v.toString(36)).join("");
+  // 只帶顏色圖：n*n 個 base36 字元。解答不放進網址（免得一眼看穿），由收到的人自己解。
+  // 長度 n*n 在 6~12 各不相同（36/49/64/81/100/121/144）→ 不必另外標尺寸。
+  function encodeBoard(n, region){
+    return region.map(v=>v.toString(36)).join("");
+  }
+  function firstSolution(n, region){
+    return altSolution(n, region, new Array(n).fill(-1));   // 沒有一列會等於 -1 → 第一個完整解就回傳
   }
   function decodeBoard(code){
     const s = String(code || "").trim().toLowerCase();
-    const n = SIZES.find(k => k*(k+1) === s.length);
+    let n = SIZES.find(k => k*k === s.length);
+    if(!n) n = SIZES.find(k => k*(k+1) === s.length);        // 舊版分享碼（尾巴附解答）仍然收，解答忽略重算
     if(!n) return null;
-    const v = [...s].map(ch => parseInt(ch, 36));
-    if(v.some(x => !(x >= 0 && x < n))) return null;          // NaN 也會被擋下
-    const region = v.slice(0, n*n), sol = v.slice(n*n);
-    if(new Set(region).size !== n) return null;               // 恰好 n 個顏色
-    if(new Set(sol).size !== n) return null;                  // 每行一隻
-    for(let r=1;r<n;r++) if(Math.abs(sol[r]-sol[r-1]) <= 1) return null;  // 上下列不相鄰
-    if(new Set(sol.map((c,r)=>region[r*n+c])).size !== n) return null;    // 每色一隻
+    const region = [...s.slice(0, n*n)].map(ch => parseInt(ch, 36));
+    if(region.some(x => !(x >= 0 && x < n))) return null;    // NaN 也會被擋下
+    if(new Set(region).size !== n) return null;              // 恰好 n 個顏色
+    const sol = firstSolution(n, region);
+    if(!sol) return null;                                    // 無解
+    if(altSolution(n, region, sol)) return null;             // 解不唯一 → 不是合法題目
     return { n, region, sol };
   }
   const shareURL = code => location.origin + location.pathname + "?b=" + code;
@@ -437,9 +446,66 @@
   }
 
   /* ================= 產生器 + 分級解題器（已驗證）================= */
-  // 12 個色相均勻分佈的粉彩色，確保 5～12 色都彼此可分辨（顏色 = 區域身分，不可撞色）
-  const PALETTE = ["#e79aa0","#e8b183","#ddd07f","#b8d488","#8fd0a0","#7fcfc0","#85c9d6","#93b8e8","#a7a9e8","#c2a0e0","#e0a0d0","#e69ab8"];
+  // 12 個粉彩色：色相均勻，明度也刻意錯開（只靠色相分辨時，相鄰色相太容易看混）
+  // OKLab 最小色距：正常視覺 9.0、紅色盲 6.6、綠色盲 4.8（前一版分別是 4.6 / 1.0 / 1.7）
+  const PALETTE = ["#f4b9cc","#e38e8a","#e3a660","#e7cb7e","#e5efb3","#8cc397",
+                   "#a1fced","#62e5f8","#82c5ff","#89a0ef","#c0acda","#d387c1"];
   const CROWN = '<img class="piece" src="kamigo.png" alt="" aria-hidden="true">';
+
+  /* ---- 每張盤面的配色 ----
+     1) n < 12 時把顏色平均攤在整個色環上（以前是直接取前 n 個，只用到半圈，看起來當然像）
+     2) 再用交換法讓「相鄰兩塊」的色距盡量大 —— 會看混的幾乎都是貼在一起的兩塊
+     全程不用亂數，同一張盤面在任何裝置上都是同一組配色（分享連結才不會變色） */
+  function oklab(hex){
+    const f = v => { v /= 255; return v <= 0.04045 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4); };
+    const r=f(parseInt(hex.slice(1,3),16)), g=f(parseInt(hex.slice(3,5),16)), b=f(parseInt(hex.slice(5,7),16));
+    const l=Math.cbrt(0.4122214708*r+0.5363325363*g+0.0514459929*b);
+    const m=Math.cbrt(0.2119034982*r+0.6806995451*g+0.1073969566*b);
+    const s=Math.cbrt(0.0883024619*r+0.2817188376*g+0.6299787005*b);
+    return [0.2104542553*l+0.7936177850*m-0.0040720468*s,
+            1.9779984951*l-2.4285922050*m+0.4505937099*s,
+            0.0259040371*l+0.7827717662*m-0.8086757660*s];
+  }
+  const PAL_LAB  = PALETTE.map(oklab);
+  const PAL_DIST = PAL_LAB.map(a => PAL_LAB.map(b => Math.hypot(a[0]-b[0], a[1]-b[1], a[2]-b[2])));
+
+  let palMap = [];                                    // 區域編號 → 色盤索引
+  const colorOf = g => PALETTE[(palMap[g] != null ? palMap[g] : g) % PALETTE.length];
+  const spreadMap = n => { const m=[]; for(let g=0;g<n;g++) m[g] = Math.round(g*PALETTE.length/n) % PALETTE.length; return m; };
+
+  function assignColors(n, region){
+    const N = n*n, map = spreadMap(n), adj = [], seen = new Set();
+    for(let i=0;i<N;i++){
+      const r=(i/n)|0, c=i%n, g=region[i];
+      const link = j => {
+        const h = region[j];
+        if(h === g) return;
+        const k = Math.min(g,h)*16 + Math.max(g,h);
+        if(seen.has(k)) return;
+        seen.add(k); adj.push([g,h]);
+      };
+      if(c+1 < n) link(i+1);
+      if(r+1 < n) link(i+n);
+    }
+    if(!adj.length) return map;
+    const scoreOfMap = m => {
+      let mn = Infinity, sum = 0;
+      for(const [a,b] of adj){ const d = PAL_DIST[m[a]][m[b]]; if(d < mn) mn = d; sum += d; }
+      return [mn, sum];
+    };
+    let cur = scoreOfMap(map);
+    for(let pass=0; pass<20; pass++){
+      let improved = false;
+      for(let a=0;a<n;a++) for(let b=a+1;b<n;b++){
+        [map[a], map[b]] = [map[b], map[a]];
+        const s = scoreOfMap(map);
+        if(s[0] > cur[0] + 1e-9 || (Math.abs(s[0]-cur[0]) < 1e-9 && s[1] > cur[1] + 1e-9)){ cur = s; improved = true; }
+        else [map[a], map[b]] = [map[b], map[a]];
+      }
+      if(!improved) break;
+    }
+    return map;
+  }
 
   function shuffled(arr){
     const a = arr.slice();
@@ -724,6 +790,245 @@
     };
   }
 
+  /* ================= 逐步推理器（提示用）=================
+     只看「玩家已經放下的狗」，由簡到繁套用邏輯技巧，推出「這裡確定沒有狗」的格子，
+     並附上人話說明。刻意不碰答案：翻答案只在所有技巧都推不動時才由呼叫端決定。 */
+  const COLOR_NAME = ["粉紅","珊瑚","橘","鵝黃","嫩綠","綠","薄荷","天藍","藍","藍紫","紫","桃紅"];
+  const cname = g => COLOR_NAME[(palMap[g] != null ? palMap[g] : g) % COLOR_NAME.length] + "色";
+  const posName = (n,i) => "第 " + (((i/n)|0)+1) + " 列第 " + ((i%n)+1) + " 行";
+
+  // dogs=玩家放的狗；known=玩家已標記/已放狗的格子（用來判斷這步對他是不是新資訊）
+  // reportDogs=false 時，狗的攻擊範圍只在內部套用不回報（畫面已經有自動標記了）
+  function deduce(n, region, dogs, known, reportDogs){
+    const N = n*n;
+    const cand = new Uint8Array(N).fill(1);
+    const rowHas = new Uint8Array(n), colHas = new Uint8Array(n), regHas = new Uint8Array(n);
+    for(const q of dogs){ rowHas[(q/n)|0]=1; colHas[q%n]=1; regHas[region[q]]=1; }
+
+    const rowCands = r => { const o=[]; for(let c=0;c<n;c++){ const i=r*n+c; if(cand[i]) o.push(i); } return o; };
+    const colCands = c => { const o=[]; for(let r=0;r<n;r++){ const i=r*n+c; if(cand[i]) o.push(i); } return o; };
+    const regCands = g => { const o=[]; for(let i=0;i<N;i++) if(region[i]===g && cand[i]) o.push(i); return o; };
+
+    // 一隻狗吃掉的所有格子（同列、同行、同色、周圍八格）
+    function shadow(q){
+      const r=(q/n)|0, c=q%n, g=region[q], o=new Set();
+      for(let k=0;k<n;k++){ o.add(r*n+k); o.add(k*n+c); }
+      for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+        const nr=r+dr, nc=c+dc;
+        if(nr>=0&&nr<n&&nc>=0&&nc<n) o.add(nr*n+nc);
+      }
+      for(let i=0;i<N;i++) if(region[i]===g) o.add(i);
+      return [...o];
+    }
+
+    function stepDogs(){
+      for(const q of dogs){
+        const cells = shadow(q).filter(i => cand[i]);
+        if(cells.length) return { cells, silent: !reportDogs,
+          text: posName(n,q) + "有狗了：同列、同行、同色和周圍相鄰的格子都不能再有狗。" };
+      }
+      return null;
+    }
+
+    // 某個顏色剩下的格子擠在同一列（行）→ 那一列（行）就歸這個顏色，其餘顏色出局
+    function stepPointing(){
+      for(let g=0; g<n; g++){
+        if(regHas[g]) continue;
+        const cc = regCands(g);
+        if(cc.length < 2) continue;
+        const rows = new Set(cc.map(i => (i/n)|0));
+        if(rows.size === 1){
+          const r = [...rows][0], cells = rowCands(r).filter(i => region[i] !== g);
+          if(cells.length) return { cells,
+            text: cname(g) + "只剩第 " + (r+1) + " 列能放，所以第 " + (r+1) + " 列的狗一定是" + cname(g) + "的，這列其他顏色排除。" };
+        }
+        const cols = new Set(cc.map(i => i%n));
+        if(cols.size === 1){
+          const c = [...cols][0], cells = colCands(c).filter(i => region[i] !== g);
+          if(cells.length) return { cells,
+            text: cname(g) + "只剩第 " + (c+1) + " 行能放，所以第 " + (c+1) + " 行的狗一定是" + cname(g) + "的，這行其他顏色排除。" };
+        }
+      }
+      return null;
+    }
+
+    // 某一列（行）剩下的格子全屬同一個顏色 → 那個顏色的狗就在這一列（行），它在別處的格子出局
+    function stepClaiming(){
+      for(let r=0;r<n;r++){
+        if(rowHas[r]) continue;
+        const cc = rowCands(r);
+        if(cc.length < 2) continue;
+        const regs = new Set(cc.map(i => region[i]));
+        if(regs.size !== 1) continue;
+        const g = [...regs][0], cells = regCands(g).filter(i => ((i/n)|0) !== r);
+        if(cells.length) return { cells,
+          text: "第 " + (r+1) + " 列能放的格子全是" + cname(g) + "，所以" + cname(g) + "的狗就在這一列，它在別列的格子排除。" };
+      }
+      for(let c=0;c<n;c++){
+        if(colHas[c]) continue;
+        const cc = colCands(c);
+        if(cc.length < 2) continue;
+        const regs = new Set(cc.map(i => region[i]));
+        if(regs.size !== 1) continue;
+        const g = [...regs][0], cells = regCands(g).filter(i => (i%n) !== c);
+        if(cells.length) return { cells,
+          text: "第 " + (c+1) + " 行能放的格子全是" + cname(g) + "，所以" + cname(g) + "的狗就在這一行，它在別行的格子排除。" };
+      }
+      return null;
+    }
+
+    // 某一列只剩相鄰兩行可放 → 不管放哪一行，緊鄰的上下列用這兩行都會貼到狗
+    function stepSqueeze(){
+      for(let r=0;r<n;r++){
+        if(rowHas[r]) continue;
+        const cols = [...new Set(rowCands(r).map(i => i%n))].sort((a,b)=>a-b);
+        if(cols.length !== 2 || cols[1]-cols[0] !== 1) continue;
+        const cells = [];
+        for(const rr of [r-1, r+1]){
+          if(rr<0 || rr>=n || rowHas[rr]) continue;
+          for(const c of cols){ const i=rr*n+c; if(cand[i]) cells.push(i); }
+        }
+        if(cells.length) return { cells,
+          text: "第 " + (r+1) + " 列只能放第 " + (cols[0]+1) + "、" + (cols[1]+1) + " 行，兩行緊鄰；上下鄰列再用這兩行一定會貼到，排除。" };
+      }
+      for(let c=0;c<n;c++){
+        if(colHas[c]) continue;
+        const rows = [...new Set(colCands(c).map(i => (i/n)|0))].sort((a,b)=>a-b);
+        if(rows.length !== 2 || rows[1]-rows[0] !== 1) continue;
+        const cells = [];
+        for(const cc of [c-1, c+1]){
+          if(cc<0 || cc>=n || colHas[cc]) continue;
+          for(const r of rows){ const i=r*n+cc; if(cand[i]) cells.push(i); }
+        }
+        if(cells.length) return { cells,
+          text: "第 " + (c+1) + " 行只能放第 " + (rows[0]+1) + "、" + (rows[1]+1) + " 列，兩列緊鄰；左右鄰行再用這兩列一定會貼到，排除。" };
+      }
+      return null;
+    }
+
+    // 假設這格放狗 → 沿著「只剩一個選擇」一路推 → 推到某列/行/顏色無處可放＝矛盾
+    function contradiction(start){
+      const c = cand.slice(), rd = rowHas.slice(), cd = colHas.slice(), gd = regHas.slice();
+      const stack = [start];
+      let guard = 0;
+      while(stack.length){
+        if(++guard > 5000) return null;
+        const p = stack.pop();
+        if(!c[p]) continue;
+        const r=(p/n)|0, col=p%n, g=region[p];
+        rd[r]=1; cd[col]=1; gd[g]=1;
+        for(let k=0;k<n;k++){ c[r*n+k]=0; c[k*n+col]=0; }
+        for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+          const nr=r+dr, nc=col+dc;
+          if(nr>=0&&nr<n&&nc>=0&&nc<n) c[nr*n+nc]=0;
+        }
+        for(let j=0;j<N;j++) if(region[j]===g) c[j]=0;
+        for(let rr=0;rr<n;rr++) if(!rd[rr]){
+          let cnt=0,last=-1; for(let x=0;x<n;x++){ const i=rr*n+x; if(c[i]){cnt++;last=i;} }
+          if(cnt===0) return "第 " + (rr+1) + " 列";
+          if(cnt===1) stack.push(last);
+        }
+        for(let cc=0;cc<n;cc++) if(!cd[cc]){
+          let cnt=0,last=-1; for(let x=0;x<n;x++){ const i=x*n+cc; if(c[i]){cnt++;last=i;} }
+          if(cnt===0) return "第 " + (cc+1) + " 行";
+          if(cnt===1) stack.push(last);
+        }
+        for(let gg=0;gg<n;gg++) if(!gd[gg]){
+          let cnt=0,last=-1; for(let x=0;x<N;x++){ if(region[x]===gg && c[x]){cnt++;last=x;} }
+          if(cnt===0) return cname(gg) + "的地盤";
+          if(cnt===1) stack.push(last);
+        }
+      }
+      return null;
+    }
+    function stepContradiction(){
+      for(let i=0;i<N;i++){
+        if(!cand[i]) continue;
+        const where = contradiction(i);
+        if(where) return { cells:[i],
+          text: "假設" + posName(n,i) + "放狗，一路推下去" + where + "就無處可放，矛盾，所以這裡沒有狗。" };
+      }
+      return null;
+    }
+
+    // 在「已放的狗 + extra 也放狗」的前提下，整張盤還有沒有解（cand 已排除的格子直接跳過）
+    function hasSolution(extra){
+      const forced = new Int8Array(n).fill(-1);
+      const usedCol = new Uint8Array(n), usedReg = new Uint8Array(n);
+      for(const q of (extra == null ? dogs : dogs.concat(extra))){
+        const r=(q/n)|0, c=q%n, g=region[q];
+        if(forced[r] >= 0 && forced[r] !== c) return false;
+        if(forced[r] < 0 && (usedCol[c] || usedReg[g])) return false;
+        forced[r]=c; usedCol[c]=1; usedReg[g]=1;
+      }
+      function bt(r, prev){
+        if(r === n) return true;
+        if(forced[r] >= 0){
+          if(prev >= 0 && Math.abs(forced[r]-prev) <= 1) return false;
+          return bt(r+1, forced[r]);
+        }
+        for(let c=0;c<n;c++){
+          if(usedCol[c]) continue;
+          if(prev >= 0 && Math.abs(c-prev) <= 1) continue;
+          const i = r*n+c;
+          if(!cand[i] && i !== extra) continue;      // 已推翻的格子不必再試
+          const g = region[i];
+          if(usedReg[g]) continue;
+          usedCol[c]=1; usedReg[g]=1;
+          const ok = bt(r+1, c);
+          usedCol[c]=0; usedReg[g]=0;
+          if(ok) return true;
+        }
+        return false;
+      }
+      return bt(0, -1);
+    }
+    // 最後手段：這格放狗會讓整張盤無解（把剩下的可能性窮舉過）
+    function stepDeep(){
+      for(let i=0;i<N;i++){
+        if(!cand[i]) continue;
+        if(!hasSolution(i)) return { cells:[i],
+          text: "假設" + posName(n,i) + "放狗，剩下的怎麼排都湊不出完整答案，所以這裡沒有狗。" };
+      }
+      return null;
+    }
+
+    // 只剩一格的列／行／顏色：只把整條線圈起來，不點出是哪一格（target 只給測試用，UI 不碰）
+    function forcedUnit(){
+      const wholeRow = r => { const o=[]; for(let c=0;c<n;c++) o.push(r*n+c); return o; };
+      const wholeCol = c => { const o=[]; for(let r=0;r<n;r++) o.push(r*n+c); return o; };
+      const wholeReg = g => { const o=[]; for(let i=0;i<N;i++) if(region[i]===g) o.push(i); return o; };
+      for(let r=0;r<n;r++) if(!rowHas[r]){ const cc=rowCands(r); if(cc.length===1)
+        return { kind:"unit", cells:wholeRow(r), target:cc[0], text:"第 " + (r+1) + " 列只剩一格沒被排除，那裡就是下一隻狗，自己按下去吧。" }; }
+      for(let c=0;c<n;c++) if(!colHas[c]){ const cc=colCands(c); if(cc.length===1)
+        return { kind:"unit", cells:wholeCol(c), target:cc[0], text:"第 " + (c+1) + " 行只剩一格沒被排除，那裡就是下一隻狗，自己按下去吧。" }; }
+      for(let g=0;g<n;g++) if(!regHas[g]){ const cc=regCands(g); if(cc.length===1)
+        return { kind:"unit", cells:wholeReg(g), target:cc[0], text:cname(g) + "地盤只剩一格沒被排除，那裡就是下一隻狗，自己按下去吧。" }; }
+      return null;
+    }
+
+    if(dogs.length === n) return { kind:"done" };
+
+    const EASY = [stepDogs, stepPointing, stepClaiming, stepSqueeze];
+    for(let guard=0; guard<3000; guard++){
+      let moved = false;
+      for(const fn of EASY.concat(forcedUnit, stepContradiction, stepDeep)){
+        const st = fn();
+        if(!st) continue;
+        if(st.kind === "unit") return st;                     // 該放狗了，先不繼續排除
+        const cells = st.cells.filter(i => cand[i]);
+        if(!cells.length) continue;
+        const news = cells.filter(i => !known.has(i));
+        cells.forEach(i => cand[i] = 0);
+        moved = true;
+        if(news.length && !st.silent) return { kind:"marks", cells:news, text:st.text };
+        break;                                                // 玩家已經知道了 → 吸收掉，重頭再試簡單技巧
+      }
+      if(!moved) return null;                                 // 邏輯技巧全部推不動
+    }
+    return null;
+  }
+
   /* ================= 狀態 ================= */
   const G = {
     n:0, region:null, sol:null,
@@ -741,6 +1046,17 @@
   let genRaf = 0, dotsTimer = 0;
 
   function say(t){ msgEl.textContent = t || ""; }
+  // 提示說明在頁面最下面，小螢幕可能剛好在視窗外 → 捲進來（已經看得到就不動）
+  // 等一幀再量，否則量到的還是換行前的高度，會捲不夠
+  function sayHint(t){
+    say(t);
+    requestAnimationFrame(()=>{
+      const r = msgEl.getBoundingClientRect();
+      if(r.bottom <= window.innerHeight - 4) return;
+      const y = window.scrollY + r.bottom - window.innerHeight + 12;
+      try{ window.scrollTo({ top:y, behavior:"smooth" }); }catch(e){ window.scrollTo(0, y); }
+    });
+  }
   function fmt(ms){
     const s = Math.floor(ms/1000);
     return String(Math.floor(s/60)).padStart(2,"0") + ":" + String(s%60).padStart(2,"0");
@@ -832,7 +1148,7 @@
       d.dataset.i = i;
       d.innerHTML = CROWN;
       const r = (i/n)|0, c = i%n, g = G.region[i];
-      d.style.background = PALETTE[g % PALETTE.length];
+      d.style.background = colorOf(g);
       const th = "2px solid #050d12", tn = "1px solid rgba(5,13,18,.16)";
       d.style.borderTop    = (r===0   || G.region[i-n]!==g) ? th : tn;
       d.style.borderBottom = (r===n-1 || G.region[i+n]!==g) ? th : tn;
@@ -849,7 +1165,7 @@
     for(let i=0;i<n*n;i++){
       const d = G.nodes[i]; if(!d) continue;
       const g = region[i], r = (i/n)|0, c = i%n;
-      d.style.background = PALETTE[g % PALETTE.length];
+      d.style.background = colorOf(g);
       d.style.borderTop    = (r===0   || region[i-n]!==g) ? th : tn;
       d.style.borderBottom = (r===n-1 || region[i+n]!==g) ? th : tn;
       d.style.borderLeft   = (c===0   || region[i-1]!==g) ? th : tn;
@@ -980,22 +1296,47 @@
     for(const q of queens()){
       const r = (q/n)|0;
       if(G.sol[r] !== q%n){
-        flash(q); say("這隻狗狗站錯地方了。"); G.hints++; return;
+        flash(q); sayHint("這隻狗狗站錯地方了。"); G.hints++; return;
       }
     }
-    const rows = [];
-    for(let r=0;r<n;r++) if(G.cells[r*n + G.sol[r]] !== 2) rows.push(r);
-    if(!rows.length){ say("目前不需要提示。"); return; }
-    const r = rows[(Math.random()*rows.length)|0], idx = r*n + G.sol[r];
+    // 提示不給狗的位置，而是推出「這裡確定沒有狗」並解釋為什麼
+    const known = new Set();
+    for(let i=0;i<G.cells.length;i++) if(G.cells[i]) known.add(i);
+    const step = deduce(n, G.region, queens(), known, !autoMark);
+
+    if(step && step.kind === "done"){ sayHint("已經解完了。"); return; }
+    G.hints++;
+    if(step && step.kind === "unit"){ sayHint(step.text); flash(step.cells); return; }
+    if(step && step.kind === "marks"){
+      snapshot();
+      for(const i of step.cells) G.cells[i] = 1;
+      sayHint(step.text);
+      flash(step.cells); render();
+      return;
+    }
+
+    // 邏輯技巧推不動了（需要更深的假設推演）→ 退而求其次，直接標一格沒有狗的
+    let pick = -1, fewest = 1e9;
+    for(let r=0;r<n;r++){
+      if(G.cells[r*n + G.sol[r]] === 2) continue;
+      const free = [];
+      for(let c=0;c<n;c++){ const i=r*n+c; if(!G.cells[i] && c !== G.sol[r]) free.push(i); }
+      if(free.length && free.length < fewest){ fewest = free.length; pick = free[0]; }
+    }
+    if(pick < 0){ sayHint("沒有更多可以排除的格子了。"); return; }
     snapshot();
-    G.cells[idx] = 2; G.hints++;
-    say("已公開第 " + (r+1) + " 列的卡米狗。");
-    flash(idx); render();
+    G.cells[pick] = 1;
+    sayHint("這步推不出來，直接告訴你" + posName(n, pick) + "沒有狗。");
+    flash(pick); render();
   };
-  function flash(i){
-    const d = G.nodes[i];
-    d.classList.remove("hint"); void d.offsetWidth; d.classList.add("hint");
-    setTimeout(()=>d.classList.remove("hint"), 3000);
+  function flash(which){
+    const list = Array.isArray(which) ? which : [which];
+    for(const i of list){
+      const d = G.nodes[i];
+      if(!d) continue;
+      d.classList.remove("hint"); void d.offsetWidth; d.classList.add("hint");
+    }
+    setTimeout(()=>{ for(const i of list){ const d=G.nodes[i]; if(d) d.classList.remove("hint"); } }, 3000);
   }
   $("btn-new").onclick = () => newGame();
   $("btn-next").onclick = () => newGame();
@@ -1023,7 +1364,7 @@
   $("btn-share").onclick = async () => {
     if(!G.n || !G.region || !G.sol) return;
     try{
-      await copyText(shareURL(encodeBoard(G.n, G.region, G.sol)));
+      await copyText(shareURL(encodeBoard(G.n, G.region)));
       toast("已複製盤面網址");
     }catch(e){
       toast("複製失敗，請手動複製網址");
@@ -1173,6 +1514,7 @@
     G.n = n;
     G.region = new Array(n*n).fill(0);
     G.cells = new Array(n*n).fill(0);
+    palMap = spreadMap(n);
     buildBoard(n);
     startDots();
 
@@ -1186,6 +1528,7 @@
     G.n = info.n;
     G.region = best.region;
     G.sol = best.sol;
+    palMap = assignColors(info.n, best.region);
     G.cells = new Array(info.n*info.n).fill(0);
     G.history = [];
     G.hints = 0;
