@@ -180,13 +180,15 @@
   .switch.on::after{transform:translateX(18px);background:var(--brass)}
 
   /* ---------- 規則 ---------- */
-  .rules-btn{
-    position:absolute;top:-.15rem;right:0;z-index:20;
+  .hdr-btn{
+    position:absolute;top:-.15rem;z-index:20;
     font-size:.62rem;letter-spacing:.24em;padding:.42rem .7rem .42rem .82rem;
     color:var(--brass);background:rgba(19,37,46,.86);
     border:1px solid rgba(217,164,65,.38);border-radius:20px;
   }
-  .rules-btn:hover:not(:disabled){background:var(--ink-3);border-color:var(--brass);color:#fff}
+  .hdr-btn:hover:not(:disabled){background:var(--ink-3);border-color:var(--brass);color:#fff}
+  #btn-share{left:0}
+  #btn-rules{right:0}
 
   .modal{
     position:fixed;inset:0;z-index:30;display:none;
@@ -218,6 +220,18 @@
   }
   .modal-x:hover:not(:disabled){color:#fff;background:var(--ink-3)}
 
+  /* ---------- 複製提示 ---------- */
+  .toast{
+    position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(.94);z-index:40;
+    padding:.85rem 1.5rem;font-size:.82rem;letter-spacing:.06em;
+    max-width:calc(100vw - 2rem);text-align:center;
+    color:var(--ivory);background:rgba(16,32,40,.96);
+    border:1px solid rgba(217,164,65,.42);border-radius:var(--radius);
+    box-shadow:0 18px 44px -16px rgba(0,0,0,.9);
+    opacity:0;pointer-events:none;transition:opacity .16s ease,transform .16s ease;
+  }
+  .toast.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+
   .msg{width:var(--board-max);min-height:1.2rem;margin-top:.6rem;font-size:.78rem;color:var(--brass);text-align:center}
 
   @media (max-width:380px){
@@ -235,14 +249,15 @@
 <body>
 
 <header>
-  <button class="rules-btn" id="btn-rules" aria-haspopup="dialog">規則</button>
+  <button class="hdr-btn" id="btn-share" disabled>分享</button>
+  <button class="hdr-btn" id="btn-rules" aria-haspopup="dialog">規則</button>
   <p class="eyebrow">Pawzzle · 卡米狗益智</p>
   <h1 style="font-size:2.1rem;letter-spacing:.16em;padding-left:.16em">好狗不擋路</h1>
 </header>
 
 <div class="plate">
   <div class="plate-row">
-    <div class="stat"><div class="stat-k">遊戲等級</div><div class="stat-v mono" id="s-level">1 <small>5×5</small></div></div>
+    <div class="stat"><div class="stat-k" id="s-level-k">遊戲等級</div><div class="stat-v mono" id="s-level">1 <small>5×5</small></div></div>
     <div class="stat"><div class="stat-k">難度</div><div class="stat-v mono" id="s-diff">1<small>/6 · 第 1/10 關</small></div></div>
     <div class="stat"><div class="stat-k">時間</div><div class="stat-v mono" id="s-time">00:00</div></div>
   </div>
@@ -279,6 +294,8 @@
 
 <div class="msg" id="msg"></div>
 
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
 <div class="modal" id="modal-rules" role="dialog" aria-modal="true" aria-labelledby="rules-title">
   <div class="modal-card">
     <button class="modal-x" id="btn-rules-close" aria-label="關閉">×</button>
@@ -288,6 +305,7 @@
       <li>好狗不擋路：狗狗不能碰到隔壁的狗，上下左右和斜角相鄰都不行。</li>
       <li>只要沒有相鄰，同一條斜線上還是可以住（這點和西洋棋的皇后不一樣）。</li>
       <li>點一下蓋腳印，標記「這格不放狗」；點兩下放上卡米狗；點三下清空。按住拖曳可以連續蓋／擦腳印。</li>
+      <li>按左上角「分享」會把這張盤面做成連結，朋友打開就是同一張，可以比誰快。</li>
       <li>每過 10 關，難度會自動提升一階；也可以用盤面上方「地圖大小」「難度」兩個選單直接切換。難度越高，越需要多繞幾層推理才找得到狗窩。</li>
     </ol>
   </div>
@@ -375,6 +393,47 @@
     let best=null;
     for(const f of F){ const t=new Array(n*n); for(let r=0;r<n;r++)for(let c=0;c<n;c++){const[R,C]=f(r,c);t[R*n+C]=region[r*n+c];} const s=relabelKey(n,t); if(best===null||s<best)best=s; }
     return best;
+  }
+
+  /* ================= 盤面分享碼 ================= */
+  // 格式同題庫：n*n 個區域字元 + n 個解答字元（base36）。
+  // 長度 n(n+1) 在 6~12 各不相同（42/56/72/90/110/132/156）→ 不必另外標尺寸。
+  function encodeBoard(n, region, sol){
+    return region.map(v=>v.toString(36)).join("") + sol.map(v=>v.toString(36)).join("");
+  }
+  function decodeBoard(code){
+    const s = String(code || "").trim().toLowerCase();
+    const n = SIZES.find(k => k*(k+1) === s.length);
+    if(!n) return null;
+    const v = [...s].map(ch => parseInt(ch, 36));
+    if(v.some(x => !(x >= 0 && x < n))) return null;          // NaN 也會被擋下
+    const region = v.slice(0, n*n), sol = v.slice(n*n);
+    if(new Set(region).size !== n) return null;               // 恰好 n 個顏色
+    if(new Set(sol).size !== n) return null;                  // 每行一隻
+    for(let r=1;r<n;r++) if(Math.abs(sol[r]-sol[r-1]) <= 1) return null;  // 上下列不相鄰
+    if(new Set(sol.map((c,r)=>region[r*n+c])).size !== n) return null;    // 每色一隻
+    return { n, region, sol };
+  }
+  const shareURL = code => location.origin + location.pathname + "?b=" + code;
+  function readShareCode(){
+    try{ return new URLSearchParams(location.search).get("b"); }catch(e){ return null; }
+  }
+  function clearShareURL(){
+    if(!location.search) return;
+    try{ history.replaceState(null, "", location.pathname); }catch(e){}
+  }
+  function copyText(t){
+    if(navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(t);
+    return new Promise((res, rej) => {
+      const ta = document.createElement("textarea");
+      ta.value = t; ta.setAttribute("readonly", "");
+      ta.style.cssText = "position:fixed;top:-1000px";
+      document.body.appendChild(ta); ta.select();
+      let ok = false;
+      try{ ok = document.execCommand("copy"); }catch(e){}
+      document.body.removeChild(ta);
+      ok ? res() : rej();
+    });
   }
 
   /* ================= 產生器 + 分級解題器（已驗證）================= */
@@ -671,6 +730,7 @@
     cells:null,          // 0 空 / 1 標記 / 2 皇后
     nodes:[], history:[],
     wins:0, hints:0, size:6, glevel:{}, recent:{}, cleared:{},
+    shared:null,         // 非 null＝正在玩別人分享的盤面 {n, D}
     t0:0, timer:null, elapsed:0,
     playing:false, dragging:false, dragStart:-1, dragMoved:false, dragErase:false, snapped:false
   };
@@ -730,6 +790,18 @@
   }
 
   function updatePlate(){
+    if(G.shared){
+      const n = G.shared.n;
+      $("s-level-k").textContent = "盤面來源";
+      $("s-level").innerHTML = '好友 <small>' + n + '×' + n + '</small>';
+      $("s-diff").innerHTML = G.shared.D != null
+        ? '<small>' + tierLabel(n, G.shared.D) + '</small>'
+        : '<small>分享盤面</small>';
+      $("s-bar").style.width = "100%";
+      syncSelectors();
+      return;
+    }
+    $("s-level-k").textContent = "遊戲等級";
     const s = setup();
     $("s-level").innerHTML = s.glevel + ' <small>' + s.n + '×' + s.n + '</small>';
     const bank = s.atMax && isBank(s.n, s.targetD) && BANKS[s.n] && BANKS[s.n][s.targetD];
@@ -939,6 +1011,25 @@
   sw.addEventListener("click", toggleAuto);
   sw.addEventListener("keydown", e => { if(e.key===" "||e.key==="Enter"){ e.preventDefault(); toggleAuto(); } });
 
+  /* ================= 分享 ================= */
+  let toastTimer = 0;
+  function toast(t){
+    const el = $("toast");
+    el.textContent = t;
+    el.classList.add("on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>el.classList.remove("on"), 1800);
+  }
+  $("btn-share").onclick = async () => {
+    if(!G.n || !G.region || !G.sol) return;
+    try{
+      await copyText(shareURL(encodeBoard(G.n, G.region, G.sol)));
+      toast("已複製盤面網址");
+    }catch(e){
+      toast("複製失敗，請手動複製網址");
+    }
+  };
+
   /* ================= 規則彈窗 ================= */
   const modal = $("modal-rules");
   function showRules(on){
@@ -958,6 +1049,16 @@
     tick();
     board.parentElement.classList.add("won");
     G.nodes.forEach((d,k)=>d.style.setProperty("--d", (k%7)*0.05 + "s"));
+
+    // 別人分享的盤面：只報成績，不計入自己的等級／破關進度
+    if(G.shared){
+      $("win-time").textContent = fmt(G.elapsed);
+      $("win-note").textContent = "破解好友分享的盤面 · " + G.shared.n + "×" + G.shared.n
+        + (G.shared.D != null ? " · " + tierLabel(G.shared.n, G.shared.D) : "")
+        + " · 使用提示 " + G.hints + " 次";
+      setTimeout(()=>$("veil-win").classList.add("on"), 450);
+      return;
+    }
 
     const before = setup(), n = before.n, D = before.targetD;
     // 記錄玩過的盤面（避免重複）；最難難度另外累積全破進度
@@ -1039,7 +1140,25 @@
       setTimeout(()=>finishGame({region:chosen.region.slice(), sol:chosen.sol.slice(), D:D}, info), wait);
     });
   }
+  // 直接開啟別人分享的盤面（跳過生成）
+  function startShared(b){
+    clearTimeout(genRaf);
+    clearInterval(G.timer);
+    stopDots();
+    $("veil-win").classList.remove("on");
+    board.parentElement.classList.remove("won");
+    G.size = b.n;                                   // 之後按「新題目」沿用同尺寸（不寫進儲存）
+    const sc = scoreOf(b.n, b.region, b.sol);       // 現算難度標籤；算不出來就不顯示
+    G.shared = { n: b.n, D: sc ? sc.D : null };
+    updatePlate();
+    finishGame({ region: b.region, sol: b.sol, D: undefined }, { n: b.n, targetD: undefined });
+    say("這是好友分享的盤面，按「新題目」回到自己的關卡。");
+  }
+
   function newGame(){
+    G.shared = null;
+    clearShareURL();                                 // 網址上的 ?b= 不該影響之後的新局
+    $("btn-share").disabled = true;
     $("veil-win").classList.remove("on");
     board.parentElement.classList.remove("won");
     $("veil-load").classList.add("on");
@@ -1079,6 +1198,7 @@
     $("s-time").textContent = "00:00";
     clearInterval(G.timer);
     G.timer = setInterval(tick, 250);
+    $("btn-share").disabled = false;
     const gotD = best.D, wantD = info.targetD;
     if(gotD !== wantD && gotD !== undefined)
       say("已用最接近的等級（" + tierLabel(info.n, gotD) + "）。");
@@ -1103,7 +1223,10 @@
       sw.classList.toggle("on", autoMark);
       sw.setAttribute("aria-checked", String(autoMark));
     }
+    const code = readShareCode(), shared = code ? decodeBoard(code) : null;
+    if(shared){ startShared(shared); return; }
     newGame();
+    if(code) say("分享碼看不懂，已改開一局新題目。");
   })();
 })();
 </script>
