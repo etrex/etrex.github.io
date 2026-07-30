@@ -127,6 +127,10 @@
     content:"";position:absolute;inset:4%;border:2px solid #fff;border-radius:2px;
     animation:pulse .7s ease-in-out 4;
   }
+  /* 提示的「前提」格子：說明文字裡的「亮起來的」就是這些。
+     用 inset box-shadow 而不是 ::before，才不會跟 .hint / .conflict 搶同一個偽元素 */
+  .cell.focus{box-shadow:inset 0 0 0 3px var(--brass);animation:glow 1s ease-in-out 3}
+  @keyframes glow{0%,100%{box-shadow:inset 0 0 0 3px var(--brass)}50%{box-shadow:inset 0 0 0 3px rgba(217,164,65,.35)}}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
   @keyframes settle{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1)}}
   .won .cell.queen .piece{animation:settle .5s ease both;animation-delay:var(--d,0s)}
@@ -233,9 +237,9 @@
   .toast.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
 
   /* 提示說明就放在盤面正下方：按「提示」時它一定在視線和拇指之間，不用捲。
-     min-height 先留兩行的高度，多數說明不會把下面的按鈕頂走。
+     min-height 留三行：實測所有策略說明最長 57 字，手機上正好三行內，按鈕永遠不會被頂動。
      flex-shrink:0：body 是高度 100% 的直向 flex，不鎖住的話多行文字會被壓扁、溢出框外。 */
-  .msg{width:var(--board-max);min-height:2.6rem;flex-shrink:0;
+  .msg{width:var(--board-max);min-height:4rem;flex-shrink:0;
        margin-top:.55rem;padding:0 .2rem;display:flex;align-items:center;justify-content:center;
        font-size:.78rem;line-height:1.7;color:var(--brass);text-align:center}
 
@@ -336,56 +340,32 @@
     }
   };
 
-  /* ================= 等級表（離線校準）================= */
-  // 每尺寸 → 由易到難的難度分數 D 列表；等級 N = 索引 N-1。
-  // D = c1 + c2*(n+1) + c3*(n+1)^2，其中 cK = 需要 TK 技巧才推得出的顏色數。
-  const LEVEL_TABLE = {
-    6:[1,2,3,7,8,9,10,14],
-    7:[1,2,3,8,9,10,11,16,17,18],
-    8:[1,2,3,9,10,11,12,18,19,82,90,91],
-    9:[1,2,3,10,11,12,13,20,21,22,101,102,110,111,112,120,200],
-    10:[1,2,3,11,12,13,14,22,23,24,122,132,133,242,253,254,364,374],
-    11:[1,2,3,12,13,14,15,24,25,26,36,37,146,156,157,158,168,169,300],
-    12:[1,2,3,13,14,15,16,26,27,28,182,340,351]
-  };
+  /* ================= 難度等級 =================
+     難度 = 逐步推理器解這張盤面時，各技巧「最少」要用幾次。
+     推理器是最弱規則優先，只在推不動時才升級，所以它用到的次數就是最少次數。
+     字典序比較（試錯 → 壓制 → 鴿籠），次數少的難度低。 */
   const SIZES = [6,7,8,9,10,11,12];
-  const maxLevel = s => LEVEL_TABLE[s].length;
-  const targetD  = (s,l) => LEVEL_TABLE[s][Math.max(1,Math.min(maxLevel(s),l))-1];
-  // 自動難度：把所有尺寸的等級攤平成一條全域階梯
-  // 由 D 解回各 tier 的顏色數
-  function decode(n, D){
-    const sq=(n+1)*(n+1), c3=Math.floor(D/sq), rem=D%sq, c2=Math.floor(rem/(n+1)), c1=rem%(n+1);
-    return {c0:n-c1-c2-c3, c1, c2, c3};
-  }
-  function tierLabel(n, D){
-    const h=decode(n,D), p=[];
-    if(h.c1)p.push("T1×"+h.c1); if(h.c2)p.push("T2×"+h.c2); if(h.c3)p.push("T3×"+h.c3);
-    return p.length?p.join(" "):"全 T0";
-  }
-
-  /* ================= 題庫（離線窮舉的稀有難度）================= */
-  // 這些 (尺寸,難度) 的即時生成 10 秒內湊不到 12 張新盤 → 改用預存題庫抽選；其餘即時生成。
-  const BANK_D = {6:[14],7:[18],8:[82,90,91],9:[22,101,102,110,111,112,120,200],10:[24,122,242,253,254,364,374],11:[1,3,36,37,146,156,157,158,169,300],12:[1,2,3,13,14,15,16,26,27,28,182,340,351]};
-  const isBank = (n,D) => !!(BANK_D[n] && BANK_D[n].indexOf(D) >= 0);
-  const lastD = n => LEVEL_TABLE[n][LEVEL_TABLE[n].length-1];   // 該尺寸最難難度的 D
-  const isLastDiff = (n,D) => D === lastD(n);
-  const BANKS = {};   // n → { D: [{region,sol,key}, ...] }
-  async function loadBank(n){
-    if(BANKS[n]) return BANKS[n];
-    try{
-      const res = await fetch("banks/"+n+".json");
-      if(!res.ok) throw 0;
-      const raw = await res.json();                 // { "D": ["boardStr", ...] }
-      const out = {};
-      for(const D in raw){
-        out[D] = raw[D].map(str=>{
-          const region = str.slice(0,n*n).split("").map(c=>parseInt(c,36));
-          const sol = str.slice(n*n).split("").map(c=>parseInt(c,36));
-          return { region, sol, key: canonSym(n, region) };
-        });
-      }
-      BANKS[n] = out; return out;
-    }catch(e){ return null; }
+  const MAX_LEVEL = 10;
+  const maxLevel = () => MAX_LEVEL;
+  const targetD  = (s,l) => Math.max(1, Math.min(MAX_LEVEL, l));   // 難度分數就是等級本身
+  const LEVEL_NAME = [
+    "", "只要基本鎖定", "少量鴿籠", "大量鴿籠", "壓制 1 次", "壓制 2 次",
+    "壓制 3 次", "壓制 4-5 次", "壓制 6 次以上", "假設推演 1-2 次", "假設推演 3 次以上"
+  ];
+  const tierLabel = (n, lv) => LEVEL_NAME[lv] || ("難度 " + lv);
+  // 由「各技巧用了幾次」定出等級
+  function levelOf(p){
+    const tri = p.tri + p.deep;
+    if(tri >= 3) return 10;
+    if(tri >= 1) return 9;
+    if(p.dom >= 6) return 8;
+    if(p.dom >= 4) return 7;
+    if(p.dom === 3) return 6;
+    if(p.dom === 2) return 5;
+    if(p.dom === 1) return 4;
+    if(p.cage >= 3) return 3;
+    if(p.cage >= 1) return 2;
+    return 1;
   }
 
   // 盤面的對稱標準式（換色 + 8 個旋轉/鏡射取最小字串）→ 用來判「同一張盤面」
@@ -622,102 +602,37 @@
     return null;
   }
 
-  // 分級邏輯解題器 → {c0,c1,c2,c3}（各 tier 的顏色數）
-  function difficulty(n, region, sol){
-    const N=n*n;
-    const cand=new Uint8Array(N).fill(1);
-    const rowDone=new Uint8Array(n), colDone=new Uint8Array(n), regDone=new Uint8Array(n);
-    const tierOf=new Int8Array(n).fill(-1);
-    const solCellOfReg=new Array(n);
-    for(let r=0;r<n;r++){ const cell=r*n+sol[r]; solCellOfReg[region[cell]]=cell; }
-    let placed=0;
-    function elimAround(c, i){
-      const r=(i/n)|0, col=i%n, g=region[i];
-      for(let k=0;k<n;k++){ c[r*n+k]=0; c[k*n+col]=0; }
-      for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){ const nr=r+dr,nc=col+dc; if(nr>=0&&nr<n&&nc>=0&&nc<n) c[nr*n+nc]=0; }
-      for(let j=0;j<N;j++) if(region[j]===g) c[j]=0;
+  /* ---- 難度評級：跑一次逐步推理器，數各技巧最少用幾次 ----
+     推理器本身是最弱優先，只在推不動時才升級，所以它用到的次數就是最少次數。
+     成本比舊的分級解題器相當（n=12 甚至更快），可以放在產生器內迴圈裡。 */
+  function profileOf(n, region){
+    const cells = new Array(n*n).fill(0);
+    const c = { lock:0, cage:0, dom:0, tri:0, deep:0 };
+    for(let guard=0; guard<6000; guard++){
+      const dogs = []; for(let i=0;i<n*n;i++) if(cells[i]===2) dogs.push(i);
+      if(dogs.length === n) return c;
+      const known = new Set(), marks = [];
+      for(let i=0;i<n*n;i++) if(cells[i]){ known.add(i); if(cells[i]===1) marks.push(i); }
+      const st = deduce(n, region, dogs, known, true, marks);
+      if(!st) return null;
+      if(st.kind === "done") return c;
+      const t = st.text;
+      if(t.indexOf("全屬同一個顏色") >= 0 || t.indexOf("是同一個顏色剩下的位置") >= 0) c.lock++;
+      else if(t.indexOf("一對一剛好佔滿") >= 0) c.cage++;
+      else if(t.indexOf("都會被蓋到") >= 0) c.dom++;
+      else if(t.indexOf("一路推下去") >= 0) c.tri++;
+      else if(t.indexOf("怎麼排都湊不出") >= 0) c.deep++;
+      if(st.kind === "unit"){ cells[st.target] = 2; continue; }
+      if(!st.cells || !st.cells.length) return null;
+      for(const i of st.cells) cells[i] = 1;
     }
-    const placedCellOfReg=new Array(n).fill(-1);
-    function place(i, tier){
-      const r=(i/n)|0, col=i%n, g=region[i];
-      rowDone[r]=1; colDone[col]=1; regDone[g]=1;
-      elimAround(cand,i); tierOf[g]=tier; placedCellOfReg[g]=i; placed++;
-    }
-    function unitCandsRow(r){ const o=[]; for(let c=0;c<n;c++){const i=r*n+c; if(cand[i])o.push(i);} return o; }
-    function unitCandsCol(c){ const o=[]; for(let r=0;r<n;r++){const i=r*n+c; if(cand[i])o.push(i);} return o; }
-    function unitCandsReg(g){ const o=[]; for(let i=0;i<N;i++) if(region[i]===g&&cand[i]) o.push(i); return o; }
-    function placeOneSingle(tier){
-      for(let r=0;r<n;r++) if(!rowDone[r]){ const cc=unitCandsRow(r); if(cc.length===0)return -1; if(cc.length===1){place(cc[0],tier); return 1;} }
-      for(let c=0;c<n;c++) if(!colDone[c]){ const cc=unitCandsCol(c); if(cc.length===0)return -1; if(cc.length===1){place(cc[0],tier); return 1;} }
-      for(let g=0;g<n;g++) if(!regDone[g]){ const cc=unitCandsReg(g); if(cc.length===0)return -1; if(cc.length===1){place(cc[0],tier); return 1;} }
-      return 0;
-    }
-    function applyT1(){
-      let changed=false;
-      for(let g=0;g<n;g++) if(!regDone[g]){
-        const cc=unitCandsReg(g); if(!cc.length) continue;
-        const rows=new Set(cc.map(i=>(i/n)|0));
-        if(rows.size===1){ const r=[...rows][0]; for(let c=0;c<n;c++){const i=r*n+c; if(cand[i]&&region[i]!==g){cand[i]=0;changed=true;}} }
-        const cols=new Set(cc.map(i=>i%n));
-        if(cols.size===1){ const c=[...cols][0]; for(let r=0;r<n;r++){const i=r*n+c; if(cand[i]&&region[i]!==g){cand[i]=0;changed=true;}} }
-      }
-      for(let r=0;r<n;r++) if(!rowDone[r]){
-        const cc=unitCandsRow(r); if(!cc.length) continue;
-        const regs=new Set(cc.map(i=>region[i]));
-        if(regs.size===1){ const g=[...regs][0]; for(let i=0;i<N;i++){ if(cand[i]&&region[i]===g&&((i/n)|0)!==r){cand[i]=0;changed=true;} } }
-      }
-      for(let c=0;c<n;c++) if(!colDone[c]){
-        const cc=unitCandsCol(c); if(!cc.length) continue;
-        const regs=new Set(cc.map(i=>region[i]));
-        if(regs.size===1){ const g=[...regs][0]; for(let i=0;i<N;i++){ if(cand[i]&&region[i]===g&&(i%n)!==c){cand[i]=0;changed=true;} } }
-      }
-      return changed;
-    }
-    function contradictionIfPlace(i){
-      const c=cand.slice(), rd=rowDone.slice(), cd=colDone.slice(), gd=regDone.slice();
-      const stack=[i];
-      while(stack.length){
-        const p=stack.pop();
-        if(!c[p]) continue;
-        const r=(p/n)|0, col=p%n, g=region[p];
-        rd[r]=1; cd[col]=1; gd[g]=1;
-        elimAround(c,p);
-        for(let rr=0;rr<n;rr++) if(!rd[rr]){ let cnt=0,last=-1; for(let x=0;x<n;x++){const idx=rr*n+x; if(c[idx]){cnt++;last=idx;}} if(cnt===0)return true; if(cnt===1)stack.push(last); }
-        for(let cc=0;cc<n;cc++) if(!cd[cc]){ let cnt=0,last=-1; for(let x=0;x<n;x++){const idx=x*n+cc; if(c[idx]){cnt++;last=idx;}} if(cnt===0)return true; if(cnt===1)stack.push(last); }
-        for(let gg=0;gg<n;gg++) if(!gd[gg]){ let cnt=0,last=-1; for(let x=0;x<N;x++){ if(region[x]===gg&&c[x]){cnt++;last=x;}} if(cnt===0)return true; if(cnt===1)stack.push(last); }
-      }
-      return false;
-    }
-    function applyT2(){
-      let changed=false;
-      for(let i=0;i<N;i++){ if(!cand[i]) continue; if(contradictionIfPlace(i)){ cand[i]=0; changed=true; } }
-      return changed;
-    }
-    function t3place(){
-      let best=-1, bc=1e9;
-      for(let g=0;g<n;g++) if(!regDone[g]){ const cc=unitCandsReg(g); if(cc.length<bc){bc=cc.length; best=g;} }
-      if(best<0) return false;
-      place(solCellOfReg[best], 3); return true;
-    }
-    let guard=0;
-    while(placed<n){
-      if(++guard>100000) return null;
-      let r0=placeOneSingle(0);
-      if(r0===1) continue;
-      if(r0===-1) return null;
-      if(placed===n) break;
-      if(applyT1()){ if(placeOneSingle(1)===-1) return null; continue; }
-      if(applyT2()){ if(placeOneSingle(2)===-1) return null; continue; }
-      if(t3place()) continue;
-      return null;
-    }
-    for(let g=0;g<n;g++){ if(tierOf[g]<3 && placedCellOfReg[g]!==solCellOfReg[g]) return null; }
-    const h={c0:0,c1:0,c2:0,c3:0};
-    for(let g=0;g<n;g++){ const t=tierOf[g]; if(t===0)h.c0++; else if(t===1)h.c1++; else if(t===2)h.c2++; else if(t===3)h.c3++; }
-    return h;
+    return null;
   }
-  function histD(n,h){ return h.c1 + h.c2*(n+1) + h.c3*(n+1)*(n+1); }
-  function scoreOf(n,region,sol){ const h=difficulty(n,region,sol); if(!h) return null; return {D:histD(n,h),h}; }
+  function scoreOf(n, region, sol){
+    const p = profileOf(n, region);
+    if(!p) return null;
+    return { D: levelOf(p), h: p };
+  }
 
   function tryTransfer(n,region,sol,seeds,solCell){
     const N=n*n;
@@ -794,14 +709,18 @@
      只看「玩家已經放下的狗」，由簡到繁套用邏輯技巧，推出「這裡確定沒有狗」的格子，
      並附上人話說明。刻意不碰答案：翻答案只在所有技巧都推不動時才由呼叫端決定。 */
   const COLOR_NAME = ["粉紅","珊瑚","橘","鵝黃","嫩綠","綠","薄荷","天藍","藍","藍紫","紫","桃紅"];
-  const cname = g => COLOR_NAME[(palMap[g] != null ? palMap[g] : g) % COLOR_NAME.length] + "色";
+  const cbare = g => COLOR_NAME[(palMap[g] != null ? palMap[g] : g) % COLOR_NAME.length];
+  const cname = g => cbare(g) + "色";
   const posName = (n,i) => "第 " + (((i/n)|0)+1) + " 列第 " + ((i%n)+1) + " 行";
 
   // dogs=玩家放的狗；known=玩家已標記/已放狗的格子（用來判斷這步對他是不是新資訊）
   // reportDogs=false 時，狗的攻擊範圍只在內部套用不回報（畫面已經有自動標記了）
-  function deduce(n, region, dogs, known, reportDogs){
+  // marks = 玩家已經蓋好、而且經過驗證正確的腳印。拿它當推理起點，
+  // 「只剩一格」才看得到玩家自己的進度，否則每次呼叫都從空盤重推，永遠輪不到它。
+  function deduce(n, region, dogs, known, reportDogs, marks){
     const N = n*n;
     const cand = new Uint8Array(N).fill(1);
+    if(marks) for(const i of marks) cand[i] = 0;
     const rowHas = new Uint8Array(n), colHas = new Uint8Array(n), regHas = new Uint8Array(n);
     for(const q of dogs){ rowHas[(q/n)|0]=1; colHas[q%n]=1; regHas[region[q]]=1; }
 
@@ -824,7 +743,7 @@
     function stepDogs(){
       for(const q of dogs){
         const cells = shadow(q).filter(i => cand[i]);
-        if(cells.length) return { cells, silent: !reportDogs,
+        if(cells.length) return { cells, silent: !reportDogs, focus:[q],
           text: posName(n,q) + "有狗了：同列、同行、同色和周圍相鄰的格子都不能再有狗。" };
       }
       return null;
@@ -839,14 +758,14 @@
         const rows = new Set(cc.map(i => (i/n)|0));
         if(rows.size === 1){
           const r = [...rows][0], cells = rowCands(r).filter(i => region[i] !== g);
-          if(cells.length) return { cells,
-            text: cname(g) + "只剩第 " + (r+1) + " 列能放，所以第 " + (r+1) + " 列的狗一定是" + cname(g) + "的，這列其他顏色排除。" };
+          if(cells.length) return { cells, focus:cc,
+            text: "亮起來的格子是同一個顏色剩下的位置，全在第 " + (r+1) + " 列，所以這列的狗一定是它，這列其他顏色排除。" };
         }
         const cols = new Set(cc.map(i => i%n));
         if(cols.size === 1){
           const c = [...cols][0], cells = colCands(c).filter(i => region[i] !== g);
-          if(cells.length) return { cells,
-            text: cname(g) + "只剩第 " + (c+1) + " 行能放，所以第 " + (c+1) + " 行的狗一定是" + cname(g) + "的，這行其他顏色排除。" };
+          if(cells.length) return { cells, focus:cc,
+            text: "亮起來的格子是同一個顏色剩下的位置，全在第 " + (c+1) + " 行，所以這行的狗一定是它，這行其他顏色排除。" };
         }
       }
       return null;
@@ -861,8 +780,8 @@
         const regs = new Set(cc.map(i => region[i]));
         if(regs.size !== 1) continue;
         const g = [...regs][0], cells = regCands(g).filter(i => ((i/n)|0) !== r);
-        if(cells.length) return { cells,
-          text: "第 " + (r+1) + " 列能放的格子全是" + cname(g) + "，所以" + cname(g) + "的狗就在這一列，它在別列的格子排除。" };
+        if(cells.length) return { cells, focus:cc,
+          text: "亮起來的是第 " + (r+1) + " 列剩下的格子，全屬同一個顏色，所以那個顏色的狗就在這列，它在別列的格子排除。" };
       }
       for(let c=0;c<n;c++){
         if(colHas[c]) continue;
@@ -871,37 +790,8 @@
         const regs = new Set(cc.map(i => region[i]));
         if(regs.size !== 1) continue;
         const g = [...regs][0], cells = regCands(g).filter(i => (i%n) !== c);
-        if(cells.length) return { cells,
-          text: "第 " + (c+1) + " 行能放的格子全是" + cname(g) + "，所以" + cname(g) + "的狗就在這一行，它在別行的格子排除。" };
-      }
-      return null;
-    }
-
-    // 某一列只剩相鄰兩行可放 → 不管放哪一行，緊鄰的上下列用這兩行都會貼到狗
-    function stepSqueeze(){
-      for(let r=0;r<n;r++){
-        if(rowHas[r]) continue;
-        const cols = [...new Set(rowCands(r).map(i => i%n))].sort((a,b)=>a-b);
-        if(cols.length !== 2 || cols[1]-cols[0] !== 1) continue;
-        const cells = [];
-        for(const rr of [r-1, r+1]){
-          if(rr<0 || rr>=n || rowHas[rr]) continue;
-          for(const c of cols){ const i=rr*n+c; if(cand[i]) cells.push(i); }
-        }
-        if(cells.length) return { cells,
-          text: "第 " + (r+1) + " 列只能放第 " + (cols[0]+1) + "、" + (cols[1]+1) + " 行，兩行緊鄰；上下鄰列再用這兩行一定會貼到，排除。" };
-      }
-      for(let c=0;c<n;c++){
-        if(colHas[c]) continue;
-        const rows = [...new Set(colCands(c).map(i => (i/n)|0))].sort((a,b)=>a-b);
-        if(rows.length !== 2 || rows[1]-rows[0] !== 1) continue;
-        const cells = [];
-        for(const cc of [c-1, c+1]){
-          if(cc<0 || cc>=n || colHas[cc]) continue;
-          for(const r of rows){ const i=r*n+cc; if(cand[i]) cells.push(i); }
-        }
-        if(cells.length) return { cells,
-          text: "第 " + (c+1) + " 行只能放第 " + (rows[0]+1) + "、" + (rows[1]+1) + " 列，兩列緊鄰；左右鄰行再用這兩列一定會貼到，排除。" };
+        if(cells.length) return { cells, focus:cc,
+          text: "亮起來的是第 " + (c+1) + " 行剩下的格子，全屬同一個顏色，所以那個顏色的狗就在這行，它在別行的格子排除。" };
       }
       return null;
     }
@@ -947,6 +837,113 @@
         const where = contradiction(i);
         if(where) return { cells:[i],
           text: "假設" + posName(n,i) + "放狗，一路推下去" + where + "就無處可放，矛盾，所以這裡沒有狗。" };
+      }
+      return null;
+    }
+
+    /* 廣義鴿籠：列、行、顏色三種單位都必須恰好一隻狗，任兩種之間都成立
+       —— 若 k 個 A 單位的候選只落在 k 個 B 單位裡，那 k 個 B 就被這 k 個 A 包了，
+       B 裡屬於其他 A 的格子全部排除。6 個方向都要看，k=1 就是上面的 pointing/claiming。
+       只枚舉到 k≤n/2：更大的集合會在小集合排除完之後自己浮出來。 */
+    const popcnt = m => { let c=0; while(m){ m &= m-1; c++; } return c; };
+    const rowCellsOf = r => { const o=[]; for(let c=0;c<n;c++) o.push(r*n+c); return o; };
+    const colCellsOf = c => { const o=[]; for(let r=0;r<n;r++) o.push(r*n+c); return o; };
+    const regCellsOf = g => { const o=[]; for(let i=0;i<N;i++) if(region[i]===g) o.push(i); return o; };
+    const unitName = (f, u) => f === 0 ? "第 " + (u+1) + " 列"
+                             : f === 1 ? "第 " + (u+1) + " 行"
+                             : cname(u);
+    // qty＝量詞（「4 列」），q＝帶指示詞（「這 4 列」）。說明只用量詞，
+    // 「是哪幾個」交給畫面高亮，文字長度才不會隨 k 變長。
+    const FAM = [
+      { has:rowHas, of:i=>(i/n)|0,   cells:rowCellsOf, qty:k=>k+" 列",     q:k=>"這 "+k+" 列" },
+      { has:colHas, of:i=>i%n,       cells:colCellsOf, qty:k=>k+" 行",     q:k=>"這 "+k+" 行" },
+      { has:regHas, of:i=>region[i], cells:regCellsOf, qty:k=>k+" 個顏色", q:k=>"這 "+k+" 色" }
+    ];
+    // k 由小往大找：小集合好發現，優先報。上限只受 floor(n/2) 限制
+    // （更大的集合會在小集合排除完之後自己浮出來）。
+    const K_CAP = 99;
+    function findSet(fa, fb, units, masks, k){
+      let hit = null;
+      const dfs = (start, chosen, un) => {
+        if(chosen.length === k){
+          if(popcnt(un) !== k) return false;
+          const inS = new Set(chosen), cells = [];
+          for(let b=0;b<n;b++) if(un & (1<<b))
+            for(const i of fb.cells(b)) if(cand[i] && !inS.has(fa.of(i))) cells.push(i);
+          if(!cells.length) return false;             // 推不出新東西 → 繼續找別組
+          const bs = []; for(let b=0;b<n;b++) if(un & (1<<b)) bs.push(b);
+          const focus = [];
+          for(const a of chosen) for(const i of fa.cells(a)) if(cand[i]) focus.push(i);
+          hit = { cells, tag:"set", focus,
+            text: "亮起來的是這 " + fa.qty(k) + "剩下的位置，只佔了 " + fb.qty(k)
+                + "，一對一剛好佔滿，所以" + fb.q(k) + "其他格子排除。" };
+          return true;
+        }
+        for(let idx=start; idx<units.length; idx++){
+          const nu = un | masks[idx];
+          if(popcnt(nu) > k) continue;                 // 併集已超過 k，這條不可能收斂
+          chosen.push(units[idx]);
+          if(dfs(idx+1, chosen, nu)){ chosen.pop(); return true; }
+          chosen.pop();
+        }
+        return false;
+      };
+      dfs(0, [], 0);
+      return hit;
+    }
+    function stepSets(){
+      const kcap = Math.min(Math.floor(n/2), K_CAP);
+      if(kcap < 2) return null;
+      const built = [];
+      for(let A=0;A<3;A++) for(let B=0;B<3;B++){
+        if(A === B) continue;
+        const fa = FAM[A], fb = FAM[B], units = [], masks = [];
+        for(let a=0;a<n;a++){
+          if(fa.has[a]) continue;
+          let m = 0;
+          for(const i of fa.cells(a)) if(cand[i]) m |= 1 << fb.of(i);
+          if(m){ units.push(a); masks.push(m); }
+        }
+        built.push({fa, fb, units, masks});
+      }
+      for(let k=2;k<=kcap;k++)
+        for(const b of built){
+          const hit = findSet(b.fa, b.fb, b.units, b.masks, k);
+          if(hit) return hit;
+        }
+      return null;
+    }
+
+    /* 覆蓋壓制：從「單位」出發，不是從格子出發。
+       某一列／行／顏色的狗不管落在它剩下的哪一格，都一定會蓋到某些格子
+       （同列、同行、同色、相鄰），那些格子就一次全部排除。
+       「一個顏色只出現在同一行」只是這條規則的特例，這樣寫一次能拿到一整批格子。 */
+    const stamp = new Int32Array(N);
+    let stampId = 0;
+    function stepDominate(){
+      for(let f=0;f<3;f++) for(let u=0;u<n;u++){
+        if(FAM[f].has[u]) continue;
+        const S = FAM[f].cells(u).filter(j => cand[j]);
+        if(S.length < 2) continue;                  // 只剩一格＝該放狗了，交給 forcedUnit
+        const hits = new Uint8Array(N);
+        for(const s of S){
+          const rs=(s/n)|0, cs=s%n, gs=region[s];
+          stampId++;
+          const mark = j => { if(stamp[j] !== stampId){ stamp[j] = stampId; hits[j]++; } };
+          for(let k=0;k<n;k++){ mark(rs*n+k); mark(k*n+cs); }
+          for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+            const nr=rs+dr, nc=cs+dc;
+            if(nr>=0&&nr<n&&nc>=0&&nc<n) mark(nr*n+nc);
+          }
+          for(let j=0;j<N;j++) if(region[j]===gs) mark(j);
+        }
+        const cells = [];
+        for(let j=0;j<N;j++)
+          if(cand[j] && hits[j] === S.length && FAM[f].of(j) !== u) cells.push(j);
+        if(cells.length) return { cells, tag:"dominate", focus:S,
+          text: unitName(f, u) + "一定有一隻狗，不管牠放在亮起來的哪一格，"
+              + (cells.length === 1 ? "這一格" : "這 " + cells.length + " 格")
+              + "都會被蓋到，所以都不能有狗。" };
       }
       return null;
     }
@@ -1009,10 +1006,13 @@
 
     if(dogs.length === n) return { kind:"done" };
 
-    const EASY = [stepDogs, stepPointing, stepClaiming, stepSqueeze];
+    // 依「規則強度」由弱到強排序 —— 強度＝只用這條規則能解掉多少比例的盤面：
+    //   列行鎖定 0%、顏色鎖定 4%、鴿籠 21%、覆蓋壓制 45%、假設矛盾 91%、深度窮舉 100%。
+    // 先用最弱的規則，能推動就不動用更強的，提示才會給出「剛好夠用」的那一步。
+    const EASY = [stepDogs, stepClaiming, stepPointing, stepSets, stepDominate];
     for(let guard=0; guard<3000; guard++){
       let moved = false;
-      for(const fn of EASY.concat(forcedUnit, stepContradiction, stepDeep)){
+      for(const fn of [forcedUnit].concat(EASY, stepContradiction, stepDeep)){
         const st = fn();
         if(!st) continue;
         if(st.kind === "unit") return st;                     // 該放狗了，先不繼續排除
@@ -1021,7 +1021,7 @@
         const news = cells.filter(i => !known.has(i));
         cells.forEach(i => cand[i] = 0);
         moved = true;
-        if(news.length && !st.silent) return { kind:"marks", cells:news, text:st.text };
+        if(news.length && !st.silent) return { kind:"marks", cells:news, text:st.text, focus:st.focus };
         break;                                                // 玩家已經知道了 → 吸收掉，重頭再試簡單技巧
       }
       if(!moved) return null;                                 // 邏輯技巧全部推不動
@@ -1034,7 +1034,7 @@
     n:0, region:null, sol:null,
     cells:null,          // 0 空 / 1 標記 / 2 皇后
     nodes:[], history:[],
-    wins:0, hints:0, size:6, glevel:{}, recent:{}, cleared:{},
+    wins:0, hints:0, size:6, glevel:{}, recent:{},
     shared:null,         // 非 null＝正在玩別人分享的盤面 {n, D}
     t0:0, timer:null, elapsed:0,
     playing:false, dragging:false, dragStart:-1, dragMoved:false, dragErase:false, snapped:false
@@ -1101,7 +1101,9 @@
     const s = setup(), ss = $("sel-size"), sd = $("sel-diff");
     if(!ss) return;
     ss.value = String(s.n);
-    sd.innerHTML = LEVEL_TABLE[s.n].map((D,i)=>'<option value="'+(i+1)+'">難度'+(i+1)+' · '+tierLabel(s.n,D)+'</option>').join("");
+    let opts = "";
+    for(let lv=1; lv<=MAX_LEVEL; lv++) opts += '<option value="'+lv+'">難度'+lv+' · '+LEVEL_NAME[lv]+'</option>';
+    sd.innerHTML = opts;
     sd.value = String(s.tier);
   }
 
@@ -1120,14 +1122,8 @@
     $("s-level-k").textContent = "遊戲等級";
     const s = setup();
     $("s-level").innerHTML = s.glevel + ' <small>' + s.n + '×' + s.n + '</small>';
-    const bank = s.atMax && isBank(s.n, s.targetD) && BANKS[s.n] && BANKS[s.n][s.targetD];
     let diffTxt;
-    if(bank){
-      const done = Math.min((G.cleared[s.n+":"+s.targetD]||[]).length, bank.length);
-      diffTxt = done>=bank.length
-        ? s.tier + '<small>/' + s.maxTier + ' · ★ 已破關</small>'
-        : s.tier + '<small>/' + s.maxTier + ' · 最難 已破 ' + done + '/' + bank.length + '</small>';
-    }else if(s.atMax){
+    if(s.atMax){
       diffTxt = s.tier + '<small>/' + s.maxTier + ' · 已玩 ' + s.round + ' 關（最高）</small>';
     }else{
       diffTxt = s.tier + '<small>/' + s.maxTier + ' · 第 ' + s.round + '/10 關</small>';
@@ -1243,7 +1239,7 @@
     board.setPointerCapture(e.pointerId);
     G.dragging = true; G.dragStart = i; G.dragMoved = false; G.snapped = false;
     G.dragErase = (G.cells[i] === 1);
-    say("");
+    say(""); clearHints();
   });
 
   function paint(i){
@@ -1300,18 +1296,28 @@
       }
     }
     // 提示不給狗的位置，而是推出「這裡確定沒有狗」並解釋為什麼
-    const known = new Set();
-    for(let i=0;i<G.cells.length;i++) if(G.cells[i]) known.add(i);
-    const step = deduce(n, G.region, queens(), known, !autoMark);
+    // 玩家的腳印要先驗證再當推理起點：標錯的不採用（採用了會推出錯的結論），
+    // 但也不指出是哪一格 —— 那等於直接告訴他那裡有狗。
+    const known = new Set(), marks = [];
+    let badMark = false;
+    for(let i=0;i<G.cells.length;i++){
+      if(!G.cells[i]) continue;
+      known.add(i);
+      if(G.cells[i] !== 1) continue;
+      if(G.sol[(i/n)|0] === i%n) badMark = true; else marks.push(i);
+    }
+    clearHints();
+    const step = deduce(n, G.region, queens(), known, !autoMark, marks);
+    const note = badMark ? "（另外，盤面上有腳印標錯了）" : "";
 
     if(step && step.kind === "done"){ sayHint("已經解完了。"); return; }
     G.hints++;
-    if(step && step.kind === "unit"){ sayHint(step.text); flash(step.cells); return; }
+    if(step && step.kind === "unit"){ sayHint(step.text + note); flash(null, step.cells); return; }
     if(step && step.kind === "marks"){
       snapshot();
       for(const i of step.cells) G.cells[i] = 1;
-      sayHint(step.text);
-      flash(step.cells); render();
+      sayHint(step.text + note);
+      flash(step.cells, step.focus); render();
       return;
     }
 
@@ -1329,14 +1335,20 @@
     sayHint("這步推不出來，直接告訴你" + posName(n, pick) + "沒有狗。");
     flash(pick); render();
   };
-  function flash(which){
-    const list = Array.isArray(which) ? which : [which];
-    for(const i of list){
+  // 高亮不設倒數：說明文字會提到「亮起來的」，秒數到就消失會讓文字失去指涉對象。
+  // 改成一直留到下一次按提示或下一次碰盤面（那時說明文字也會一起清掉）。
+  function clearHints(){
+    for(const d of G.nodes){ d.classList.remove("hint"); d.classList.remove("focus"); }
+  }
+  function flash(which, premise){
+    const list = Array.isArray(which) ? which : (which == null ? [] : [which]);
+    const put = (i, cls) => {
       const d = G.nodes[i];
-      if(!d) continue;
-      d.classList.remove("hint"); void d.offsetWidth; d.classList.add("hint");
-    }
-    setTimeout(()=>{ for(const i of list){ const d=G.nodes[i]; if(d) d.classList.remove("hint"); } }, 3000);
+      if(!d) return;
+      d.classList.remove(cls); void d.offsetWidth; d.classList.add(cls);
+    };
+    for(const i of list) put(i, "hint");
+    for(const i of (premise || [])) put(i, "focus");
   }
   $("btn-new").onclick = () => newGame();
   $("btn-next").onclick = () => newGame();
@@ -1403,15 +1415,14 @@
 
     const before = setup(), n = before.n, D = before.targetD;
     // 記錄玩過的盤面（避免重複）；最難難度另外累積全破進度
+    // 每個 (尺寸,難度) 記下前 100 張玩過的盤面（不重複），滿 100 之後就不再記，
+    // 免得存檔無限長大；產生器會避開這份名單，所以這 100 張不會再出現。
     const key = canonSym(n, G.region), rk = n+":"+D;
-    const rec = G.recent[rk] || []; rec.push(key); while(rec.length>9) rec.shift();
-    G.recent[rk] = rec; store.set("queens.recent", G.recent);
-    let clearedNow = false, clearProg = null;
-    if(isLastDiff(n, D)){
-      const cl = G.cleared[rk] || []; if(cl.indexOf(key)<0) cl.push(key);
-      G.cleared[rk] = cl; store.set("queens.cleared", G.cleared);
-      const bank = BANKS[n] && BANKS[n][D];
-      if(bank){ clearProg = {done: Math.min(cl.length, bank.length), total: bank.length}; clearedNow = cl.length >= bank.length; }
+    const rec = G.recent[rk] || [];
+    if(rec.length < 100 && rec.indexOf(key) < 0){
+      rec.push(key);
+      G.recent[rk] = rec;
+      store.set("queens.recent", G.recent);
     }
 
     G.glevel[n] = gLevel(n) + 1;     // 過一關 → 該尺寸遊戲等級 +1（每 10 關升難度）
@@ -1427,10 +1438,6 @@
       : (n + "×" + n + " · 難度 " + before.tier + " · 第 " + before.round + "/10 關 · 使用提示 " + G.hints + " 次");
     if(after.tier > before.tier)
       note = "難度提升到 " + after.tier + "（" + tierLabel(after.n, after.targetD) + "）！";
-    if(clearProg)
-      note = clearedNow
-        ? "★ 已破關！最難難度「" + tierLabel(n,D) + "」全 " + clearProg.total + " 張版面都玩過了。"
-        : (n + "×" + n + " · 最難難度 · 已破 " + clearProg.done + "/" + clearProg.total + " 張");
     $("win-note").textContent = note;
     setTimeout(()=>$("veil-win").classList.add("on"), 450);
   }
@@ -1445,57 +1452,18 @@
   function stopDots(){ clearInterval(dotsTimer); dotsTimer = 0; }
 
   /* ================= 新局 ================= */
-  // 即時生成：爬到「命中目標難度且不在最近 9 張」的新盤；10 秒上限後退讓 best
+  // 即時生成：一直爬到「命中目標難度、且不在最近玩過的那幾張裡」才收工，不設時間上限。
+  // 每幀只跑 22ms，畫面持續顯示爬山過程，所以等再久也不會凍住。
   function runLive(n, D, info){
     const avoid = new Set(G.recent[n+":"+D] || []);
     const gen = makeGen(n, D, avoid);
-    const start = performance.now();
     (function frame(){
       gen.step(22);
       const w = gen.working; if(w) paintRegion(w);
-      if(gen.found || performance.now() - start > 10000){ finishGame(gen.found || gen.best, info); return; }
-      genRaf = setTimeout(frame, 16);   // setTimeout（非 rAF）→ 分頁切到背景也照跑，10 秒上限一定會觸發
+      if(gen.found){ finishGame(gen.found, info); return; }
+      genRaf = setTimeout(frame, 16);   // setTimeout（非 rAF）→ 分頁切到背景也照跑
     })();
   }
-  // 題庫抽一張（避開最近玩過；最難難度追蹤全破）
-  function serveBank(n, D, info){
-    const t0 = performance.now();
-    loadBank(n).then(bank => {
-      const pool = bank && bank[D];
-      if(!pool || !pool.length){ runLive(n, D, info); return; }   // 題庫載入失敗 → 退回即時生成
-      const rk = n+":"+D;
-      let chosen;
-      if(isLastDiff(n, D)){
-        const cleared = new Set(G.cleared[rk] || []);
-        const unplayed = pool.filter(b=>!cleared.has(b.key));
-        const arr = unplayed.length ? unplayed : pool;         // 全破後照樣隨機給（可重複）
-        chosen = arr[(Math.random()*arr.length)|0];
-      }else{
-        const recent = G.recent[rk] || [];
-        const fresh = pool.filter(b=>recent.indexOf(b.key)<0);
-        const arr = fresh.length ? fresh : pool;
-        chosen = arr[(Math.random()*arr.length)|0];
-      }
-      updatePlate();   // 題庫載入後刷新（顯示破關進度）
-      const wait = Math.max(0, 350 - (performance.now()-t0));    // 至少讓「題目生成中」閃一下，體感一致
-      setTimeout(()=>finishGame({region:chosen.region.slice(), sol:chosen.sol.slice(), D:D}, info), wait);
-    });
-  }
-  // 直接開啟別人分享的盤面（跳過生成）
-  function startShared(b){
-    clearTimeout(genRaf);
-    clearInterval(G.timer);
-    stopDots();
-    $("veil-win").classList.remove("on");
-    board.parentElement.classList.remove("won");
-    G.size = b.n;                                   // 之後按「新題目」沿用同尺寸（不寫進儲存）
-    const sc = scoreOf(b.n, b.region, b.sol);       // 現算難度標籤；算不出來就不顯示
-    G.shared = { n: b.n, D: sc ? sc.D : null };
-    updatePlate();
-    finishGame({ region: b.region, sol: b.sol, D: undefined }, { n: b.n, targetD: undefined });
-    say("這是好友分享的盤面，按「新題目」回到自己的關卡。");
-  }
-
   function newGame(){
     G.shared = null;
     clearShareURL();                                 // 網址上的 ?b= 不該影響之後的新局
@@ -1518,8 +1486,7 @@
     buildBoard(n);
     startDots();
 
-    if(isBank(n, D)) serveBank(n, D, info);
-    else runLive(n, D, info);
+    runLive(n, D, info);
   }
 
   function finishGame(best, info){
@@ -1548,8 +1515,16 @@
   }
 
   /* ================= 啟動 ================= */
+  const SAVE_VER = 2;          // 2 = 難度改成 10 級新指標；舊存檔的等級數字意義不同，必須重置
   (async function init(){
     buildLevels();
+    const ver = await store.get("queens.ver");
+    if(ver !== SAVE_VER){       // 老玩家：等級與玩過紀錄重置，其餘偏好保留
+      await store.set("queens.ver", SAVE_VER);
+      await store.set("queens.glevels", {});
+      await store.set("queens.recent", {});
+      await store.set("queens.cleared", null);   // 舊版破關機制遺留的 key
+    }
     const w = await store.get("queens.wins");
     if(typeof w === "number") G.wins = w;
     const sz = await store.get("queens.size");
@@ -1558,8 +1533,6 @@
     if(gls && typeof gls === "object") G.glevel = gls;
     const rec = await store.get("queens.recent");
     if(rec && typeof rec === "object") G.recent = rec;
-    const cl = await store.get("queens.cleared");
-    if(cl && typeof cl === "object") G.cleared = cl;
     const am = await store.get("queens.auto");
     if(typeof am === "boolean"){
       autoMark = am;
