@@ -10,6 +10,17 @@
   document.addEventListener('gestureend',    e=>e.preventDefault(), {passive:false});
   document.addEventListener('wheel', e=>{ if(e.ctrlKey) e.preventDefault(); }, {passive:false});
   document.addEventListener('keydown', e=>{ if((e.ctrlKey||e.metaKey) && ['+','-','=','0'].includes(e.key)) e.preventDefault(); });
+  // 雙擊縮放：iOS Safari 不理會 user-scalable，touch-action 有時也擋不住 smart zoom。
+  // 不用時間窗（Safari 的雙擊門檻不保證是 350ms），一律 preventDefault 每一次 touchend——
+  // Safari 只要該次 touchend 的預設行為被取消，就不會進雙擊縮放判定，跟點多快無關。
+  // 例外是靠原生 click 的互動元件；那些改用 CSS touch-action:manipulation 擋雙擊。
+  const CLICK_DRIVEN = 'button,a,input,select,textarea,label,[role="switch"],[tabindex],.modal';
+  document.addEventListener('touchend', e=>{
+    const t = e.target;
+    if(t && t.closest && t.closest(CLICK_DRIVEN)) return;
+    e.preventDefault();   // 棋盤走 pointerup（早於 touchend 派送），不受影響
+  }, {passive:false});
+  document.addEventListener('dblclick', e=>e.preventDefault(), {passive:false});
 </script>
 <title>好狗不擋路 Pawzzle</title>
 <style>
@@ -164,6 +175,7 @@
     color:var(--ivory);background:var(--ink-2);
     border:1px solid var(--line);border-radius:var(--radius);cursor:pointer;
     transition:background .15s ease,border-color .15s ease,color .15s ease;
+    touch-action:manipulation;  /* 這些元件不走 JS 攔截，靠 CSS 擋雙擊縮放 */
   }
   button:hover:not(:disabled){background:var(--ink-3);border-color:rgba(217,164,65,.45);color:#fff}
   button:disabled{opacity:.35;cursor:not-allowed}
@@ -176,7 +188,8 @@
     margin-top:.6rem;font-size:.75rem;color:var(--muted);
     border:1px solid var(--line);border-radius:var(--radius);padding:.5rem .7rem;
   }
-  .switch{position:relative;width:38px;height:20px;background:var(--ink-3);border:1px solid var(--line);
+  .switch{touch-action:manipulation;
+          position:relative;width:38px;height:20px;background:var(--ink-3);border:1px solid var(--line);
           border-radius:20px;cursor:pointer;transition:background .18s ease}
   .switch::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
                  background:var(--muted);transition:transform .18s ease,background .18s ease}
@@ -195,6 +208,7 @@
   #btn-rules{right:0}
 
   .modal{
+    touch-action:manipulation;  /* 走原生 click（點背景關閉），不走 JS 攔截 */
     position:fixed;inset:0;z-index:30;display:none;
     align-items:center;justify-content:center;padding:1.2rem;
     background:rgba(5,13,18,.72);backdrop-filter:blur(3px);
@@ -242,6 +256,9 @@
   .msg{width:var(--board-max);min-height:4rem;flex-shrink:0;
        margin-top:.55rem;padding:0 .2rem;display:flex;align-items:center;justify-content:center;
        font-size:.78rem;line-height:1.7;color:var(--brass);text-align:center}
+
+  .ver{margin:.6rem 0 1.4rem;font-size:.6rem;letter-spacing:.16em;
+       color:var(--muted);opacity:.45;user-select:text}
 
   @media (max-width:380px){
     h1{font-size:2rem}
@@ -302,6 +319,8 @@
   <span>自動標記：淡淡標出狗狗佔住的格子</span>
   <div class="switch on" id="sw-auto" role="switch" aria-checked="true" tabindex="0"></div>
 </div>
+
+<div class="ver mono">v2026.09.09.1</div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -1272,6 +1291,10 @@
   board.addEventListener("pointerup", endDrag);
   board.addEventListener("pointercancel", endDrag);
   window.addEventListener("pointerup", endDrag);
+  // 保險：head 那段對 touchend preventDefault，萬一某版 Safari 因此不派送 pointerup，
+  // 由 touchend 補收尾（pointerup 若已跑過，endDrag 會自己 no-op）
+  window.addEventListener("touchend", endDrag);
+  window.addEventListener("touchcancel", endDrag);
 
   /* ================= 按鈕 ================= */
   $("btn-undo").onclick = () => {
