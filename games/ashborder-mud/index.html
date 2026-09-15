@@ -280,7 +280,9 @@ const SYSTEMS={
     {n:'自由屬性點', d:()=>'每升一級 10 點。攻擊每點 +1、防禦每點 +1、體力每點 +1、幸運每點每殺金幣 +1。未分配 '+(body?body.freePts:0)+' 點。'},
     {n:'數值透視', d:()=>'看見自己與敵人的所有數值。'}]},
   omni:{name:'全知系統', skills:[
-    {n:'全知', d:()=>'所有隱藏事實、所有人的意圖、所有敵人的數值與弱點，對你透明。'},
+    {n:'窺探', d:()=>'在有人的地方，讀出一個人此刻藏在最上面的念頭。念頭一層一層剝，剝到底就沒有了。'},
+    {n:'調查', d:()=>'看穿一個地方沒說出口的事實。每個地方一件。'},
+    {n:'透視', d:()=>'戰鬥中看得見敵人的數值與弱點。'},
     {n:'最優解', d:()=>'系統標記每個場景的最佳選項。'},
     {n:'自動戰鬥', d:()=>'可開啟連續狩獵：打完自動下一隻。'},
     {n:'博聞', d:()=>'每知道一件新的事，背包永久 +1。'},
@@ -488,7 +490,7 @@ function setOptions(list,hint,noExtras){
   if(!inCombat&&(typing||tq.length)){ opts.innerHTML='<div class="hint wait">文字顯示中……點一下畫面加速，再點一下跳過。</div>'; afterFns.push(()=>{ if(!inCombat) setOptions(list,hint,noExtras); }); return; }
   opts.innerHTML=hint?'<div class="hint">'+hint+'</div>':'';
   if(body&&!inCombat&&!noExtras){ if(sysIs('panel')&&body.freePts>0) list=list.concat([{t:'分配屬性點（未分配 '+body.freePts+'）', ab:1, f:panelMenu}]); list=list.concat([{t:'裝備與道具', f:gearMenu},{t:'查看狀態與持有物', keep:true, f:showStatus}]); }
-  if(sysIs('omni')&&list.length){ const best=list.find(o=>o.ab)||list.find(o=>/裂谷|狩獵/.test(o.t)); if(best) best.t='★ '+best.t; }
+  if(sysIs('omni')&&list.length){ const best=list.find(o=>o.ab&&!/^(窺探|調查)/.test(o.t))||list.find(o=>/裂谷|狩獵/.test(o.t)); if(best) best.t='★ '+best.t; }
   scrollBottom(); save();
   const isNav=o=>!o.ab&&/^(退回|返回|回大殿|回市集|回王都|回難民營|去市集|去裂谷|去王座廳|去王城市集|去騎士團|去神殿|去北門|去南方|出發|查看狀態|安全線|跟奧文去|關閉商城|先不分配|算了|走開|不碰|不賣|不賭|不買了|不了|離開|裝備與道具)/.test(o.t);
   const mk=o=>{ const b=document.createElement('button'); b.className='opt'+(o.ab?' ab':''); b.textContent=o.t; b.disabled=!!o.dis; b.onclick=()=>{ if(o.keep){o.f();return;} opts.innerHTML=''; say('info','— '+o.t); o.f(); }; return b; };
@@ -541,6 +543,23 @@ function growOld(n,silent){ if(sysIs('ancestor')){ body.age=25; return; } const 
 /* ============================================================
    系統專屬功能
    ============================================================ */
+function omniOptions(o,where,back,people){
+  if(!sysIs('omni')) return;
+  body.peeked=body.peeked||{};
+  const ppl=(people||[]).filter(n=>TXT.mind[n]);
+  if(ppl.length) o.push({t:'窺探某個人的念頭', ab:1, f:()=>{
+    setOptions(ppl.map(n=>{ const left=(TXT.mind[n]||[]).length-(body.peeked[n]||0); return {t:n+(left>0?'':'（沒有新的念頭）'), dis:left<=0, f:()=>{ peek(n); status(); back(); }}; }).concat([{t:'算了', f:back}]),'全知：你看著一個人，他的念頭浮上來。每次只看得見最上面那一層。',true);
+  }});
+  const pr=TXT.probe[where];
+  if(pr) o.push({t:'調查這個地方'+(body.flags['probe_'+where]?'（已看過）':''), ab:1, dis:!!body.flags['probe_'+where], f:()=>{ body.flags['probe_'+where]=1; reveal(pr.t); if(pr.fact) learn(pr.fact); status(); back(); }});
+}
+function peek(n){
+  const ms=TXT.mind[n]||[]; const c=body.peeked[n]||0;
+  if(c>=ms.length){ say('info',n+'的腦子裡沒有新的東西。'); return; }
+  body.peeked[n]=c+1; const m=ms[c]; reveal('<b>'+n+'</b>｜'+m.t);
+  if(m.fact) learn(m.fact); if(m.flag) body.regionFlags[m.flag]=1;
+  if(m.ex&&!body.facts['ex_'+m.ex]){ body.facts['ex_'+m.ex]=1; const e=EXCH.find(x=>x.id===m.ex); if(e) say('gain','情報：'+e.text); }
+}
 function townExtras(o,back){
   if(sysIs('checkin')){ const t=timed('checkin'); o.unshift({t:'簽到（第 '+(soul.streak+1)+' 天：'+ciGold()+' 金、'+ciCores()+' 核、攻擊 +'+ciAtk()+'）'+tlabel('checkin'), ab:1, dis:t.left<=0, f:()=>{ useTimed('checkin'); if(Date.now()-soul.lastCheck>2*D&&soul.lastCheck) { soul.streak=0; } soul.streak++; soul.lastCheck=Date.now(); body.gold+=ciGold(); addRes('cores',ciCores()); soul.permAtk+=ciAtk(); say('gain','簽到成功。連續 '+soul.streak+' 天：金幣 +'+ciGold()+'、裂谷核 +'+ciCores()+'、攻擊永久 +'+ciAtk()); if(soul.streak%7===0){ body.age=Math.max(16,body.age-9); body.armor+=Math.round(2*levelMul(lv())); say('gain','七日大獎：三瓶延壽藥（年齡 −9）、成長型護甲（防禦 +'+Math.round(2*levelMul(lv()))+'）。'); } sysText('明天也要來。'); status(); back(); }}); }
   if(sysIs('choice')){ const t=timed('choice'); o.unshift({t:'神級選擇'+tlabel('choice'), ab:1, dis:t.left<=0, f:()=>{ useTimed('choice'); const g=500, a=1, h=1, c=6; say('title','神級選擇'); sysText('選一個。'); setOptions([
@@ -610,7 +629,6 @@ N.hall=()=>{ lastNode=N.hall;
     story(TXT.hall1); talk(TXT.hall1_owen);
     say('info','肉身生成完畢：第七勇者，'+body.age+' 歲，等級 '+body.level+'。義務：討伐裂谷魔物 10 隻。'); sys('hello');
   } else say('narr',rnd(TXT.hall_re));
-  if(sysIs('omni')){ learn('owen_hide','奧文｜意圖：<b>期待／隱瞞</b>　布蘭德｜意圖：<b>評估／輕蔑</b>　書記官｜<b>恐懼</b>'); learn('brand_knee','布蘭德｜<span class="w">弱點：左膝</span>'); learn('hall_door','掛毯後有<b>暗門</b>。'); learn('sixth','奧文的謊話底下是：「第六個還活著，在裂谷裡。」'); learn('sixth_path','裂谷岩壁上有一條<b>小徑</b>。'); }
   const o=[];
   o.push({t:'跟奧文去王座廳見國王', f:N.throne});
   if(!fact('sixth')) o.push({t:'問奧文：「前六個勇者去哪了？」', f:()=>{ talk(TXT.hall_ask_six); body.rep.temple-=5; say('info','神殿聲望 −5'); N.hall(); }});
@@ -619,23 +637,23 @@ N.hall=()=>{ lastNode=N.hall;
   if(!fact('sixth')&&body.rep.temple<=-10&&!body.flags.clerkNote){ body.flags.clerkNote=1; story(TXT.hall_note); learn('sixth','紙條：「第六勇者沒有死。他在裂谷深處。別相信神殿。」'); }
   if(fact('hall_door')&&!body.flags.archive) o.push({t:'翻開掛毯，進入檔案室', ab:1, f:()=>{ body.flags.archive=1; story(TXT.hall_archive); learn('sixth','記錄簿：「第六勇者拒絕討伐，聲稱魔物是被神殿驅趕出來的。已於裂谷失蹤。」'); body.gold+=NUM.killGold()*4; say('gain','金幣 +'+NUM.killGold()*4); status(); N.hall(); }});
   o.push({t:'去神殿', f:N.temple}); o.push({t:'去王城市集', f:N.market}); o.push({t:'去裂谷', f:N.rift}); if(body.knee) o.push({t:'去騎士團營房找布蘭德', f:N.barracks});
-  townExtras(o,N.hall); setOptions(o);
+  omniOptions(o,'hall',N.hall,['奧文','布蘭德','書記官']); townExtras(o,N.hall); setOptions(o);
 };
 N.throne=()=>{ lastNode=N.throne;
   place('王座廳');
-  if(!body.flags.throne){ body.flags.throne=1; story(TXT.throne1); talk(TXT.throne1_king); if(sysIs('omni')) learn('king_ill','國王｜慢性病，撐不到春天。'); }
+  if(!body.flags.throne){ body.flags.throne=1; story(TXT.throne1); talk(TXT.throne1_king); }
   else say('narr',rnd(TXT.throne_re));
   const o=[];
   if(!body.flags.quest) o.push({t:'接受討伐任務', f:()=>{ body.flags.quest=1; body.rep.crown+=10; story(TXT.throne_quest); say('gain','任務：討伐裂谷魔物 0/10。'); N.throne(); }});
-  if(!fact('core_price')) o.push({t:'問：「為什麼裂谷核運不到南方？」', f:()=>{ talk(TXT.throne_price); learn('core_price','南方商人在市集收購裂谷核。'); N.throne(); }});
+  if(!fact('core_price')) o.push({t:'追問：「以前運去南方，現在呢？」', f:()=>{ talk(TXT.throne_price); learn('core_price','南方商人在市集收購裂谷核。'); N.throne(); }});
   if(!fact('sixth')&&body.questDone) o.push({t:'「我完成了義務。告訴我第六勇者的事。」', f:()=>{ talk(TXT.throne_six); learn('sixth','第六勇者沒有死。'); N.throne(); }});
-  if(fact('sixth')&&!fact('truth')) o.push({t:'直接問：「第六勇者為什麼帶著魔物回來？」', ab:1, f:()=>{ talk(TXT.throne_truth); learn('truth','你知道了裂谷的真相。'); body.rep.temple-=20; body.flags.seal=1; say('gain','裂谷之印：所受傷害減少。'); addLuck(10,'真相'); N.throne(); }});
+  if(fact('sixth')&&!fact('truth')) o.push({t:'「第六勇者到底在裂谷裡做什麼？你知道的比你說的多。」', ab:1, f:()=>{ talk(TXT.throne_truth); learn('truth','你知道了裂谷的真相。'); body.rep.temple-=20; body.flags.seal=1; say('gain','裂谷之印：所受傷害減少。'); addLuck(10,'真相'); N.throne(); }});
   if(!fact('king_ill')&&body.rep.crown>=20) o.push({t:'問國王的咳嗽', f:()=>{ talk(TXT.throne_ill); learn('king_ill','國王在生病，撐不到春天。'); N.throne(); }});
   if(body.flags.cured&&!body.flags.kingCured) o.push({t:'獻上灰葉藥', ab:1, f:()=>{ body.flags.kingCured=1; body.rep.crown+=40; story(TXT.throne_cure); say('gain','王室聲望 +40。國王欠你一條命。'); addLuck(15,'救了一個王'); status(); N.throne(); }});
   const er=endingReady();
   if(fact('ledger')&&fact('witness')&&!body.flags.ending){ if(er.includes('expose')) o.push({t:'把帳冊和證人帶到王座前，揭發神殿', ab:1, f:()=>ending('expose')}); else o.push({t:'（揭發：要國王活著或王室聲望 60，且第 60 天後審判才開得成）', dis:true, f:()=>{}}); }
   o.push({t:'回大殿', f:N.hall}); o.push({t:'去市集', f:N.market}); o.push({t:'去裂谷', f:N.rift});
-  townExtras(o,N.throne); setOptions(o);
+  omniOptions(o,'throne',N.throne,['國王','奧文']); townExtras(o,N.throne); setOptions(o);
 };
 N.barracks=()=>{ lastNode=N.barracks;
   place('騎士團營房');
@@ -645,7 +663,7 @@ N.barracks=()=>{ lastNode=N.barracks;
   if(!body.flags.escort) o.push({t:'請布蘭德護送你過一道門（需騎士團聲望 30，現在 '+body.rep.knight+'）', dis:body.rep.knight<30, f:()=>{ body.rep.knight-=30; body.flags.escort=1; talk(TXT.barracks_escort); status(); N.barracks(); }});
   if(!hasW('spear')) o.push({t:'跟布蘭德要一支長槍（騎士團聲望 20，現在 '+body.rep.knight+'）', dis:body.rep.knight<20, f:()=>{ talk(TXT.barracks_spear); giveWeapon('spear'); status(); N.barracks(); }});
   if(body.rep.knight<30) o.push({t:'幫騎士團跑腿（騎士團聲望 +10，老一歲）', f:()=>{ body.rep.knight+=10; growOld(1,true); say('gain','騎士團聲望 +10'); N.barracks(); }});
-  o.push({t:'去裂谷', f:N.rift},{t:'去市集', f:N.market},{t:'回大殿', f:N.hall}); townExtras(o,N.barracks); setOptions(o);
+  o.push({t:'去裂谷', f:N.rift},{t:'去市集', f:N.market},{t:'回大殿', f:N.hall}); omniOptions(o,'barracks',N.barracks,['布蘭德']); townExtras(o,N.barracks); setOptions(o);
 };
 /* ============================================================
    資源、交換管道、NPC：情報在人身上
@@ -725,7 +743,7 @@ function priceFactor(loc,res,dir){ // dir='sell'：你把 res 賣給它；'buy'�
 }
 function stockWord(loc,res){ const m=stockOf(loc,res); const s0=(STOCK0[loc]||{})[res]; if(!m) return ''; const r=m.v/s0; return r>1.6?'堆到沒地方放':r>1.15?'貨很多':r>0.85?'正常':r>0.5?'缺貨':'幾乎沒有'; }
 function canSeeStock(){ return sysIs('omni')||sysIs('trader'); }
-function exKnown(id){ return sysIs('omni')||sysIs('trader')||!!body.facts['ex_'+id]; }
+function exKnown(id){ return sysIs('trader')||!!body.facts['ex_'+id]; }
 function exchangeOptions(where,back){
   const list=EXCH.filter(e=>e.where===where&&exKnown(e.id)); if(!list.length) return null;
   return {t:'交換（你知道 '+list.length+' 條管道）', f:()=>{
@@ -825,24 +843,24 @@ function gateOptions(back,onPass,depth,r){
 }
 const REGION_GATES={
   forest:[
-    {who:'守林人', enter:'往深林走——守林人擋在路上', text:TXT.region_gate.forest1,
+    {who:'守林人', enter:'往深林走', text:TXT.region_gate.forest1,
      say:{gold:'「金子？行。這麼多年也該有人付我薪水。」他讓開了。', cores:'他把裂谷核放進嘴裡咬了一下。「真貨。深林裡的東西怕這個。」', points:'系統替你買了一張獵人地圖。老人瞇起眼：「你怎麼會有這個？」', people:'難民營的孩子替你說過話。老人哼了一聲：「他們說你不是來打獵的。」', luck:'一隻鹿從深林裡走出來，停在你身邊。老人放下弓。「牠替你擔保。」'}},
-    {who:'焦土的火', enter:'往焦土心走——地面還在燒', text:TXT.region_gate.forest2,
+    {who:'焦土的火', enter:'往焦土心走', text:TXT.region_gate.forest2,
      say:{gold:'你買下整批獸皮裹在腳上，一路踩過去。貴，但有用。', cores:'裂谷核在熱土上發出紅光，火像認識它一樣往兩邊退。', points:'系統給了你一雙不會燒起來的鞋。別問它哪來的。', people:'獵人們替你在熱土上鋪了一條石頭路。他們說這是還你的。', luck:'今天剛好下了三十年來第一場雨。'}}],
   snow:[
-    {who:'渡船人', enter:'往凍湖走——渡船人不收窮人', text:TXT.region_gate.snow1,
+    {who:'渡船人', enter:'往凍湖走', text:TXT.region_gate.snow1,
      say:{gold:'他數了三遍。「上船。」', cores:'他把核收進懷裡。「這個能讓我過冬。上船。」', points:'系統標出了一條冰夠厚的路。你走過去，渡船人在後面罵。', people:'「北村的人說你埋了他們的人。」他把槳遞給你。「不收錢。」', luck:'湖面在你面前結成一條路。渡船人跪下了。'}},
-    {who:'雪原的沉默', enter:'往舊祭壇走——那裡的雪不會停', text:TXT.region_gate.snow2,
+    {who:'雪原的沉默', enter:'往舊祭壇走', text:TXT.region_gate.snow2,
      say:{gold:'你僱了四個嚮導。回來的只有兩個。', cores:'裂谷核燙得能融雪。你一路燒出一條路。', points:'系統在你眼前畫了一條線。你踩著線走。', people:'老人的孫子帶路。他說他小時候去過，那時候還有村子。', luck:'風停了半個時辰。剛好夠你走到。'}}],
   port:[
-    {who:'商會守門人', enter:'往商會走——沒有會員資格進不去', text:TXT.region_gate.port1,
+    {who:'商會守門人', enter:'往商會走', text:TXT.region_gate.port1,
      say:{gold:'入會費。你付了，他把名字寫進冊子。', cores:'你把裂谷核擺在桌上。守門人叫來了商會長。', points:'系統偽造了一份會員證。守門人看了很久，放行了。', people:'碼頭工人的頭子替你擔保。「他幫過我們的人。」', luck:'商會長剛好從門口走過，看見你，說了句「進來」。'}},
-    {who:'總督的秘書', enter:'往總督府走——秘書決定誰能見總督', text:TXT.region_gate.port2,
+    {who:'總督的秘書', enter:'往總督府走', text:TXT.region_gate.port2,
      say:{gold:'茶杯底下多了一袋金子。「總督明天有空。」', cores:'他把裂谷核拿到光下看。「總督會有興趣。」', points:'系統查到了秘書的私帳。你什麼都沒說，他臉白了。', people:'港市半條街的人在門口等你。秘書開了門。', luck:'總督的貓跳到你腿上。秘書說這隻貓從不親近人。'}}],
   mine:[
-    {who:'工頭', enter:'往主巷走——工頭不放閒人下去', text:TXT.region_gate.mine1,
+    {who:'工頭', enter:'往主巷走', text:TXT.region_gate.mine1,
      say:{gold:'保險費。他收了，把籠門拉開。', cores:'「這個能點燈。」他把核掛在籠子上。', points:'系統給了你一張礦坑的通行證。工頭看了看章，沒問。', people:'礦工們圍上來。「他替我們說過話。」工頭讓了。', luck:'升降籠的繩子今天剛好換了新的。'}},
-    {who:'熔心的熱', enter:'往熔心走——沒有人下去過', text:TXT.region_gate.mine2,
+    {who:'熔心的熱', enter:'往熔心走', text:TXT.region_gate.mine2,
      say:{gold:'你買下礦坑所有的濕布和水，裹著走進去。', cores:'裂谷核在門前發出共鳴。門自己開了。', points:'系統給了你一件不會燒的衣服。它說這是「試用品」。', people:'礦工們輪流替你潑水。你走進去時，背後全是人。', luck:'今天熔心剛好在休眠。'}}],
 };
 /* 工匠不常駐，但有規律。規律在 NPC 嘴裡。 */
@@ -856,7 +874,7 @@ const REGIONS={
   forest:{name:'灰燼森林', res:'herbs', resName:'灰葉草', res2:'timber', depths:['林緣','深林','焦土心'], threat:0.25, mon:0,
     intro:TXT.region.forest,
     events:[
-      {t:'一個獵人蹲在陷阱旁邊，看你的劍。', o:[
+      {t:'一個獵人蹲在陷阱旁邊，看你的劍。他身邊堆著幾張硝好的皮，帽簷上插著針線——皮衣、皮囊、皮甲，看來都做。腰上掛著一把短刀，還有一把獸骨磨的彎刀。', o:[
         {t:'幫他修陷阱（一天）', f:()=>{ spendDay('修陷阱'); addRes('pelts',2); body.rep.people+=3; body.regionFlags.trap=1; say('gain','獸皮 +2，民心 +3。他記住你了。'); }},
         {t:'請他做皮衣（5 張獸皮）', req:()=>body.pelts>=5&&!body.regionFlags.furCoat, f:()=>{ body.pelts-=5; body.regionFlags.furCoat=1; say('gain','皮衣。「這個走冰面不會凍死。」'); }},
         {t:'請他縫一個皮囊（8 張獸皮，背包 +15）', req:()=>body.pelts>=8, f:()=>{ body.pelts-=8; body.coreCap+=15; say('gain','皮囊：背包 +15 格（現在 '+body.coreCap+'）'); }},
@@ -871,7 +889,7 @@ const REGIONS={
       {t:'你迷路了。每棵樹都長得一樣。', o:[
         {t:'憑感覺走（一天）', f:()=>{ spendDay('迷路'); if(sysIs('omni')||(sysIs('luck')&&soul.luck>=30)){ say('gain','你一下就走出來了，順手摘了草。'); addRes('herbs',2); } else say('info','你繞了一整天。'); }},
         {t:'順著溪走', f:()=>{ addRes('herbs',1); say('gain','溪邊有灰葉草。+1'); }}]},
-      {t:'樵夫在林緣歇腳，旁邊堆著剛劈好的板子。', o:[
+      {t:'樵夫在林緣歇腳，旁邊堆著剛劈好的板子和一個釘到一半的木箱。「板子能釘箱子，木材也賣。」', o:[
         {t:'請他釘一個木箱（6 根木材，背包 +15）', req:()=>body.timber>=6, f:()=>{ body.timber-=6; body.coreCap+=15; say('gain','木箱：背包 +15 格（現在 '+body.coreCap+'）'); }},
         {t:'買他的木材（30 金，+3）', req:()=>body.gold>=30, f:()=>{ body.gold-=30; addRes('timber',3); say('gain','木材 +3'); }},
         {t:'走開', f:()=>{}}]},
@@ -912,7 +930,7 @@ const REGIONS={
       {t:'礦工們在罷工。工頭想僱你談判。', o:[
         {t:'替礦工說話', f:()=>{ body.rep.people+=10; body.regionFlags.sidedMiners=1; say('gain','民心 +10。礦工們記住了你。'); }},
         {t:'替工頭壓下去（80 金酬勞）', f:()=>{ body.gold+=80; body.rep.people-=10; say('gain','金幣 +80，民心 −10'); }}]},
-      {t:'鐵匠在坑口設了爐。「礦石 5 塊，我把你的劍打亮一點。」', o:[
+      {t:'鐵匠在坑口設了爐，爐邊擺著他打過的東西：一把重斧、一台礦車、一件發黑的甲、幾塊磨刀石，還有兩瓶塞著布的火油。「礦石五塊，我把你手上的武器打亮一點。別的也能打，看你帶了什麼來。」', o:[
         {t:'打（礦石 5，手上的武器鋒利 +2）', req:()=>body.ore>=5, f:()=>{ body.ore-=5; eqW().sharp=(eqW().sharp||0)+2; say('gain',wDef(eqW()).n+'鋒利 +2（現在 +'+eqW().sharp+'）'); }},
         {t:'打一把礦工重斧（礦石 8，攻擊 +8、攻速慢 0.5 秒）', req:()=>body.ore>=8&&!hasW('axe'), f:()=>{ body.ore-=8; giveWeapon('axe'); }},
         {t:'磨一塊磨刀石（礦石 2）', req:()=>body.ore>=2, f:()=>{ body.ore-=2; addItem('whet',1); say('gain','磨刀石 +1'); }},
@@ -951,7 +969,7 @@ N.region=(r)=>{ lastNode=()=>N.region(r);
   if(d>1) o.push({t:'退回'+R.depths[d-2], f:()=>{ body.depth[r]=d-1; N.region(r); }});
   o.push({t:'回王都（一天路程）', f:()=>{ spendDay('回王都'); N.market(); }});
   { const t=talkOptions(r,()=>N.region(r)); if(t) o.push(t); const x=exchangeOptions(r,()=>N.region(r)); if(x) o.push(x); }
-  townExtras(o,()=>N.region(r)); setOptions(o);
+  omniOptions(o,r,()=>N.region(r),NPCS.filter(n=>n.where===r).map(n=>n.n).concat(r==='forest'&&d>=2?['守林人']:[])); townExtras(o,()=>N.region(r)); setOptions(o);
 };
 /* ===== 非戰鬥路線：神殿、難民營、北方空村、南方哨站 ===== */
 function spendDay(what){ body.day++; if(body.day%3===0) growOld(1,true); say('info','（'+what+'花了一天。第 '+body.day+' 天。）'); }
@@ -974,7 +992,7 @@ N.temple=()=>{ lastNode=N.temple;
     if(endingReady().includes('seal')) o.push({t:'冬至到了。跟奧文下裂谷封印', ab:1, f:()=>{ body.cores-=10; ending('seal'); }}); else o.push({t:'（封印：'+need.join('；')+'）', dis:true, f:()=>{}}); }
   o.push({t:'回大殿', f:N.hall}); o.push({t:'去市集', f:N.market});
   { const t=talkOptions('temple',N.temple); if(t) o.push(t); const x=exchangeOptions('temple',N.temple); if(x) o.push(x); }
-  townExtras(o,N.temple); setOptions(o);
+  omniOptions(o,'temple',N.temple,['奧文','書記官']); townExtras(o,N.temple); setOptions(o);
 };
 N.camp=()=>{ lastNode=N.camp;
   place('北門難民營');
@@ -984,17 +1002,17 @@ N.camp=()=>{ lastNode=N.camp;
   if(body.rep.people>=30&&!body.flags.campBag) o.push({t:'難民營的女人們縫了一個布袋給你（民心 30 以上，容量 +5）', ab:1, f:()=>{ body.flags.campBag=1; body.coreCap+=15; say('gain','布袋：背包 +15 格（現在 '+body.coreCap+'）。「你幫過我們。」'); status(); N.camp(); }});
   if(body.grain>=3) o.push({t:'送 3 袋糧食（民心 +6）', f:()=>{ body.grain-=3; body.rep.people+=6; say('gain','民心 +6。'); status(); N.camp(); }});
   o.push({t:'送糧食（60 金，民心 +10）', dis:body.gold<60, f:()=>{ body.gold-=60; body.rep.people+=10; say('gain','民心 +10。孩子們不看你的劍了，看你。'); addLuck(3,'善行'); status(); N.camp(); }});
-  if(body.cores>0) o.push({t:'送一枚裂谷核給藥婆（民心 +5）', f:()=>{ body.cores--; body.rep.people+=5; say('gain','民心 +5。藥婆把核收進懷裡。「這東西能入藥，你知道嗎。」'); status(); N.camp(); }});
+  if(body.cores>0) o.push({t:'把一枚裂谷核給藥婆入藥（民心 +5）', f:()=>{ body.cores--; body.rep.people+=5; say('gain','民心 +5。藥婆把核收進懷裡。「這東西能入藥，你知道嗎。」'); status(); N.camp(); }});
   if(body.rep.people>=10&&!fact('witness')) o.push({t:'聽孩子們說話', f:()=>{ talk(TXT.camp_witness); learn('witness','孩子看見神殿的人在裂谷邊點火，然後魔物才出來。'); N.camp(); }});
-  if(fact('king_ill')||body.rep.people>=20){ if(!fact('cure')) o.push({t:'問藥婆國王的病', f:()=>{ talk(TXT.camp_cure); learn('cure','藥方：三枚裂谷核加北村的灰葉草。'); N.camp(); }}); }
+  if(fact('king_ill')){ if(!fact('cure')) o.push({t:'問藥婆國王的病', f:()=>{ talk(TXT.camp_cure); learn('cure','藥方：三枚裂谷核加北村的灰葉草。'); N.camp(); }}); }
   if(fact('cure')&&!body.flags.cured) o.push({t:'交出 3 枚裂谷核與灰葉草，請藥婆配藥', ab:1, dis:body.cores<3||body.herbs<1, f:()=>{ body.cores-=3; body.herbs--; body.flags.cured=1; story(TXT.camp_brew); say('gain','獲得「灰葉藥」。拿去王座廳。'); status(); N.camp(); }});
   o.push({t:'請藥婆配治傷藥（2 株灰葉草）', dis:body.herbs<2, f:()=>{ body.herbs-=2; addItem('hpot',1); say('gain','治傷藥 +1。「草熬的，比市集的乾淨。」'); status(); N.camp(); }});
-  if(!body.flags.antidote) o.push({t:'請藥婆配解毒藥（5 株灰葉草）', dis:body.herbs<5, f:()=>{ body.herbs-=5; body.flags.antidote=1; say('gain','解毒藥。「毒霧那種東西，草比金子有用。」'); status(); N.camp(); }});
+  if(!body.flags.antidote&&body.maxFloor>=4) o.push({t:'請藥婆配解毒藥（5 株灰葉草）', dis:body.herbs<5, f:()=>{ body.herbs-=5; body.flags.antidote=1; say('gain','解毒藥。「毒霧那種東西，草比金子有用。」'); status(); N.camp(); }});
   o.push({t:'請藥婆配延壽藥（3 株灰葉草、1 枚裂谷核，年輕 3 歲）', dis:body.herbs<3||body.cores<1, f:()=>{ body.herbs-=3; body.cores--; body.age=Math.max(16,body.age-3); say('gain','年齡 −3。比市集便宜多了。'); status(); N.camp(); }});
   o.push({t:'去北方空村（一天路程）', f:N.north});
   o.push({t:'回市集', f:N.market});
   { const t=talkOptions('camp',N.camp); if(t) o.push(t); const x=exchangeOptions('camp',N.camp); if(x) o.push(x); }
-  townExtras(o,N.camp); setOptions(o);
+  omniOptions(o,'camp',N.camp,['藥婆','難民孩子','地窖老人']); townExtras(o,N.camp); setOptions(o);
 };
 N.north=()=>{ lastNode=N.north;
   place('北方空村');
@@ -1003,6 +1021,7 @@ N.north=()=>{ lastNode=N.north;
   const o=[];
   o.push({t:'搜索村子', f:()=>{ const r=Math.random(); if(r<0.4){ addRes('herbs',1); say('gain','你在井邊找到一叢灰葉草。'); } else if(r<0.7){ const g=30+Math.floor(Math.random()*40); body.gold+=g; say('gain','床墊底下有 '+g+' 金。'); } else if(r<0.9){ if(!fact('witness')) learn('witness','村口的石頭上有燒過的痕跡和一枚神殿的徽章。魔物來之前，這裡先有火。'); else say('info','你又看了一眼那塊燒過的石頭。'); } else { say('hurt','一隻裂谷犬從屋裡衝出來。'); body.floor=1; encounter(); return; } status(); N.north(); }});
   if(sysIs('omni')||(sysIs('luck')&&soul.luck>=30)) o.push({t:'直接走向該去的地方', ab:1, f:()=>{ addRes('herbs',2); if(!fact('witness')) learn('witness','村口的石頭上有燒過的痕跡和一枚神殿的徽章。'); say('gain','灰葉草 +2。'); status(); N.north(); }});
+  omniOptions(o,'north',N.north,[]);
   o.push({t:'回難民營', f:N.camp});
   setOptions(o);
 };
@@ -1018,6 +1037,7 @@ N.south=()=>{ lastNode=N.south;
     if(sysIs('luck')&&soul.luck>=40) o.push({t:'氣運：跟他賭一把', ab:1, f:()=>{ openRoute('你們擲骰子。你連贏七把。他把骰子扔進火裡。「路給你。別再來了。」'); }});
   } else o.push({t:'跟商隊做生意（裂谷核每枚 '+Math.round(world.price*1.6)+' 金）', dis:body.cores<1, f:()=>{ const n=body.cores; body.gold+=Math.round(world.price*1.6)*n; body.cores=0; say('gain','賣出 '+n+' 枚，金幣 +'+Math.round(world.price*1.6)*n); status(); N.south(); }});
   { const t=talkOptions('south',N.south); if(t) o.push(t); const x=exchangeOptions('south',N.south); if(x) o.push(x); }
+  omniOptions(o,'south',N.south,['商隊頭子']);
   o.push({t:'回市集（一天路程）', f:()=>{ spendDay('回王都'); N.market(); }});
   setOptions(o);
 };
@@ -1056,7 +1076,7 @@ N.market=()=>{ lastNode=N.market;
   o.push({t:'出發：灰燼森林', f:()=>N.region('forest')}); o.push({t:'出發：北方雪原', f:()=>N.region('snow')}); if(fact('route')) o.push({t:'出發：南方港市', f:()=>N.region('port')}); o.push({t:'出發：東方礦坑', f:()=>N.region('mine')});
   o.push({t:'去裂谷', f:N.rift}); o.push({t:'回大殿', f:N.hall}); if(body.flags.throne) o.push({t:'去王座廳', f:N.throne});
   { const t=talkOptions('market',N.market); if(t) o.push(t); const x=exchangeOptions('market',N.market); if(x) o.push(x); }
-  townExtras(o,N.market); setOptions(o);
+  omniOptions(o,'market',N.market,['南方商人']); townExtras(o,N.market); setOptions(o);
 };
 function stallMenu(){
   if(!body.flags.stall){ body.flags.stall=1; story(TXT.market_stall); } else say('narr','獨眼的老闆娘抬了抬下巴。「先付錢。」');
@@ -1112,13 +1132,13 @@ N.rift=()=>{ lastNode=N.rift;
   if(canChain()) o.push({t:(body.autoHunt?'● ':'○ ')+'連續狩獵（你的能力：打完自動下一隻）', ab:1, f:()=>{ body.autoHunt=!body.autoHunt; save(); N.rift(); }});
   o.push({t:(body.autoAct?'● ':'○ ')+'自動戰鬥（輪到你時重複上一次行動）', f:()=>{ body.autoAct=!body.autoAct; save(); N.rift(); }});
   if(sysIs('idle')) o.push({t:'離線狩獵：'+(body.idleArmed?'已布置（離線後在第 '+body.floor+' 層繼續打，最多 8 小時）':'未布置'), ab:1, f:()=>{ body.idleArmed=!body.idleArmed; say('info',body.idleArmed?'你把劍插在地上，坐了下來。離線後它會自己動。':'你收起了劍。'); save(); N.rift(); }});
-  if(body.floor<6){ const g=GATES[body.floor]; o.push({t:'前往第 '+(body.floor+1)+' 層：'+g.name+(body.maxFloor>body.floor?'（已通過）':''), f:()=>{ if(body.maxFloor>body.floor){ body.floor++; say('info','你走過已經打開的門。'); N.rift(); return; } say('title',g.name); story(g.text); const r=g.check(); if(r.ok){ say('gain',r.why); if(body.flags.escort){ body.flags.escort=0; say('npc','布蘭德：「到這裡為止。下一道門自己想辦法。」'); } body.floor++; body.maxFloor=Math.max(body.maxFloor,body.floor); sysText('過了。這一關跟你的攻擊沒關係，你知道吧。'); status(); N.rift(); } else { say('hurt',r.why); say('info',g.hint); if(r.lethal){ body.hp=0; die(true); } else N.rift(); } }}); }
+  if(body.floor<6){ const g=GATES[body.floor]; o.push({t:'往更深處走（第 '+(body.floor+1)+' 層）'+(body.flags['gate'+body.floor]?'：'+g.name:'')+(body.maxFloor>body.floor?'（已通過）':''), f:()=>{ body.flags['gate'+body.floor]=1; if(body.maxFloor>body.floor){ body.floor++; say('info','你走過已經打開的門。'); N.rift(); return; } say('title',g.name); story(g.text); const r=g.check(); if(r.ok){ say('gain',r.why); if(body.flags.escort){ body.flags.escort=0; say('npc','布蘭德：「到這裡為止。下一道門自己想辦法。」'); } body.floor++; body.maxFloor=Math.max(body.maxFloor,body.floor); sysText('過了。這一關跟你的攻擊沒關係，你知道吧。'); status(); N.rift(); } else { say('hurt',r.why); say('info',g.hint); if(r.lethal){ body.hp=0; die(true); } else N.rift(); } }}); }
   for(let f=body.floor-1;f>=1;f--){ o.push({t:'退回第 '+f+' 層 '+FLOORS[f], f:()=>{ body.floor=f; N.rift(); }}); break; }
   if(fact('sixth_path')&&!body.flags.sixthPath) o.push({t:'走上小徑，尋找第六勇者', ab:1, f:()=>{ { body.flags.sixthPath=1; story(TXT.sixth_path); talk(TXT.sixth_talk); learn('truth','你知道了裂谷的真相。'); body.rep.temple-=30; body.flags.seal=1; say('gain','裂谷之印：所受傷害減少。'); addLuck(10,'真相'); } body.flags.riftVisits--; N.rift(); }});
   if(fact('truth')&&body.flags.sixthPath&&!body.flags.ending){ if(endingReady().includes('release')) o.push({t:'走小徑找第六勇者：一起拆掉封印', ab:1, f:()=>ending('release')}); else o.push({t:'（放歸：要民心 30，並在不同的日子跟第六勇者談過三次，現在 '+(body.flags.sixthTalks||0)+'/3）', dis:true, f:()=>{}}); }
   o.push({t:'返回王城', f:N.market});
   { const t=talkOptions('rift',N.rift); if(t) o.push(t); const x=exchangeOptions('rift',N.rift); if(x) o.push(x); }
-  townExtras(o,N.rift); setOptions(o);
+  omniOptions(o,'rift',N.rift,body.flags.sixthPath?['第六勇者']:[]); townExtras(o,N.rift); setOptions(o);
 };
 function pickMon(floor){ const w=floor<=1?[6,3,1]:floor<=2?[4,4,2]:floor<=4?[3,4,3]:[2,3,5]; let r=Math.random()*w.reduce((a,b)=>a+b,0); for(let i=0;i<3;i++){ r-=w[i]; if(r<=0) return MONSTERS[i]; } return MONSTERS[2]; }
 function makeMon(pick,floor){
