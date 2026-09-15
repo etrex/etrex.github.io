@@ -241,9 +241,12 @@ const fmtT=ms=>{ ms=Math.max(0,ms); const h=Math.floor(ms/H), m=Math.ceil((ms%H)
    ============================================================ */
 const mem={};
 const hasStore = typeof window!=='undefined' && window.storage && typeof window.storage.get==='function';
-async function sget(k,shared=false){ if(!hasStore) return mem[(shared?'s:':'p:')+k]??null; try{const r=await window.storage.get(k,shared);return r?JSON.parse(r.value):null}catch{return null} }
-async function sset(k,v,shared=false){ if(!hasStore){mem[(shared?'s:':'p:')+k]=v;return} try{await window.storage.set(k,JSON.stringify(v),shared)}catch(e){} }
-async function slist(prefix,shared=false){ if(!hasStore) return Object.keys(mem).filter(k=>k.startsWith((shared?'s:':'p:')+prefix)).map(k=>k.slice(2)); try{const r=await window.storage.list(prefix,shared);return r?r.keys:[]}catch{return[]} }
+/* 沒有主機提供的 storage 時，退到瀏覽器的 localStorage（存檔就留在這台裝置上） */
+const LS=(()=>{ try{ const t='ab:test'; localStorage.setItem(t,'1'); localStorage.removeItem(t); return localStorage; }catch(e){ return null; } })();
+const lsKey=(k,shared)=>'ab:'+(shared?'s:':'p:')+k;
+async function sget(k,shared=false){ if(!hasStore){ if(LS){ try{ const v=LS.getItem(lsKey(k,shared)); return v==null?null:JSON.parse(v); }catch(e){ return null; } } return mem[(shared?'s:':'p:')+k]??null; } try{const r=await window.storage.get(k,shared);return r?JSON.parse(r.value):null}catch{return null} }
+async function sset(k,v,shared=false){ if(!hasStore){ if(LS){ try{ LS.setItem(lsKey(k,shared),JSON.stringify(v)); }catch(e){} } else mem[(shared?'s:':'p:')+k]=v; return; } try{await window.storage.set(k,JSON.stringify(v),shared)}catch(e){} }
+async function slist(prefix,shared=false){ if(!hasStore){ if(LS){ const p=lsKey(prefix,shared); const out=[]; for(let i=0;i<LS.length;i++){ const key=LS.key(i); if(key&&key.startsWith(p)) out.push(key.slice(('ab:'+(shared?'s:':'p:')).length)); } return out; } return Object.keys(mem).filter(k=>k.startsWith((shared?'s:':'p:')+prefix)).map(k=>k.slice(2)); } try{const r=await window.storage.list(prefix,shared);return r?r.keys:[]}catch{return[]} }
 let saveTimer=null;
 function save(){ clearTimeout(saveTimer); saveTimer=setTimeout(()=>sset('save:v3',{soul,body,savedAt:Date.now()},false),300); }
 
