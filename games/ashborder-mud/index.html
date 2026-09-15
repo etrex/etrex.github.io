@@ -102,6 +102,7 @@
   .cur{display:inline-block;width:.5em;height:1em;vertical-align:-.15em;background:var(--gold);margin-left:.1em;animation:blink 1s steps(2) infinite}
   @keyframes blink{to{opacity:0}}
   #opts .hint.wait{padding:.4rem 0;color:var(--paper-dim)}
+  #opts.arming button.opt{pointer-events:none;opacity:.55}
   #log{cursor:pointer}
   .close{position:absolute;top:.6rem;right:.8rem;background:none;border:0;color:var(--paper-dim);font:inherit;cursor:pointer}
   @media(min-width:900px){ .close{display:none} }
@@ -495,8 +496,9 @@ document.addEventListener('keydown',e=>{ if(e.target&&e.target.tagName==='INPUT'
 { const b=document.getElementById('spd'); const r=()=>{ b.textContent='文字：'+SPEEDS[speedIdx].n; }; r(); b.onclick=()=>{ speedIdx=(speedIdx+1)%SPEEDS.length; try{localStorage.setItem('ab:speed',speedIdx)}catch(e){} r(); if(SPEEDS[speedIdx].ms===0) flushAll(); }; }
 function sys(ctx){ const p=PERSONA[soul.system.persona]; say('sys',rnd(p[ctx])); }
 function sysText(t){ say('sys',t); }
+let armT=null;
 function setOptions(list,hint,noExtras){
-  if(!inCombat&&(typing||tq.length)){ opts.innerHTML='<div class="hint wait">文字顯示中……點一下畫面加速，再點一下跳過。</div>'; afterFns.push(()=>{ if(!inCombat) setOptions(list,hint,noExtras); }); return; }
+  if(!inCombat&&(typing||tq.length)){ opts.innerHTML='<div class="hint wait">文字顯示中……點一下畫面加速，再點一下跳過。</div>'; afterFns.push(()=>{ if(!inCombat){ setOptions(list,hint,noExtras); opts.classList.add('arming'); clearTimeout(armT); armT=setTimeout(()=>opts.classList.remove('arming'),800); } }); return; }
   if(body&&!inCombat) checkQuests();
   opts.innerHTML=hint?'<div class="hint">'+hint+'</div>':'';
   if(body&&!inCombat&&!noExtras){ if(sysIs('panel')&&body.freePts>0) list=list.concat([{t:'分配屬性點（未分配 '+body.freePts+'）', ab:1, f:panelMenu}]); list=list.concat([{t:'裝備與道具', f:gearMenu},{t:'任務日誌', keep:true, f:showJournal},{t:'查看狀態與持有物', keep:true, f:showStatus}]); }
@@ -825,7 +827,7 @@ const NPCS=[
   {n:'商隊頭子', where:'south', lines:TXT.npc['商隊頭子'], reveals:['salt_ink']},
   {n:'工頭', where:'mine', lines:TXT.npc['工頭'], reveals:['cores_coal'], sched:'mine'},
   {n:'礦工', where:'mine', lines:TXT.npc['礦工'], reveals:['coal_ore'], sched:'mine', cond:()=>body.regionFlags.sidedMiners||body.rep.people>=20, condText:'礦工們看了看工頭，沒說話。'},
-  {n:'第六勇者', where:'rift', lines:TXT.npc['第六勇者'], reveals:['ore_ink'], cond:()=>body.flags.sixthPath, condText:'', onTalk:()=>{ if(body.flags.sixthTalkDay!==body.day){ body.flags.sixthTalkDay=body.day; body.flags.sixthTalks=(body.flags.sixthTalks||0)+1; if(body.flags.sixthTalks===3) talk(TXT.sixth_ask_pool); } }},
+  {n:'第六勇者', where:'rift', lines:TXT.npc['第六勇者'], reveals:['ore_ink'], show:()=>body.flags.sixthPath, onTalk:()=>{ if(body.flags.sixthTalkDay!==body.day){ body.flags.sixthTalkDay=body.day; body.flags.sixthTalks=(body.flags.sixthTalks||0)+1; if(body.flags.sixthTalks===3) talk(TXT.sixth_ask_pool); } }},
 ];
 /* 每個地點對每種資源有一個隱藏存量。你賣給它，存量漲、它出的價跌；你向它買，存量掉、它要的價漲。
    每天存量往基準回六％（NPC 的產出與消耗）。小量交易幾乎不動價，大量交易會在一天內把價格打爆。 */
@@ -1269,9 +1271,9 @@ N.rift=()=>{ lastNode=N.rift;
   if(canChain()) o.push({t:(body.autoHunt?'● ':'○ ')+'連續狩獵（你的能力：打完自動下一隻）', ab:1, f:()=>{ body.autoHunt=!body.autoHunt; save(); N.rift(); }});
   o.push({t:(body.autoAct?'● ':'○ ')+'自動戰鬥（輪到你時重複上一次行動）', f:()=>{ body.autoAct=!body.autoAct; save(); N.rift(); }});
   if(sysIs('idle')) o.push({t:'離線狩獵：'+(body.idleArmed?'已布置（離線後在第 '+body.floor+' 層繼續打，最多 8 小時）':'未布置'), ab:1, f:()=>{ body.idleArmed=!body.idleArmed; say('info',body.idleArmed?'你把劍插在地上，坐了下來。離線後它會自己動。':'你收起了劍。'); save(); N.rift(); }});
-  if(body.floor<6){ const g=GATES[body.floor]; o.push({t:'往更深處走（第 '+(body.floor+1)+' 層）'+(body.flags['gate'+body.floor]?'：'+g.name:'')+(body.maxFloor>body.floor?'（已通過）':''), f:()=>{ body.flags['gate'+body.floor]=1; if(body.maxFloor>body.floor){ body.floor++; say('info','你走過已經打開的門。'); N.rift(); return; } say('title',g.name); story(g.text); const r=g.check(); if(r.ok){ say('gain',r.why); if(body.flags.escort){ body.flags.escort--; say('npc',body.flags.escort?'布蘭德：「再一道。」':'布蘭德：「到這裡為止。下一道門自己想辦法。」'); } body.floor++; body.maxFloor=Math.max(body.maxFloor,body.floor); sysText('過了。這一關跟你的攻擊沒關係，你知道吧。'); status(); N.rift(); } else { say('hurt',r.why); say('info',g.hint); if(r.lethal){ body.hp=0; die(true); } else N.rift(); } }}); }
+  if(body.floor<6){ const g=GATES[body.floor]; o.push({t:'往更深處走（第 '+(body.floor+1)+' 層）'+(body.flags['gate'+body.floor]?'：'+g.name:'')+(body.maxFloor>body.floor?'（已通過）':''), f:()=>{ body.flags['gate'+body.floor]=1; if(body.maxFloor>body.floor){ body.floor++; say('info','你走過已經打開的門。'); N.rift(); return; } say('title',g.name); story(g.text); setOptions([{t:'先退回去', f:N.rift},{t:'硬闖', f:()=>{ const r=g.check(); if(r.ok){ say('gain',r.why); if(body.flags.escort){ body.flags.escort--; say('npc',body.flags.escort?'布蘭德：「再一道。」':'布蘭德：「到這裡為止。下一道門自己想辦法。」'); } body.floor++; body.maxFloor=Math.max(body.maxFloor,body.floor); sysText('過了。這一關跟你的攻擊沒關係，你知道吧。'); status(); N.rift(); } else { say('hurt',r.why); say('info',g.hint); if(r.lethal){ body.hp=0; die(true); } else N.rift(); } }}],'門在前面。過不過，你決定。',true); }}); }
   for(let f=body.floor-1;f>=1;f--){ o.push({t:'退回第 '+f+' 層 '+FLOORS[f], f:()=>{ body.floor=f; N.rift(); }}); break; }
-  if(fact('sixth_path')&&!body.flags.sixthPath) o.push({t:'走上小徑，尋找第六勇者', ab:1, f:()=>{ { body.flags.sixthPath=1; story(TXT.sixth_path); talk(TXT.sixth_talk); learn('truth','你知道了裂谷的真相。'); body.rep.temple-=30; body.flags.seal=1; say('gain','裂谷之印：所受傷害減少。'); addLuck(10,'真相'); } body.flags.riftVisits--; N.rift(); }});
+  if(fact('sixth_path')&&!body.flags.sixthPath) o.push({t:'走上小徑，尋找第六勇者', ab:1, f:()=>{ { body.flags.sixthPath=1; story(TXT.sixth_path); talk(TXT.sixth_talk); learn('truth','你知道了裂谷的真相。'); body.rep.temple-=30; if(!body.flags.seal){ body.flags.seal=1; say('gain','裂谷之印：所受傷害減少。'); } addLuck(10,'真相'); } body.flags.riftVisits--; N.rift(); }});
   if(body.flags.sixthPath&&(body.flags.sixthTalks||0)>=3&&(body.flags.sawPool||body.flags.fl4)&&!body.flags.sixthReady) o.push({t:'告訴第六勇者你在血池看見了什麼', ab:1, f:()=>{ talk(TXT.sixth_pool); body.flags.sixthReady=1; N.rift(); }});
   if(body.flags.sixthPath&&!body.flags.ending){ if(endingReady().includes('release')) o.push({t:'走小徑找第六勇者：一起拆掉封印', ab:1, f:()=>ending('release')}); else if(body.flags.sixthReady) o.push({t:'（放歸：要民心 30，現在 '+body.rep.people+'）', dis:true, f:()=>{}}); }
   o.push({t:'返回王城', f:N.market});
