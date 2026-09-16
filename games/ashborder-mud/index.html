@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <title>灰燼邊境 — 無限流 MUD 試玩版</title>
 <style>
@@ -25,7 +25,7 @@
   #log .m.sys{color:var(--gold)}
   #log .m.title{color:var(--gold)}
   #log .m.world{color:var(--paper-dim)}
-  body{height:100vh;height:100dvh;overflow:hidden}
+  body{height:100vh;height:100dvh;height:var(--vh,100dvh);overflow:hidden}
   body{
     background:var(--ink);color:var(--paper);
     font-family:"Noto Serif TC","Songti TC","PMingLiU","Georgia",serif;
@@ -44,8 +44,8 @@
   .status .warn b{color:var(--ember)}
   main{flex:1;display:grid;grid-template-columns:1fr;min-height:0}
   @media(min-width:900px){ main{grid-template-columns:1fr 300px} }
-  #stage{display:flex;flex-direction:column;min-height:0}
-  #log{flex:1;overflow-y:auto;padding:1rem 1.1rem 0;max-width:46rem;width:100%;margin:0 auto}
+  #stage{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+  #log{flex:1 1 0;min-height:0;overflow-y:auto;padding:1rem 1.1rem 0;max-width:46rem;width:100%;margin:0 auto}
   .m{margin:0 0 .9rem;white-space:pre-wrap}
   .m.narr{}
   .m.sys{
@@ -65,7 +65,7 @@
   .m.title{font-size:1.2rem;color:var(--gold);font-weight:600;margin-top:.4rem}
   .reveal{color:var(--jade);font-size:.92rem}
   .reveal .w{color:var(--ember)}
-  #opts{padding:.8rem 1.1rem 1rem;border-top:1px solid var(--rule);background:var(--ink-3);max-width:46rem;width:100%;margin:0 auto;max-height:42vh;overflow-y:auto;flex:none}
+  #opts{padding:.8rem 1.1rem 1rem;border-top:1px solid var(--rule);background:var(--ink-3);max-width:46rem;width:100%;margin:0 auto;max-height:42vh;overflow-y:auto;flex:0 1 auto;min-height:0}
   #log{min-height:40%}
   @media(min-width:900px){ #opts .grid{grid-template-columns:1fr 1fr 1fr} }
   #opts .hint{font-size:.8rem;color:var(--paper-dim);margin-bottom:.4rem}
@@ -121,7 +121,7 @@
     .tog{padding:.05rem .45rem;font-size:.72rem}
     #log{padding:.7rem .8rem 0;font-size:.95rem;line-height:1.65}
     .m{margin-bottom:.6rem}
-    #opts{padding:.5rem .7rem .6rem;max-height:46vh;overflow-y:auto}
+    #opts{padding:.5rem .7rem calc(1.4rem + env(safe-area-inset-bottom));max-height:46vh;overflow-y:auto}
     button.opt{padding:.4rem .65rem;margin-bottom:.3rem;font-size:.92rem;line-height:1.4}
     #opts .hint{font-size:.74rem;margin-bottom:.3rem}
   }
@@ -155,7 +155,10 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.1.2';
+const VERSION='2.1.3';
+/* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
+function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
+fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
 document.getElementById('ver').textContent='v'+VERSION;
 const PERSONA={cold:{label:'冷靜型',...TXT.persona.cold},mock:{label:'嘲諷型',...TXT.persona.mock},warm:{label:'溫柔型',...TXT.persona.warm}};
 
