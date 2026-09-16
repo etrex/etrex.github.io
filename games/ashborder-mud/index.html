@@ -38,6 +38,7 @@
     background:var(--ink-3);
   }
   header h1{font-size:1.05rem;font-weight:600;margin:0;color:var(--gold)}
+  header .ver{font-size:.72rem;color:var(--paper-dim);border:1px solid var(--rule);border-radius:3px;padding:0 .35rem;line-height:1.4;align-self:center}
   .status{display:flex;gap:.9rem;flex-wrap:wrap;font-size:.85rem;color:var(--paper-dim)}
   .status b{color:var(--paper);font-weight:500}
   .status .warn b{color:var(--ember)}
@@ -126,6 +127,7 @@
 <body>
 <header>
   <h1 id="place">主神空間</h1>
+  <span class="ver" id="ver"></span>
   <div class="status" id="status"></div>
   <button class="tog spd" id="spd">文字：正常</button>
   <button class="tog copy" id="copyLog">複製紀錄</button>
@@ -147,6 +149,8 @@
 
 <script src="story.js"></script>
 <script>
+const VERSION='1.5.0';
+document.getElementById('ver').textContent='v'+VERSION;
 const PERSONA={cold:{label:'冷靜型',...TXT.persona.cold},mock:{label:'嘲諷型',...TXT.persona.mock},warm:{label:'溫柔型',...TXT.persona.warm}};
 
 /* ============================================================
@@ -639,7 +643,7 @@ function renderSystem(){
 document.getElementById('tog').onclick=()=>document.getElementById('side').classList.add('open');
 document.getElementById('close').onclick=()=>document.getElementById('side').classList.remove('open');
 document.getElementById('copyLog').onclick=async()=>{
-  const btn=document.getElementById('copyLog'); const dump=['=== 除錯狀態（版本 0.9）==='];
+  const btn=document.getElementById('copyLog'); const dump=['=== 除錯狀態（版本 '+VERSION+'）==='];
   dump.push('儲存層：'+(hasStore?'共享':'記憶體')+'｜全伺服器擊殺 '+world.kills+'｜市價 '+world.price);
   dump.push('靈魂：'+JSON.stringify({...soul,system:undefined})); if(soul.system) dump.push('系統：'+JSON.stringify(soul.system)); if(body) dump.push('肉身：'+JSON.stringify(body)); if(inCombat&&mon) dump.push('戰鬥中：'+JSON.stringify(mon)+'｜回合 '+turnNo);
   dump.push('=== 紀錄 ===');
