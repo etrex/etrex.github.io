@@ -155,7 +155,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='1.6.0';
+const VERSION='1.6.1';
 document.getElementById('ver').textContent='v'+VERSION;
 const PERSONA={cold:{label:'冷靜型',...TXT.persona.cold},mock:{label:'嘲諷型',...TXT.persona.mock},warm:{label:'溫柔型',...TXT.persona.warm}};
 
@@ -460,7 +460,7 @@ const NUM={ hated:()=>Math.max(1,Math.round(3*levelMul(lv()))), frail:()=>Math.r
 // 各系統的累積換算
 function ciGold(){ return 100+100*soul.streak; } function ciCores(){ return 3+soul.streak; } function ciAtk(){ return 1; }
 function eatAtk(){ return 0; } function eatHp(){ return sysIs('devour')?soul.eats:0; }
-function lvAtk(){ return 0; } function lvHp(){ return 0; } function lvDef(){ return sysIs('infinite')?soul.lvUps:0; }
+function lvAtk(){ return 0; } function lvHp(){ return 0; } function lvDef(){ return (sysIs('infinite')?soul.lvUps:0)+Math.floor(Math.max(0,lv()-5)); }
 function shadowDmg(){ return 15; }
 function rzAtk(){ return 0; } function rzDef(){ return sysIs('rezero')?soul.returns:0; }
 function medAtk(){ return sysIs('ancestor')?soul.meditations:0; } function medHp(){ return 0; }
@@ -567,7 +567,7 @@ function status(){
   if(!body){document.getElementById('status').innerHTML='';renderSystem();renderChar();renderQuests();renderAchs();return;}
   body.hpMax=hpMaxNow(); body.hp=Math.min(body.hp,body.hpMax);
   const af=sysIs('ancestor')?1:ageFactor(body.age);
-  document.getElementById('status').innerHTML=`<span><b>${esc(soul.name)}</b></span><span>Lv <b>${body.level}</b></span><span class="${body.hp<body.hpMax*.3?'warn':''}">體力 <b>${body.hp}/${body.hpMax}</b></span><span>攻擊 <b>${atkNow()}</b></span><span class="lo">攻速 <b>${pInterval().toFixed(1)}s</b></span><span>金幣 <b>${body.gold}</b></span><span>裂谷核 <b>${body.cores}</b></span><span>背包 <b>${load()}/${body.coreCap}</b></span><span class="${af<.8?'warn':''}">${body.age} 歲</span><span>第 <b>${body.day}</b> 天</span><span>裂谷 <b>${body.floor}</b>/6 層</span>`;
+  document.getElementById('status').innerHTML=`<span><b>${esc(soul.name)}</b></span><span>Lv <b>${body.level}</b></span><span class="${body.hp<body.hpMax*.3?'warn':''}">體力 <b>${body.hp}/${body.hpMax}</b></span><span>攻擊 <b>${atkNow()}</b></span><span class="lo">防禦 <b>${defNow()}</b>（減傷 ${defPct()}%）</span><span class="lo">攻速 <b>${pInterval().toFixed(1)}s</b></span><span>金幣 <b>${body.gold}</b></span><span>裂谷核 <b>${body.cores}</b></span><span>背包 <b>${load()}/${body.coreCap}</b></span><span class="${af<.8?'warn':''}">${body.age} 歲</span><span>第 <b>${body.day}</b> 天</span><span>裂谷 <b>${body.floor}</b>/6 層</span>`;
   renderSystem(); renderChar(); renderQuests(); renderAchs(); save();
 }
 const FACT_NAME={names:'帳冊背面的名簿',mold:'神殿的模子',buyer:'神殿的買家',brand_knee:'布蘭德的舊傷',owen_hide:'奧文在隱瞞',hall_door:'大殿暗門',sixth:'第六勇者還活著',sixth_path:'裂谷小徑',truth:'裂谷的真相',king_ill:'國王在生病',core_price:'裂谷核的價格',ledger:'神殿的帳冊',ritual:'冬至的儀式',witness:'孩子看見的東西',cure:'國王的藥方',route:'南方商路'};
@@ -1089,6 +1089,7 @@ const REGIONS={
         {t:'幫他修陷阱（一天）', f:()=>{ spendDay('修陷阱'); addRes('pelts',2); body.rep.people+=3; body.regionFlags.trap=1; say('gain','獸皮 +2，民心 +3。他記住你了。'); }},
         {t:'請他做皮衣（5 張獸皮）', req:()=>body.pelts>=5&&!hasA('fur'), f:()=>{ body.pelts-=5; say('npc','「這個走冰面不會凍死。」'); giveArmor('fur'); }},
         {t:'買他的陷阱（2 張獸皮）', req:()=>body.pelts>=2, f:()=>{ body.pelts-=2; addItem('trap',1); say('gain','獵人陷阱 +1'); }},
+        {t:'請他縫一層皮襯（3 張獸皮，防禦 +1）', req:()=>body.pelts>=3, f:()=>{ body.pelts-=3; body.armorPlus=(body.armorPlus||0)+1; say('gain','皮襯：防禦 +1（現在 '+defNow()+'）'); }},
         {t:'請他縫一個皮囊（8 張獸皮，背包 +15）', req:()=>body.pelts>=8, f:()=>{ body.pelts-=8; body.coreCap+=15; say('gain','皮囊：背包 +15 格（現在 '+body.coreCap+'）'); }},
         {t:'請他做皮甲（5 張獸皮，防禦 +4）', req:()=>body.pelts>=5&&!hasA('hunter'), f:()=>{ body.pelts-=5; giveArmor('hunter'); }},
         {t:'買他的獸皮（40 金）', req:()=>body.gold>=40, f:()=>{ body.gold-=40; addRes('pelts',3); say('gain','獸皮 +3。'); }},
@@ -1150,6 +1151,7 @@ const REGIONS={
         {t:'灌兩瓶火油（炭 3）', req:()=>body.coal>=3, f:()=>{ body.coal-=3; addItem('bomb',2); say('gain','火油瓶 +2'); }},
         {t:'打一件耐熱甲（礦石 10、灰葉草 3）', req:()=>body.ore>=10&&body.herbs>=3&&!hasA('heat'), f:()=>{ body.ore-=10; body.herbs-=3; giveArmor('heat'); }},
         {t:'磨一包裂谷核粉（裂谷核 1）', req:()=>body.cores>=1, f:()=>{ body.cores--; addItem('coredust',1); say('gain','裂谷核粉 +1'); }},
+        {t:'加一片鐵（礦石 4，防禦 +1）', req:()=>body.ore>=4, f:()=>{ body.ore-=4; body.armorPlus=(body.armorPlus||0)+1; say('gain','鐵匠把一片鐵釘進你的甲。防禦 +1（現在 '+defNow()+'）'); }},
         {t:'熬一罐磨甲油（礦石 2）', req:()=>body.ore>=2, f:()=>{ body.ore-=2; addItem('armoroil',1); say('gain','磨甲油 +1'); }},
         {t:'打一台礦車（礦石 10，背包 +15）', req:()=>body.ore>=10, f:()=>{ body.ore-=10; body.coreCap+=15; say('gain','礦車：背包 +15 格（現在 '+body.coreCap+'）'); }},
         {t:'不了', f:()=>{}}]},
@@ -1306,7 +1308,7 @@ N.market=()=>{ lastNode=N.market; if(pendingEvent(N.market)) return;
   o.push({t:(sysIs('ancestor')?'閉關一天（攻擊永久 +1）':'休息一天（10 金，回滿體力）'), ab:sysIs('ancestor'), dis:!sysIs('ancestor')&&body.gold<10, f:()=>{ if(!sysIs('ancestor')) body.gold-=10; rest(); N.market(); }});
   { const n=body.flags.bagBought||0; const bagCost=[120,500,2000,8000,30000][Math.min(n,4)]; o.push({t:'買皮革背包（'+bagCost+' 金，背包 +15，現在 '+body.coreCap+'）', dis:body.gold<bagCost, f:()=>{ body.gold-=bagCost; body.coreCap+=15; body.flags.bagBought=n+1; say('gain','背包 +15 格（現在 '+body.coreCap+'）。皮匠說下一個要用更好的皮。'); status(); N.market(); }}); }
   if(!hasA('core')) o.push({t:'鍛造護甲（8 枚裂谷核，裂谷核甲）', dis:body.cores<8, f:()=>{ body.cores-=8; say('narr','鐵匠把裂谷核一枚一枚熔進甲片，紅光在鐵裡慢慢暗下去。'); giveArmor('core'); status(); N.market(); }});
-  else { const cost=6+(body.flags.armorBought||0)*6; o.push({t:'加固護甲（'+cost+' 枚裂谷核，防禦 +2）', dis:body.cores<cost, f:()=>{ body.cores-=cost; body.armorPlus=(body.armorPlus||0)+2; body.flags.armorBought=(body.flags.armorBought||0)+1; say('gain','鐵匠把核熔進你身上的甲。防禦 +2（現在 '+defNow()+'）。'); status(); N.market(); }}); }
+  else { const cost=6; o.push({t:'加固護甲（6 枚裂谷核，防禦 +2）', dis:body.cores<cost, f:()=>{ body.cores-=cost; body.armorPlus=(body.armorPlus||0)+2; body.flags.armorBought=(body.flags.armorBought||0)+1; say('gain','鐵匠把核熔進你身上的甲。防禦 +2（現在 '+defNow()+'）。'); status(); N.market(); }}); }
   o.push({t:'雜貨攤（治傷藥、煙彈、火油瓶、磨刀石、鐵劍）', f:stallMenu});
   if(body.maxFloor>=4&&!body.flags.antidote) o.push({t:'買解毒藥（'+NUM.killGold()*30+' 金；難民營的藥婆用草就能配）', dis:body.gold<NUM.killGold()*30, f:()=>{ body.gold-=NUM.killGold()*30; body.flags.antidote=1; say('gain','解毒藥：毒霧對你無效。'); status(); N.market(); }});
   o.push({t:'去北門難民營', f:N.camp}); o.push({t:'去南方哨站（一天路程）', f:N.south});
@@ -1440,7 +1442,8 @@ function playerAct(k){
   status();
 }
 /* 魔物傷害 = 攻擊 × 攻擊 ÷（攻擊 + 防禦 × 樓層倍率 × 0.5）：防禦越高減得越多，但永遠減不到零 */
-function monDamage(M,D){ const Dm=D*floorMul(body.floor)*0.5; return Math.max(1,M*M/(M+Dm)); }
+function monDamage(M,D){ const Dm=D*floorMul(body.floor); return Math.max(1,M*M/(M+Dm)); }
+function defPct(){ const M=KING.atk*floorMul(body.floor)*(body.floor>=6?1:0)||(MONSTERS[Math.min(2,Math.max(0,body.floor-1))].atk*floorMul(body.floor)); const Dm=defNow()*floorMul(body.floor); return Math.round(100*Dm/(M+Dm)); }
 function monsterAttack(){
   if(monSkip){ monSkip=false; say('info',mon.n+'的這一擊落空了。'); return; }
   if(monSkipN>0){ monSkipN--; say('info',mon.n+'被陷阱絆住，這一擊落空了。'); return; }
