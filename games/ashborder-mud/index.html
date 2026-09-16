@@ -287,7 +287,7 @@ const SYSTEMS={
     {n:'保底', d:()=>'每 3 次十連必出 SSR。目前保底計數 '+soul.pity+'/3。'},
     {n:'技能池', d:()=>'先手權、反彈、再生、每場一次秒殺、必掉核。已抽到：'+(soul.ssr.length?soul.ssr.map(k=>SSR[k].n).join('、'):'無')}]},
   panel:{name:'屬性面板系統', skills:[
-    {n:'自由屬性點', d:()=>'每升一級 10 點。攻擊每點 +1、防禦每點 +1、體力每點 +1、幸運每點每殺金幣 +1。未分配 '+(body?body.freePts:0)+' 點。'},
+    {n:'自由屬性點', d:()=>'每升一級 10 點。攻擊每點 +1、防禦每點 +1、體力每點 +1、幸運每點：每殺多拿一份這一層小魔物的賞金（目前每點 +'+NUM.killGold(1)+' 金）。未分配 '+(body?body.freePts:0)+' 點。'},
     {n:'數值透視', d:()=>'看見自己與敵人的所有數值。'}]},
   omni:{name:'全知系統', skills:[
     {n:'窺探', d:()=>'在有人的地方，讀出一個人此刻藏在最上面的念頭。念頭一層一層剝，剝到底就沒有了。'},
@@ -1357,7 +1357,7 @@ async function win(){
   if(!inCombat) return; inCombat=false; const m=curMonRef(); 
   say('gain','你擊倒了'+m.n+'。'); sys('kill');
   const luckMul=sysIs('luck')?(1+soul.luck/10):1;
-  const gold=Math.round(NUM.killGold(m.tier)*luckMul)+(sysIs('panel')?body.pts.luck:0); body.gold+=gold; say('gain','金幣 +'+gold);
+  const luckBonus=sysIs('panel')?body.pts.luck*NUM.killGold(1):0; const gold=Math.round(NUM.killGold(m.tier)*luckMul)+luckBonus; body.gold+=gold; say('gain','金幣 +'+gold+(luckBonus?'（幸運 +'+luckBonus+'）':''));
   let nDrop=(ssr('loot')||chance(m.drop))?1:0; if(m.tier===5)nDrop+=2; if(sysIs('luck')) nDrop+=Math.floor(soul.luck/10);
   const got=addRes('cores',nDrop); if(got) say('gain','拾獲裂谷核 ×'+got+'。');
   if(m.tier<5){ if(chance(.25)){ const k=rnd(['hpot','hpot','smoke','bomb','whet']); addItem(k,1); say('gain','你在牠身邊撿到一個'+ITEMS[k].n+'。'); } } else { addItem('hpot',2); say('gain','魔王的殘骸裡有兩瓶治傷藥。'); if(!hasW('fang')){ say('narr','魔王的牙還在發燙。'); giveWeapon('fang'); } }
@@ -1366,7 +1366,7 @@ async function win(){
   if(sysIs('shadow')){ soul.shadows++; body.flags.dailyKills=(body.flags.dailyKills||0)+1; say('gain','影子抽取成功。影子軍團：'+soul.shadows+'。'); }
   if(sysIs('luck')&&m.tier>=3) addLuck(m.tier===5?15:5,'擊殺強敵');
   if(sysIs('shop')){ soul.points+=m.tier*10; say('gain','積分 +'+m.tier*10+'（'+soul.points+'）'); }
-  if(body.flags.quest===1){ body.quest++; say('info','討伐進度 '+Math.min(body.quest,10)+'/10'); if(body.quest>=10&&!body.questDone){ body.questDone=true; const r=NUM.killGold()*20; body.gold+=r; body.rep.crown+=30; say('gain','義務完成。王庫獎勵 '+r+' 金。稱號「裂谷討伐者」。'); addLuck(10,'完成任務'); } }
+  if(body.flags.quest===1){ body.quest++; if(!body.questDone) say('info','討伐進度 '+Math.min(body.quest,10)+'/10'); if(body.quest>=10&&!body.questDone){ body.questDone=true; const r=NUM.killGold()*20; body.gold+=r; body.rep.crown+=30; say('gain','義務完成。王庫獎勵 '+r+' 金。稱號「裂谷討伐者」。'); addLuck(10,'完成任務'); } }
   if(soul.system.weak==='erode') growOld(1,true);
   addKill(); movePrice(-0.01);
   if(m.tier===5) worldEvent(soul.name+' 擊倒了裂谷魔王'); else if(chance(.3)) worldEvent(soul.name+' 在裂谷擊倒了'+m.n);
