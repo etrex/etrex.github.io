@@ -155,7 +155,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.1.4';
+const VERSION='2.1.5';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -609,7 +609,7 @@ function leaveFight(){ body.autoHunt=false; endCombat(); status(); if(body.raidF
 /* HP =（40 + 等級×4 + 永久加成 + 屬性點×3 + 血肉）× 1.15^(0.8×(等級−5)) */
 function hpBase(){ return 40+lv()*4+(soul.permHp||0)+panelHp()*3+eatHp()+accSum('hp'); }
 function baseHp(){ return Math.round(hpBase()*Math.pow(levelMul(lv()),0.8)); }
-const NUM={ hated:()=>Math.max(1,Math.round(3*levelMul(lv()))), frail:()=>Math.round(baseHp()*0.2), killGold:(t=2,f)=>Math.round(5*t*floorMul(f||(body?body.floor:1))) };
+const NUM={ hated:()=>Math.max(1,Math.round(3*levelMul(lv()))), frail:()=>Math.round(baseHp()*0.2), killGold:(t=2,f,mul)=>Math.round(5*t*(mul||floorMul(f||(body?body.floor:1)))) };
 // 各系統的累積換算
 function ciGold(){ return 100+100*soul.streak; } function ciCores(){ return 3+soul.streak; } function ciAtk(){ return 1; }
 function eatAtk(){ return body&&body.eaten&&body.eaten.king?8:0; } function eatHp(){ return sysIs('devour')?soul.eats:0; }
@@ -716,7 +716,7 @@ function setOptions(list,hint,noExtras){
   const nav=list.filter(isNav); if(nav.length){ const g=document.createElement('div'); g.className='grid'; nav.forEach(o=>g.appendChild(mk(o))); opts.appendChild(g); }
 }
 function defGainPct(){ const k=repAtk(body.floor); const D=defNow(); const ehp=d=>(k+d)/k; return ((ehp(D+1)/ehp(D)-1)*100).toFixed(1); }
-function showFormula(){ const D=defNow(); const r=k=>Math.round(100*D/(k+D)); say('info','數值說明\n攻擊 =（8 + 等級×2 + 武器 + 永久加成 + 屬性點 + 飾品）× 1.15^(等級−5) × 肉身係數　現在：'+atkBase()+' × '+levelMul(lv()).toFixed(2)+' × '+(sysIs('ancestor')?1:ageFactor(body.age)).toFixed(2)+' = '+atkNow()+'\n你打魔物 = 攻擊 × 0.85～1.15 − 魔物防禦（穿刺無視防禦、弱點 ×2 無視防禦）\n魔物打你 = 魔物攻擊² ÷（魔物攻擊力 + 防禦）　防禦 '+D+' 對第一層的犬減傷 '+r(7)+'%、蛛 '+r(10)+'%、巨獸 '+r(16)+'%、魔王 '+r(24)+'%；魔物越深越強，防禦要跟著長\n環境 = HP 上限 × 環境係數（火 15%、冰 12%、毒 10%、雷 20%）×（1 − 抗性），每一步一次，戰鬥中每次被攻擊再 0.3 次\n防禦 = 防具 + 加固 + 屬性點 + 等級 + 永久加成 + 職業 + 飾品；防具與飾品的「再減」在防禦之後另外乘，合計最多六成\nHP =（40 + 等級×4 + 永久加成 + 屬性點×3 + 飾品）× 1.15^(0.8×(等級−5))\n魔物 = 基礎值 × 1.7^(樓層−1)；經驗值 = 12 × 階級 × 樓層倍率^0.8；升級要 等級×20\n年齡：20 歲前 ×0.85，40 歲起每歲 −2%，60 歲起每歲 −1%（最低 0.4）'); }
+function showFormula(){ const D=defNow(); const r=k=>Math.round(100*D/(k+D)); say('info','數值說明\n攻擊 =（8 + 等級×2 + 武器 + 永久加成 + 屬性點 + 飾品）× 1.15^(等級−5) × 肉身係數　現在：'+atkBase()+' × '+levelMul(lv()).toFixed(2)+' × '+(sysIs('ancestor')?1:ageFactor(body.age)).toFixed(2)+' = '+atkNow()+'\n你打魔物 = 攻擊 × 0.85～1.15 − 魔物防禦（穿刺無視防禦、弱點 ×2 無視防禦）\n魔物打你 = 魔物攻擊² ÷（魔物攻擊力 + 防禦）　防禦 '+D+' 對第一層的犬減傷 '+r(7)+'%、蛛 '+r(10)+'%、巨獸 '+r(16)+'%、魔王 '+r(24)+'%；魔物越深越強，防禦要跟著長\n環境 = HP 上限 × 環境係數（火 15%、冰 12%、毒 10%、雷 20%）×（1 − 抗性），每一步一次，戰鬥中每次被攻擊再 0.3 次\n防禦 = 防具 + 加固 + 屬性點 + 等級 + 永久加成 + 職業 + 飾品；防具與飾品的「再減」在防禦之後另外乘，合計最多六成\nHP =（40 + 等級×4 + 永久加成 + 屬性點×3 + 飾品）× 1.15^(0.8×(等級−5))\n魔物 = 基礎值 × 1.7^(樓層−1)；魔王（Lv 50）與火龍（Lv 46）= 基礎值 × 1.15^(等級−5) × 1.4；經驗值 = 12 × 階級 × 樓層倍率^0.8；升級要 等級×20\n年齡：20 歲前 ×0.85，40 歲起每歲 −2%，60 歲起每歲 −1%（最低 0.4）'); }
 function showStatus(){ say('info','<b>'+esc(soul.name)+'</b>　Lv '+body.level+'（經驗值 '+body.xp+'/'+(body.level*20)+'）｜攻擊力 '+atkNow()+'｜防禦力 '+defNow()+'｜HP '+body.hp+'/'+body.hpMax+'\n'+body.age+' 歲｜第 '+body.day+' 天\n金幣 '+body.gold+'｜裂谷核 '+body.cores+'｜背包 '+load()+'/'+body.coreCap+'\n武器：'+wText(eqW())+'\n道具：'+itemsText()+'\n資源：'+(Object.keys(RES).filter(k=>k!=='gold'&&k!=='cores'&&body[k]>0).map(k=>RES[k]+' '+body[k]).join('、')||'無')+'\n聲望：騎士團 '+body.rep.knight+'、神殿 '+body.rep.temple+'、王室 '+body.rep.crown+'、民心 '+body.rep.people+(body.flags.quest?'｜義務 '+Math.min(body.quest,10)+'/10':'')); }
 function status(){
   if(!body){document.getElementById('status').innerHTML='';renderSystem();renderChar();renderQuests();renderAchs();return;}
@@ -1538,7 +1538,7 @@ N.wshop=()=>{ lastNode=N.wshop; place('王城市集 · 武器店');
 /* 冒險者公會：委託與等級 */
 const GUILD_RANK=[['F',0],['E',3],['D',8],['C',15],['B',25],['A',40],['S',60]];
 function guildRank(){ const p=body.guildPts||0; let r='F'; GUILD_RANK.forEach(([n,t])=>{ if(p>=t) r=n; }); return r; }
-function newBounty(){ const pool=floorPool(Math.min(5,Math.max(1,body.maxFloor||1))).concat(MONSTERS.filter(m=>m.region&&body.regionFlags[m.region])); const m=rnd(pool); body.bounty={key:m.key, n:0, need:3, day:body.day, reward:Math.round(NUM.killGold(m.tier)*8)}; }
+function newBounty(){ const pool=floorPool(Math.min(5,Math.max(1,body.maxFloor||1))).concat(MONSTERS.filter(m=>m.region&&!m.lvl&&body.regionFlags[m.region])); const m=rnd(pool); body.bounty={key:m.key, n:0, need:3, day:body.day, reward:Math.round(NUM.killGold(m.tier)*8)}; }
 N.guild=()=>{ lastNode=N.guild; place('王城市集 · 冒險者公會');
   if(!body.flags.guild){ body.flags.guild=1; story(TXT.guild1); } else say('narr',rnd(TXT.guild_re));
   say('info','公會等級 <b>'+guildRank()+'</b>（完成委託 '+(body.guildPts||0)+' 件）');
@@ -1623,9 +1623,9 @@ const MONSTERS=[
   {n:'傭兵',key:'enforcer',fam:'man',hp:60,atk:14,def:5,iv:1.8,tier:2,drop:.4,weak:'下巴',region:'port',deep:1,desc:'商會僱來的劍士。收了錢就不講理。'},
   {n:'大蝙蝠',key:'bat',fam:'spider',hp:22,atk:7,def:0,iv:1.0,tier:1,drop:.5,weak:'翅膜',region:'mine',desc:'成群的。燈一滅牠們就下來。'},
   {n:'沙蟲',key:'worm',fam:'beast',hp:90,atk:13,def:10,iv:2.6,tier:3,drop:.9,weak:'環節之間',region:'mine',deep:1,desc:'從巷道底下鑽出來的。牠的皮就是岩石。'},
-  {n:'火龍',key:'firelizard',fam:'beast',hp:120,atk:20,def:7,iv:1.8,tier:4,drop:1,weak:'喉囊',region:'mine',deep:2,desc:'熔心裡睡著的東西。牠張嘴的時候，鐵會軟。'},
+  {n:'火龍',key:'firelizard',fam:'beast',lvl:46,hp:120,atk:20,def:7,iv:1.8,tier:4,drop:1,weak:'喉囊',region:'mine',deep:2,desc:'熔心裡睡著的東西。牠張嘴的時候，鐵會軟。'},
 ];
-const KING={n:'裂谷魔王',key:'king',fam:'king',hp:170,atk:24,def:10,iv:2.0,tier:5,drop:1,weak:'心口',desc:'牠坐在倒過來的王座上。牠在看你，用奧文的眼神。'};
+const KING={n:'裂谷魔王',key:'king',fam:'king',lvl:50,hp:170,atk:24,def:10,iv:2.0,tier:5,drop:1,weak:'心口',desc:'牠坐在倒過來的王座上。牠在看你，用奧文的眼神。'};
 function MON(k){ return MONSTERS.find(m=>m.key===k)||MONSTERS[0]; }
 function floorPool(f){ const p=MONSTERS.filter(m=>m.floors&&f>=m.floors[0]&&f<=m.floors[1]); return p.length?p:[MONSTERS[0]]; }
 function repAtk(f){ const p=floorPool(f); return p.reduce((a,m)=>a+m.atk,0)/p.length; }
@@ -1676,8 +1676,11 @@ N.rift=()=>{ lastNode=N.rift;
   omniOptions(o,'rift',N.rift,body.flags.sixthPath?['第六勇者']:[]); townExtras(o,N.rift); setOptions(o);
 };
 function pickMon(floor){ const p=floorPool(floor); const w=p.map(m=>Math.max(.5,4.5-m.tier)); let r=Math.random()*w.reduce((a,b)=>a+b,0); for(let i=0;i<p.length;i++){ r-=w[i]; if(r<=0) return p[i]; } return p[p.length-1]; }
+/* 有等級的魔物（魔王、火龍）：基礎值 × 1.15^(等級−5) × 1.4，跟玩家的成長曲線同步 */
+const lvlMul = lv => Math.pow(1.15, lv-5)*1.4;
+let fightMul=1;
 function makeMon(pick,floor){
-  const m=JSON.parse(JSON.stringify(pick)); const mul=floorMul(floor);   // 怪物只看樓層
+  const m=JSON.parse(JSON.stringify(pick)); const mul=pick.lvl?lvlMul(pick.lvl):floorMul(floor); fightMul=mul;   // 一般怪物只看樓層
   m.hp=Math.round(m.hp*mul); m.hpMax=m.hp; m.atk=Math.round(m.atk*mul); m.def=Math.round(m.def*mul);
   if(sysIs('rezero')&&body.nemesis===m.key) m.atk=Math.round(m.atk*.5);
   return m;
@@ -1690,7 +1693,7 @@ function encounter(force,fl,ret){
   say('title',m.n+'出現了！'+(body.floor>1&&!force?'（第 '+body.floor+' 層）':''));
   body.flags.seen=body.flags.seen||{}; if(!body.flags.seen[m.key]&&m.desc){ body.flags.seen[m.key]=1; say('narr',m.desc); }
   const seeStats=sysIs('omni')||sysIs('panel');
-  say('combat',m.n+'｜HP '+m.hp+'｜攻速 '+mInterval(m).toFixed(1)+' 秒'+(seeStats?'｜攻擊力 '+m.atk+'｜防禦力 '+m.def:'')+(sysIs('omni')?'｜<span class="reveal w">弱點：'+m.weak+'</span>':''));
+  say('combat',m.n+(m.lvl?'｜Lv '+m.lvl:'')+'｜HP '+m.hp+'｜攻速 '+mInterval(m).toFixed(1)+' 秒'+(seeStats?'｜攻擊力 '+m.atk+'｜防禦力 '+m.def:'')+(sysIs('omni')?'｜<span class="reveal w">弱點：'+m.weak+'</span>':''));
   monSkipN=0;
   if(sysIs('ancestor')&&m.hp<atkNow()*3){ monSkip=true; say('info','威壓：'+m.n+'第一擊不敢出手。'); }
   else if(wDef(eqW()).calm&&m.tier<5){ monSkip=true; say('info',m.n+'看見了那把劍，退了半步。第一擊不敢出手。'); }
@@ -1759,13 +1762,13 @@ function monsterAttack(){
   status();
 }
 /* 經驗值 = 12 × 魔物階級 × 樓層倍率^0.8；升級需要 等級×20 */
-function killXp(t){ return Math.round(12*t*Math.pow(floorMul(fightFloor),0.8)); }
+function killXp(t){ return Math.round(12*t*Math.pow(fightMul,0.8)); }
 function gainXp(x){ if(sysIs('infinite')) x*=3; body.xp+=x; while(body.xp>=body.level*20){ const a0=atkNow(), h0=body.hpMax; body.xp-=body.level*20; body.level++; if(sysIs('infinite')) soul.lvUps++; if(sysIs('panel')) body.freePts+=6; body.hpMax=hpMaxNow(); body.hp=Math.min(body.hpMax,body.hp+(body.hpMax-h0)); say('title','等級提升！Lv '+body.level); say('gain','攻擊 '+a0+' → '+atkNow()+'｜HP 上限 '+h0+' → '+body.hpMax+(sysIs('panel')?'｜屬性點 +6':'')); sysText(rnd(['數字漲了。別高興太早，裂谷也在漲。','嗯，比剛來的時候像樣一點了。','你變強了。它們也是。'])); } }
 async function win(){
   if(!inCombat) return; inCombat=false; const m=curMonRef(); 
   say('gain','打倒了'+m.n+'！'); sys('kill');
   const luckMul=sysIs('luck')?(1+soul.luck/10):1;
-  const luckBonus=sysIs('panel')?body.pts.luck*NUM.killGold(1):0; const gold=Math.round(NUM.killGold(m.tier,fightFloor)*luckMul*(1+accSum('gold')))+luckBonus; body.gold+=gold; say('gain','金幣 +'+gold+(luckBonus?'（幸運 +'+luckBonus+'）':''));
+  const luckBonus=sysIs('panel')?body.pts.luck*NUM.killGold(1):0; const gold=Math.round(NUM.killGold(m.tier,null,fightMul)*luckMul*(1+accSum('gold')))+luckBonus; body.gold+=gold; say('gain','金幣 +'+gold+(luckBonus?'（幸運 +'+luckBonus+'）':''));
   let nDrop=(ssr('loot')||chance(Math.min(1,m.drop*(lootUp()?2:1))))?1:0; if(m.tier===5)nDrop+=2; if(sysIs('luck')) nDrop+=Math.floor(soul.luck/10);
   const got=addRes('cores',nDrop); if(got) say('gain','獲得了裂谷核 ×'+got+'！');
   if(m.tier<5){ if(chance(lootUp()?.5:.25)){ const k=rnd(['hpot','hpot','smoke','bomb','whet','bandage','bandage','coredust','trap','ration']); addItem(k,1); say('gain','你在牠身邊撿到一個'+ITEMS[k].n+'。'); } if(m.tier>=3&&chance(lootUp()?.06:.03)) dropRare(); } else { addItem('hpot',2); say('gain','魔王的殘骸裡有兩瓶藥水。'); if(!hasW('fang')){ say('narr','魔王的牙還在發燙。'); giveWeapon('fang'); } if(!hasA('scale')){ giveArmor('scale'); } if(!hasAcc('kingring')){ say('narr','魔王的指骨上套著一枚戒指。'); giveAcc('kingring'); } }
