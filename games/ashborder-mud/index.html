@@ -155,7 +155,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.5.1';
+const VERSION='2.5.2';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -716,7 +716,7 @@ function setOptions(list,hint,noExtras){
   const nav=list.filter(isNav); if(nav.length){ const g=document.createElement('div'); g.className='grid'; nav.forEach(o=>g.appendChild(mk(o))); opts.appendChild(g); }
 }
 function defGainPct(){ const k=repAtk(body.floor); const D=defNow(); const ehp=d=>(k+d)/k; return ((ehp(D+1)/ehp(D)-1)*100).toFixed(1); }
-function showFormula(){ const D=defNow(); const r=k=>Math.round(100*D/(k+D)); say('info','數值說明\n攻擊 =（8 + 等級×2 + 武器 + 永久加成 + 屬性點 + 飾品）× 1.15^(等級−5) × 肉身係數　現在：'+atkBase()+' × '+levelMul(lv()).toFixed(2)+' × '+(sysIs('ancestor')?1:ageFactor(body.age)).toFixed(2)+' = '+atkNow()+'\n你打魔物 = 攻擊 × 0.85～1.15 − 魔物防禦（穿刺無視防禦、弱點 ×2 無視防禦）\n魔物打你 = 魔物攻擊² ÷（魔物攻擊力 + 防禦）　防禦 '+D+' 對第一層的犬減傷 '+r(7)+'%、蛛 '+r(10)+'%、巨獸 '+r(16)+'%、魔王 '+r(24)+'%；魔物越深越強，防禦要跟著長\n環境 = HP 上限 × 環境係數（火 15%、冰 12%、毒 10%、雷 20%）×（1 − 抗性），每一步一次，戰鬥中每次被攻擊再 0.3 次\n防禦 = 防具 + 加固 + 屬性點 + 等級 + 永久加成 + 職業 + 飾品；防具與飾品的「再減」在防禦之後另外乘，合計最多六成\nHP =（40 + 等級×4 + 永久加成 + 屬性點×3 + 飾品）× 1.15^(0.8×(等級−5))\n魔物 = Lv1 基礎值 × 成長率^(等級−1)，每種魔物成長率不同（HP 約 1.18、攻擊約 1.15、防禦約 1.18）；裂谷 1～9 層魔物等級 1～4、4～8、8～12、12～17、17～22、22～28、28～34、34～40、40～46，魔王固定 Lv 50、火龍固定 Lv 46\n經驗值 = 4 × 1.25^(魔物等級−1) × 1.5^(階級−3)（三階為準，一階 0.44 倍、五階 2.25 倍）；升級需要 = 同級三階魔物一隻的經驗 × 隻數 x(L)（Lv 5 起 12 隻、每級 ×1.7，Lv 10 起 900 隻、每級 ×1.06）\n每個地點都有一到五階各一種魔物，階級越高越少見（出現權重 5：3.5：2：1：0.4）\n擊殺金幣 = 5 × 1.2^(魔物等級−1) ×（1 + 0.25×(階級−1)），含所有加成後單次上限 10 萬\n年齡：20 歲前 ×0.85，40 歲起每歲 −2%，60 歲起每歲 −1%（最低 0.4）'); }
+function showFormula(){ const D=defNow(); const r=k=>Math.round(100*D/(k+D)); say('info','數值說明\n攻擊 =（8 + 等級×2 + 武器 + 永久加成 + 屬性點 + 飾品）× 1.15^(等級−5) × 肉身係數　現在：'+atkBase()+' × '+levelMul(lv()).toFixed(2)+' × '+(sysIs('ancestor')?1:ageFactor(body.age)).toFixed(2)+' = '+atkNow()+'\n你打魔物 = 攻擊 × 0.85～1.15 − 魔物防禦（穿刺無視防禦、弱點 ×2 無視防禦）\n魔物打你 = 魔物攻擊² ÷（魔物攻擊力 + 防禦）　防禦 '+D+' 對第一層的犬減傷 '+r(7)+'%、蛛 '+r(10)+'%、巨獸 '+r(16)+'%、魔王 '+r(24)+'%；魔物越深越強，防禦要跟著長\n環境 = HP 上限 × 環境係數（火 15%、冰 12%、毒 10%、雷 20%）×（1 − 抗性），每一步一次，戰鬥中每次被攻擊再 0.3 次\n防禦 = 防具 + 加固 + 屬性點 + 等級 + 永久加成 + 職業 + 飾品；防具與飾品的「再減」在防禦之後另外乘，合計最多六成\nHP =（40 + 等級×4 + 永久加成 + 屬性點×3 + 飾品）× 1.15^(0.8×(等級−5))\n魔物 = Lv1 基礎值 × 成長率^(等級−1)，每種魔物成長率不同（HP 約 1.18、攻擊約 1.15、防禦約 1.18）；裂谷 1～9 層魔物等級 1～4、4～8、8～12、12～17、17～22、22～28、28～34、34～40、40～46，魔王固定 Lv 50、火龍固定 Lv 46\n經驗值 = 4 × 1.25^(魔物等級−1) × 1.5^(階級−3)（三階為準，一階 0.44 倍、五階 2.25 倍）；升級需要 = 同級三階魔物一隻的經驗 × 隻數 x(L)（Lv 5 起 12 隻、每級 ×1.7，Lv 10 起 900 隻、每級 ×1.06）\n每個地點都有一到五階各一種魔物，階級越高越少見（出現權重 5：3.5：2：1：0.4）\n擊殺金幣 = 5 × 1.2^(魔物等級−1) ×（1 + 0.25×(階級−1)），系統與飾品加成另外乘上去\n年齡：20 歲前 ×0.85，40 歲起每歲 −2%，60 歲起每歲 −1%（最低 0.4）'); }
 function showStatus(){ say('info','<b>'+esc(soul.name)+'</b>　Lv '+body.level+'（經驗值 '+fmt(body.xp)+'/'+fmt(xpNeed(body.level))+'）｜攻擊力 '+atkNow()+'｜防禦力 '+defNow()+'｜HP '+body.hp+'/'+body.hpMax+'\n'+body.age+' 歲｜第 '+body.day+' 天\n金幣 '+body.gold+'｜裂谷核 '+body.cores+'｜背包 '+load()+'/'+body.coreCap+'\n武器：'+wText(eqW())+'\n道具：'+itemsText()+'\n資源：'+(Object.keys(RES).filter(k=>k!=='gold'&&k!=='cores'&&body[k]>0).map(k=>RES[k]+' '+body[k]).join('、')||'無')+'\n聲望：騎士團 '+body.rep.knight+'、神殿 '+body.rep.temple+'、王室 '+body.rep.crown+'、民心 '+body.rep.people+(body.flags.quest?'｜義務 '+Math.min(body.quest,10)+'/10':'')); }
 function status(){
   if(!body){document.getElementById('status').innerHTML='';renderSystem();renderChar();renderQuests();renderAchs();return;}
@@ -1872,8 +1872,7 @@ const fmt=n=>Math.round(n).toLocaleString('en-US');
 /* 擊殺經驗值 = 4 × 1.25^(魔物等級−1) × 1.5^(階級−3)：三階為標準，一階 0.44、二階 0.67、四階 1.5、五階 2.25。沒有等級差懲罰。 */
 const tierMul=t=>Math.pow(1.5,(t||3)-3);
 function killXp(m){ return Math.max(1,Math.round(4*Math.pow(1.25,m.lv-1)*tierMul(m.tier))); }
-/* 擊殺金幣 = 5 × 1.2^(等級−1) ×（1 + 0.25×(階級−1)）；魔王約 7.6 萬。單次擊殺含所有加成後上限 10 萬。 */
-const GOLD_CAP=100000;
+/* 擊殺金幣 = 5 × 1.2^(等級−1) ×（1 + 0.25×(階級−1)）；不靠系統時魔王約 7.6 萬，系統加成另計。 */
 function killGoldLv(m){ return Math.max(1,Math.round(5*Math.pow(1.2,m.lv-1)*(1+.25*(m.tier-1)))); }
 /* 升級需求 = 同級三階魔物一隻的經驗值 × 所需隻數 x(L)；x(L) Lv 5 起 12 隻、每級 ×1.7，Lv 10 起 900 隻、每級 ×1.06 */
 function xpKills(L){ return L<10?12*Math.pow(1.7,Math.max(0,L-5)):900*Math.pow(1.06,L-10); }
@@ -1883,7 +1882,7 @@ async function win(){
   if(!inCombat) return; inCombat=false; const m=curMonRef(); 
   say('gain','打倒了'+m.n+'！'); sys('kill');
   const luckMul=sysIs('luck')?(1+soul.luck/10):1;
-  const luckBonus=sysIs('panel')?body.pts.luck*NUM.killGold(1):0; const gold=Math.min(GOLD_CAP,Math.round(killGoldLv(m)*luckMul*(1+accSum('gold')))+luckBonus); body.gold+=gold; say('gain','金幣 +'+gold+(luckBonus?'（幸運 +'+luckBonus+'）':''));
+  const luckBonus=sysIs('panel')?body.pts.luck*NUM.killGold(1):0; const gold=Math.round(killGoldLv(m)*luckMul*(1+accSum('gold')))+luckBonus; body.gold+=gold; say('gain','金幣 +'+gold+(luckBonus?'（幸運 +'+luckBonus+'）':''));
   let nDrop=(ssr('loot')||chance(Math.min(1,m.drop*(lootUp()?2:1))))?1:0; if(isKing(m))nDrop+=2; if(sysIs('luck')) nDrop+=Math.floor(soul.luck/10);
   const got=addRes('cores',nDrop); if(got) say('gain','獲得了裂谷核 ×'+got+'！');
   if(!isKing(m)){ if(chance(lootUp()?.5:.25)){ const k=rnd(['hpot','hpot','smoke','bomb','whet','bandage','bandage','coredust','trap','ration']); addItem(k,1); say('gain','你在牠身邊撿到一個'+ITEMS[k].n+'。'); } if(m.tier>=3&&chance(lootUp()?.06:.03)) dropRare(); } else { addItem('hpot',2); say('gain','魔王的殘骸裡有兩瓶藥水。'); if(!hasW('fang')){ say('narr','魔王的牙還在發燙。'); giveWeapon('fang'); } if(!hasA('scale')){ giveArmor('scale'); } if(!hasAcc('kingring')){ say('narr','魔王的指骨上套著一枚戒指。'); giveAcc('kingring'); } }
