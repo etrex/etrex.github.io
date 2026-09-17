@@ -155,7 +155,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.6.0';
+const VERSION='2.6.1';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -530,7 +530,7 @@ const ENV={fire:{n:'火',rate:.15},ice:{n:'冰',rate:.12},poison:{n:'毒',rate:.
 let curZone=null;
 function zoneEnv(z){ z=z||curZone; if(!z) return []; const e=[]; if(z.r==='forest'&&z.d>=3) e.push('fire'); if(z.r==='mine'&&z.d>=3) e.push('fire'); if(z.r==='snow'&&z.d>=2) e.push('ice'); if(z.r==='snow'&&z.d>=3) e.push('lightning'); if(z.rift>=5) e.push('poison'); if(z.rift===7) e.push('fire'); if(z.rift>=8) e.push('lightning'); return e; }
 function resist(k){ if(!body) return 0; let r=0; const add=D=>{ if(D&&D.res&&D.res[k]) r+=D.res[k]; }; add(aDef(eqA())); accEq().forEach(add);
-  if(k==='poison'&&eat('skeleton')) r=1; if(k==='fire'&&eat('fire')) r=1; if(k==='fire'&&eat('ash')) r+=.5; if(k==='ice'&&eat('snowbeast')) r=1; if(k==='lightning'&&eat('thunder')) r=1; if(k==='lightning'&&eat('altar')) r+=.5;
+  if(k==='poison'&&eat('skeleton')) r=1; if(k==='fire'&&eat('fire')) r=1; if(k==='ice'&&eat('snowbeast')) r=1; if(k==='lightning'&&eat('thunder')) r=1; 
   if(k==='poison'&&(body.flags.antidote||ssr('regen')||sysIs('reflect')||body.evolved||sysIs('ancestor')||sysIs('rezero'))) r=1;
   if(k==='fire'&&curZone&&curZone.r==='forest'&&body.regionFlags.forestBless) r+=.5;
   if(sysIs('omni')) r+=.5;
@@ -622,7 +622,7 @@ const DEVOUR={
  slime:{n:'史萊姆的黏液',d:'每次出手回復 2% HP'}, goblin:{n:'哥布林的手',d:'魔物掉東西的機會加倍'}, wolf:{n:'狼的速度',d:'永遠先手，攻速 −0.3 秒'}, bat:{n:'蝙蝠的吸盤',d:'造成傷害的 5% 化為 HP'},
  bug:{n:'蛛的毒',d:'敵人每回合失去最大 HP 的 8%'}, skeleton:{n:'骸骨的肺',d:'毒免疫'}, giant:{n:'巨人的骨架',d:'HP 上限 +20%'}, golem:{n:'魔像的硬皮',d:'防禦力 +30%'},
  fire:{n:'熔淵的血',d:'火免疫，攻擊力 +5%'}, thunder:{n:'雷霆的神經',d:'雷免疫，攻速 −0.2 秒'}, demon:{n:'惡魔的心',d:'攻擊力 +15%'},
- forestwolf:{n:'森林狼的鼻子',d:'採集多一份'}, orc:{n:'半獸人的臂力',d:'攻擊力 +5%'}, ash:{n:'焦土的皮',d:'火抗性 +50%'}, snowbeast:{n:'雪獸的毛',d:'冰免疫'}, frozen:{n:'凍屍的麻木',d:'受到的傷害再減一成'}, altar:{n:'祭壇的印',d:'雷抗性 +50%'},
+ forestwolf:{n:'森林狼的鼻子',d:'採集多一份'}, orc:{n:'半獸人的臂力',d:'攻擊力 +5%'}, ash:{n:'焦土的餘燼',d:'每次攻擊追加一成攻擊力的火傷害，無視防禦'}, snowbeast:{n:'雪獸的毛',d:'冰免疫'}, frozen:{n:'凍屍的麻木',d:'受到的傷害再減一成'}, altar:{n:'祭壇的印',d:'倒下被抬回教堂時，不被拿走香油錢'},
  dock:{n:'碼頭的手腳',d:'擊殺金幣 +25%'}, guild:{n:'商會的舌頭',d:'交換時每筆多拿一成'}, governor:{n:'影子的腳步',d:'探索時三成機會不被盯上'}, cave:{n:'洞穴的眼',d:'採礦每次多一塊'}, tunnel:{n:'坑道的背',d:'防禦力 +10%'}, core:{n:'熔心的火',d:'攻擊力 +10%'},
  king:{n:'魔王的力',d:'攻擊力 +30%'},
 };
@@ -1851,7 +1851,7 @@ function tick(){
 }
 let lastCrit=false;
 function playerAtk(){ let a=atkNow()*(0.85+Math.random()*.3); if(body.flags.whet) a*=1.5; const D=wDef(eqW()); { const cr=(D.crit||0)+accSum('crit'); lastCrit=cr>0&&chance(cr); } if(lastCrit) a*=2; return Math.round(a); }
-function afterHit(d){ const D=wDef(eqW()); if(eat('bat')&&d>0&&body.hp<body.hpMax){ const h=Math.max(1,Math.round(d*.05)); body.hp=Math.min(body.hpMax,body.hp+h); say('gain','吸血：HP +'+h); } if(D.poison){ const p=Math.max(1,Math.round(mon.hpMax*D.poison)); mon.hp-=p; say('combat','毒：'+mon.n+'失去 '+p+' HP。'); } if(D.stun&&chance(D.stun)){ monSkipN=(monSkipN||0)+1; say('combat','震：'+mon.n+'被打得站不穩，下一擊會落空。'); } { const rg=(D.regen||0)+(job().regen||0)+(aDef(eqA()).regen||0)+accSum('regen')+(eat('slime')?.02:0); if(rg>0){ const h=Math.round(body.hpMax*rg); if(h>0&&body.hp<body.hpMax){ body.hp=Math.min(body.hpMax,body.hp+h); say('gain','回復：HP +'+h); } } } if(D.burn){ const b=Math.round(atkNow()*D.burn); mon.hp-=b; say('combat','餘熱：'+b+' 傷害。'); } if(D.leech&&d>0){ const h=Math.round(d*D.leech); if(h>0){ body.hp=Math.min(body.hpMax,body.hp+h); say('gain','吸血：HP +'+h); } } }
+function afterHit(d){ const D=wDef(eqW()); if(eat('ash')&&d>0){ const bd=Math.max(1,Math.round(atkNow()*.1)); mon.hp-=bd; say('combat','餘燼：'+fmt(bd)+' 傷害。'); } if(eat('bat')&&d>0&&body.hp<body.hpMax){ const h=Math.max(1,Math.round(d*.05)); body.hp=Math.min(body.hpMax,body.hp+h); say('gain','吸血：HP +'+h); } if(D.poison){ const p=Math.max(1,Math.round(mon.hpMax*D.poison)); mon.hp-=p; say('combat','毒：'+mon.n+'失去 '+p+' HP。'); } if(D.stun&&chance(D.stun)){ monSkipN=(monSkipN||0)+1; say('combat','震：'+mon.n+'被打得站不穩，下一擊會落空。'); } { const rg=(D.regen||0)+(job().regen||0)+(aDef(eqA()).regen||0)+accSum('regen')+(eat('slime')?.02:0); if(rg>0){ const h=Math.round(body.hpMax*rg); if(h>0&&body.hp<body.hpMax){ body.hp=Math.min(body.hpMax,body.hp+h); say('gain','回復：HP +'+h); } } } if(D.burn){ const b=Math.round(atkNow()*D.burn); mon.hp-=b; say('combat','餘熱：'+b+' 傷害。'); } if(D.leech&&d>0){ const h=Math.round(d*D.leech); if(h>0){ body.hp=Math.min(body.hpMax,body.hp+h); say('gain','吸血：HP +'+h); } } }
 function playerAct(k){
   turnNo++; if(!k) k=body.mode;
   if(eat('bug')){ const p=Math.max(3,Math.round(mon.hpMax*0.08)); mon.hp-=p; say('combat','蛛毒：'+mon.n+'失去 '+p+' HP。'); }
@@ -1944,13 +1944,13 @@ async function die(force){
   if(body.revive>0){ body.revive--; body.hp=body.hpMax; say('gain','鳳凰之尾碎了。你站了起來，HP全滿。'); if(force){ status(); N.rift(); } else { inCombat=true; lastTick=Date.now(); } return; }
   if(sysIs('rezero')){ const sn=body.daySnap||{hp:body.hpMax,gold:body.gold,cores:body.cores,day:body.day,age:body.age}; soul.returns++; body.raidFight=0; body.nemesis=mon?mon.key:null; body.hp=body.hpMax; body.gold=sn.gold; body.cores=sn.cores; body.day=sn.day; body.age=sn.age; say('title','死亡回歸'); story(TXT.rezero); say('gain','記憶累積：防禦力永久 +1。'+(mon?'既視感：'+mon.n+'對你的傷害減半。':'')); sysText('又死了一次。不過你記得。'); mon=null; status(); N.market(); return; }
   say('title','勇者倒下了……');
-  soul.deaths=(soul.deaths||0)+1; const lost=Math.round(body.gold*.1); body.gold-=lost;
+  soul.deaths=(soul.deaths||0)+1; const lost=eat('altar')?0:Math.round(body.gold*.1); body.gold-=lost;
   worldEvent(soul.name+' 倒在外面，被人抬回了教堂。');
   body.day++; if(body.day%3===0) growOld(1,true); worldTick();
   body.hp=body.hpMax; body.regionFight=null; body.flags.routeFight=0; body.fightRet=null; body.floor=Math.max(1,Math.min(body.floor,body.maxFloor)); mon=null; body.flags.warned=0; body.flags.lineWarned=0; body.flags.whet=0; body.flags.oiled=0; body.autoHunt=false;
   if(body.raidFight){ body.raidFight=0; raidIgnored(); }
   clearLog(); story(soul.deaths>1?rnd(TXT.death_wake_re):TXT.death_wake);
-  say('info','香油錢：金幣 −'+lost+'。第 '+body.day+' 天。HP 回滿。'+(sysIs('shadow')?'':'')); status(); N.chapel();
+  say('info',(lost?'香油錢：金幣 −'+lost+'。':'祭壇的印在你胸口發亮。修女沒有碰你的錢袋。')+'第 '+body.day+' 天。HP 回滿。'+(sysIs('shadow')?'':'')); status(); N.chapel();
 }
 
 /* ============================================================
