@@ -155,7 +155,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.5.4';
+const VERSION='2.5.5';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -552,9 +552,9 @@ function giveArmor(k){ if(hasA(k)){ say('info','你已經有'+ARMORS[k].n+'了�
 const ITEMS={
   hpot:{n:'藥水', d:'回復五成HP', out:1, fight:1, price:30},
   smoke:{n:'煙幕彈', d:'戰鬥中必定脫身（魔王除外）', fight:1, price:25},
-  bomb:{n:'炸彈', d:'扔出去，固定 300 傷害，無視防禦（魔王減半）', fight:1, price:60, dmg:300},
-  bigbomb:{n:'大炸彈', d:'扔出去，固定 3,000 傷害，無視防禦（魔王減半）', fight:1, price:600, dmg:3000},
-  hugebomb:{n:'巨型炸彈', d:'扔出去，固定 30,000 傷害，無視防禦（魔王減半）', fight:1, price:6000, dmg:30000},
+  bomb:{n:'炸彈', d:'扔出去，固定 100 傷害，無視防禦（魔王減半）', fight:1, price:40, dmg:100},
+  bigbomb:{n:'大炸彈', d:'扔出去，固定 500 傷害，無視防禦（魔王減半）', fight:1, price:250, dmg:500},
+  hugebomb:{n:'巨型炸彈', d:'扔出去，固定 3,000 傷害，無視防禦（魔王減半）', fight:1, price:2000, dmg:3000},
   blastbomb:{n:'爆裂彈', d:'扔出去，造成三倍攻擊的傷害，無視防禦（魔王減半）。跟著攻擊力長', fight:1, price:50000, scale:3},
   whet:{n:'力量之藥', d:'這一場（或下一場）攻擊力 ×1.5', out:1, fight:1, price:40},
   bandage:{n:'藥草', d:'回復兩成半HP', out:1, fight:1, price:12},
