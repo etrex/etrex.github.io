@@ -155,7 +155,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.6.6';
+const VERSION='2.6.7';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -277,7 +277,7 @@ const SYSTEMS={
     {n:'三選一', d:()=>'系統丟給你三個選項：金幣、攻擊力永久 +1、HP 上限永久 +2。每 18 秒一次，每日 100 次（'+growInfo('choice')+'）。'},
     {n:'選擇即正義', d:()=>'選項的獎勵永遠掛在你的等級基準上，越晚越大。'}]},
   devour:{name:'吞噬進化系統', skills:[
-    {n:'捕食', d:()=>'吃掉你殺死的魔物，得到牠的家族特質。效果依該家族吃過的最高階級：一階 20%、二階 40%、三階 60%、四階 80%、五階 100%。二十四個家族各一種：狼的速度（先手、攻速 −0.3）、蛛的毒（敵人每回合失去最大 HP 8%）、魔像的硬皮（防禦 +30%）、惡魔的心（攻擊 +15%）、魔王的力（攻擊 +30%）、各種免疫……'+(body&&body.eaten?'　已吃：'+(Object.keys(body.eaten).filter(k=>DEVOUR[k]).map(k=>DEVOUR[k].n+' '+body.eaten[k]+'階').join('、')||'無'):'')},
+    {n:'捕食', d:()=>'吃掉你殺死的魔物，得到牠的家族特質。效果依該家族吃過的最高階級成長，吃到五階才是滿值。二十四個家族各一種，滿值例如：狼的速度（先手、攻速 −0.3）、蛛的毒（敵人每回合失去最大 HP 8%）、魔像的硬皮（防禦 +30%）、惡魔的心（攻擊 +15%）、魔王的力（攻擊 +30%）、各種免疫……'+(body&&body.eaten?'　已吃：'+(Object.keys(body.eaten).filter(k=>DEVOUR[k]).map(k=>devText(k,body.eaten[k])).join('；')||'無'):'')},
     {n:'血肉累積', d:()=>'每吃一隻，HP 上限永久 +1（目前 +'+eatHp()+'）。沒有冷卻，不限次數。'},
     {n:'進化', d:()=>'吃過 8 個家族：進化，攻擊與 HP ×1.5；16 個：超進化 ×2；24 個：究極進化 ×3。'+(body?'（目前 '+eatN()+' 種'+(evoStage()?'，'+EVO[evoStage()][1]:'')+'）':'')}]},
   infinite:{name:'無限升級系統', skills:[
@@ -619,13 +619,15 @@ function ciGold(){ return 100+100*soul.streak; } function ciCores(){ return 3+so
 function eatAtk(){ return 0; } function eatHp(){ return sysIs('devour')?soul.eats:0; }
 /* 吞噬進化：吃到某家族的魔物就得到牠的特質，效果依該家族吃過的最高階級按比例：一階 20%、二階 40%……五階 100% */
 const DEVOUR={
- slime:{n:'史萊姆的黏液',d:'每次出手回復 HP（滿階 2%）'}, goblin:{n:'哥布林的手',d:'魔物掉東西的機會提高（滿階加倍）'}, wolf:{n:'狼的速度',d:'攻速加快（滿階 −0.3 秒），五階時永遠先手'}, bat:{n:'蝙蝠的吸盤',d:'造成的傷害化為 HP（滿階 5%）'},
- bug:{n:'蛛的毒',d:'敵人每回合失去最大 HP（滿階 8%）'}, skeleton:{n:'骸骨的肺',d:'毒抗性（滿階免疫）'}, giant:{n:'巨人的骨架',d:'HP 上限提高（滿階 +20%）'}, golem:{n:'魔像的硬皮',d:'防禦力提高（滿階 +30%）'},
- fire:{n:'熔淵的血',d:'火抗性（滿階免疫），攻擊力提高（滿階 +5%）'}, thunder:{n:'雷霆的神經',d:'雷抗性（滿階免疫），攻速加快（滿階 −0.2 秒）'}, demon:{n:'惡魔的心',d:'攻擊力提高（滿階 +15%）'},
- forestwolf:{n:'森林狼的鼻子',d:'採集有機會多一份（滿階必定）'}, orc:{n:'半獸人的臂力',d:'攻擊力提高（滿階 +5%）'}, ash:{n:'焦土的餘燼',d:'每次攻擊追加火傷害，無視防禦（滿階攻擊力的一成）'}, snowbeast:{n:'雪獸的毛',d:'冰抗性（滿階免疫）'}, frozen:{n:'凍屍的麻木',d:'受到的傷害再減少（滿階一成）'}, altar:{n:'祭壇的印',d:'倒下時被拿走的香油錢減少（滿階不扣）'},
- dock:{n:'碼頭的手腳',d:'擊殺金幣提高（滿階 +25%）'}, guild:{n:'商會的舌頭',d:'交換時每筆多拿（滿階一成）'}, governor:{n:'影子的腳步',d:'探索時有機會不被盯上（滿階三成）'}, cave:{n:'洞穴的眼',d:'採礦有機會多一塊（滿階必定）'}, tunnel:{n:'坑道的背',d:'防禦力提高（滿階 +10%）'}, core:{n:'熔心的火',d:'攻擊力提高（滿階 +10%）'},
- king:{n:'魔王的力',d:'攻擊力 +30%'},
+ slime:{n:'史萊姆的黏液',d:f=>'每次出手回復 HP 上限的 '+pc(2*f)+'%'}, goblin:{n:'哥布林的手',d:f=>'魔物掉東西的機會 ×'+(1+f).toFixed(1)}, wolf:{n:'狼的速度',d:f=>'攻速 −'+(0.3*f).toFixed(2)+' 秒'+(f>=1?'，永遠先手':'（五階時永遠先手）')}, bat:{n:'蝙蝠的吸盤',d:f=>'造成傷害的 '+pc(5*f)+'% 化為 HP'},
+ bug:{n:'蛛的毒',d:f=>'敵人每回合失去最大 HP 的 '+pc(8*f)+'%'}, skeleton:{n:'骸骨的肺',d:f=>'毒抗性 '+pc(100*f)+'%'}, giant:{n:'巨人的骨架',d:f=>'HP 上限 +'+pc(20*f)+'%'}, golem:{n:'魔像的硬皮',d:f=>'防禦力 +'+pc(30*f)+'%'},
+ fire:{n:'熔淵的血',d:f=>'火抗性 '+pc(100*f)+'%，攻擊力 +'+pc(5*f)+'%'}, thunder:{n:'雷霆的神經',d:f=>'雷抗性 '+pc(100*f)+'%，攻速 −'+(0.2*f).toFixed(2)+' 秒'}, demon:{n:'惡魔的心',d:f=>'攻擊力 +'+pc(15*f)+'%'},
+ forestwolf:{n:'森林狼的鼻子',d:f=>'採集有 '+pc(100*f)+'% 機會多一份'}, orc:{n:'半獸人的臂力',d:f=>'攻擊力 +'+pc(5*f)+'%'}, ash:{n:'焦土的餘燼',d:f=>'每次攻擊追加攻擊力 '+pc(10*f)+'% 的火傷害，無視防禦'}, snowbeast:{n:'雪獸的毛',d:f=>'冰抗性 '+pc(100*f)+'%'}, frozen:{n:'凍屍的麻木',d:f=>'受到的傷害再減 '+pc(10*f)+'%'}, altar:{n:'祭壇的印',d:f=>'倒下時香油錢少扣 '+pc(100*f)+'%'},
+ dock:{n:'碼頭的手腳',d:f=>'擊殺金幣 +'+pc(25*f)+'%'}, guild:{n:'商會的舌頭',d:f=>'交換時每筆多拿 '+pc(10*f)+'%'}, governor:{n:'影子的腳步',d:f=>'探索時 '+pc(30*f)+'% 機會不被盯上'}, cave:{n:'洞穴的眼',d:f=>'採礦有 '+pc(100*f)+'% 機會多一塊'}, tunnel:{n:'坑道的背',d:f=>'防禦力 +'+pc(10*f)+'%'}, core:{n:'熔心的火',d:f=>'攻擊力 +'+pc(10*f)+'%'},
+ king:{n:'魔王的力',d:f=>'攻擊力 +'+pc(30*f)+'%'},
 };
+const pc=x=>String(Math.round(x*10)/10);
+function devText(k,t){ const D=DEVOUR[k]; return D.n+'（第 '+t+' 階）：'+D.d(Math.min(1,t/5)); }
 const EVO=[[0,'',1],[8,'進化',1.5],[16,'超進化',2],[24,'究極進化',3]];
 function eatT(k){ return (body&&sysIs('devour')&&body.eaten&&body.eaten[k])|0; }
 function eatF(k){ return Math.min(1,eatT(k)/5); }
@@ -1913,7 +1915,7 @@ async function win(){
   const got=addRes('cores',nDrop); if(got) say('gain','獲得了裂谷核 ×'+got+'！');
   if(!isKing(m)){ if(chance(.25*lootMul())){ const k=rnd(['hpot','hpot','smoke','bomb','whet','bandage','bandage','coredust','trap','ration']); addItem(k,1); say('gain','你在牠身邊撿到一個'+ITEMS[k].n+'。'); } if(m.tier>=3&&chance(.03*lootMul())) dropRare(); } else { addItem('hpot',2); say('gain','魔王的殘骸裡有兩瓶藥水。'); if(!hasW('fang')){ say('narr','魔王的牙還在發燙。'); giveWeapon('fang'); } if(!hasA('scale')){ giveArmor('scale'); } if(!hasAcc('kingring')){ say('narr','魔王的指骨上套著一枚戒指。'); giveAcc('kingring'); } }
   let xp=killXp(m); if(sysIs('infinite')&&m.hpMax>body.hpMax) xp*=3; gainXp(xp);
-  if(sysIs('devour')){ if(m.fm&&DEVOUR[m.fm]&&(body.eaten[m.fm]|0)<m.tier){ const st0=evoStage(); const first=!body.eaten[m.fm]; body.eaten[m.fm]=m.tier; say('gain','捕食：'+DEVOUR[m.fm].n+'　第 '+m.tier+' 階（效果 '+Math.round(eatF(m.fm)*100)+'%）——'+DEVOUR[m.fm].d+'。'+(first?'（'+eatN()+'/'+Object.keys(DEVOUR).length+' 種）':'')); const st=evoStage(); if(st>st0){ body.evolved=true; say('title',EVO[st][1]); say('gain','攻擊與 HP 上限 ×'+EVO[st][2]+'。'); } } soul.eats++; if(soul.eats%10===0) say('gain','血肉累積：HP 上限 +'+soul.eats+'。'); }
+  if(sysIs('devour')){ if(m.fm&&DEVOUR[m.fm]&&(body.eaten[m.fm]|0)<m.tier){ const st0=evoStage(); const first=!body.eaten[m.fm]; body.eaten[m.fm]=m.tier; say('gain','捕食：'+devText(m.fm,m.tier)+'。'+(first?'（'+eatN()+'/'+Object.keys(DEVOUR).length+' 種）':'吃到更高階的了，效果升級。')); const st=evoStage(); if(st>st0){ body.evolved=true; say('title',EVO[st][1]); say('gain','攻擊與 HP 上限 ×'+EVO[st][2]+'。'); } } soul.eats++; if(soul.eats%10===0) say('gain','血肉累積：HP 上限 +'+soul.eats+'。'); }
   if(sysIs('shadow')){ soul.shadows++; body.flags.dailyKills=(body.flags.dailyKills||0)+1; say('gain','影子抽取成功。影子軍團：'+soul.shadows+'。'); grow('shadow','影之鍛：攻擊力永久 +1',()=>{ soul.permAtk++; }); }
   if(sysIs('luck')&&m.tier>=3) addLuck(isKing(m)?15:5,'擊殺強敵');
   if(sysIs('shop')){ soul.points+=m.tier*10; say('gain','積分 +'+m.tier*10+'（'+soul.points+'）'); }
