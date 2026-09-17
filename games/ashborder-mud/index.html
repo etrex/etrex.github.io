@@ -155,7 +155,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.1.3';
+const VERSION='2.1.4';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -605,11 +605,11 @@ function gearMenu(){
   o.push({t:'返回', f:back});
   setOptions(o,'裝備與道具　手上：'+wDef(eqW()).n+'｜身上：'+aDef(eqA()).n+(accEq().length?'｜'+accEq().map(D=>D.n).join('、'):'')+'｜攻擊力 '+atkNow()+'｜防禦力 '+defNow()+'｜攻速 '+pInterval().toFixed(1)+' 秒'+(body.flags.whet?'｜已磨刀 ×1.5':'')+(body.flags.oiled?'｜已上油':''),true);
 }
-function leaveFight(){ body.autoHunt=false; endCombat(); status(); if(body.raidFight){ body.raidFight=0; raidIgnored(); status(); N.market(); return; } if(body.regionFight){ const r=body.regionFight; body.regionFight=null; N.region(r); } else N.rift(); }
+function leaveFight(){ body.autoHunt=false; endCombat(); status(); if(body.raidFight){ body.raidFight=0; raidIgnored(); status(); N.market(); return; } if(body.flags.routeFight){ body.flags.routeFight=0; say('narr','你退了回來。商隊頭子看了你一眼，沒說話。'); N.south(); return; } if(body.fightRet==='north'){ body.fightRet=null; N.north(true); return; } if(body.regionFight){ const r=body.regionFight; body.regionFight=null; N.region(r); } else N.rift(); }
 /* HP =（40 + 等級×4 + 永久加成 + 屬性點×3 + 血肉）× 1.15^(0.8×(等級−5)) */
 function hpBase(){ return 40+lv()*4+(soul.permHp||0)+panelHp()*3+eatHp()+accSum('hp'); }
 function baseHp(){ return Math.round(hpBase()*Math.pow(levelMul(lv()),0.8)); }
-const NUM={ hated:()=>Math.max(1,Math.round(3*levelMul(lv()))), frail:()=>Math.round(baseHp()*0.2), killGold:(t=2)=>Math.round(5*t*floorMul(body?body.floor:1)) };
+const NUM={ hated:()=>Math.max(1,Math.round(3*levelMul(lv()))), frail:()=>Math.round(baseHp()*0.2), killGold:(t=2,f)=>Math.round(5*t*floorMul(f||(body?body.floor:1))) };
 // 各系統的累積換算
 function ciGold(){ return 100+100*soul.streak; } function ciCores(){ return 3+soul.streak; } function ciAtk(){ return 1; }
 function eatAtk(){ return body&&body.eaten&&body.eaten.king?8:0; } function eatHp(){ return sysIs('devour')?soul.eats:0; }
@@ -1356,7 +1356,7 @@ N.region=(r)=>{ lastNode=()=>N.region(r);
   { const known=Object.keys(CRAFT).filter(k=>k.startsWith(r)&&body.facts['sched_'+k]); const today=known.filter(k=>CRAFT[k].on(body.day)); if(known.length) say('info','第 '+body.day+' 天。'+(today.length?'今天 '+today.map(k=>CRAFT[k].who).join('、')+'在這裡，探索就能找到。':'今天工匠都不在。'+known.map(k=>CRAFT[k].hint).join(' '))); }
   const o=[];
   o.push({t:'探索（可能遇到事件或敵人）', f:()=>{ if(envTick()) return; body.regionFlags['g_'+r]=Math.max(0,(body.regionFlags['g_'+r]||0)-1); body.regionFlags['g2_'+r]=Math.max(0,(body.regionFlags['g2_'+r]||0)-1);
-    if(chance(R.threat)){ if(body.flags.torch){ body.flags.torch=0; say('narr','有東西在聖水灑過的地方停了一下，走了。'); } else if((aDef(eqA()).quiet||job().quiet)&&chance(.3)){ say('narr','有東西從你身邊走過去。牠沒有看見你。'); } else { say('narr','不對勁。'); body.floor=d; body.regionFight=r; encounter(regionMon(r)); return; } }
+    if(chance(R.threat)){ if(body.flags.torch){ body.flags.torch=0; say('narr','有東西在聖水灑過的地方停了一下，走了。'); } else if((aDef(eqA()).quiet||job().quiet)&&chance(.3)){ say('narr','有東西從你身邊走過去。牠沒有看見你。'); } else { say('narr','不對勁。'); body.regionFight=r; encounter(regionMon(r),d); return; } }
     const due=craftToday(r).map(k=>CRAFT[k]); const forced=R.events.find(e=>due.some(c=>c.match(e)));
     const ev=forced||rnd(R.events.filter(e=>!e.fight&&!Object.values(CRAFT).some(c=>c.match(e))));
     say('narr',ev.dyn?ev.dyn():ev.t);
@@ -1451,7 +1451,7 @@ N.north=(again)=>{ lastNode=N.north;
   const o=[];
   if(!body.flags.northHerb) o.push({t:'到井邊採灰葉草', f:()=>{ story(TXT.north_well); body.flags.northHerb=1; addRes('herbs',2); say('gain','北村的灰葉草 +2'); status(); N.north(true); }});
   if(!body.flags.northStone) o.push({t:'看村口那塊石頭', f:()=>{ story(TXT.north_stone); body.flags.northStone=1; learn('witness','村口的石頭上有燒過的痕跡和一枚神殿的徽章。魔物來之前，這裡先有火。'); status(); N.north(true); }});
-  o.push({t:'搜索屋子', f:()=>{ story(TXT.north_house); if(chance(.7)){ const g=30+Math.floor(Math.random()*40); body.gold+=g; say('gain','床墊底下有 '+g+' 金。'); } else { say('hurt','一隻魔狼從屋裡衝出來。'); body.floor=1; encounter(); return; } status(); N.north(true); }});
+  o.push({t:'搜索屋子', f:()=>{ story(TXT.north_house); if(chance(.7)){ const g=30+Math.floor(Math.random()*40); body.gold+=g; say('gain','床墊底下有 '+g+' 金。'); } else { say('hurt','一隻魔狼從屋裡衝出來。'); encounter(MON('dog'),1,'north'); return; } status(); N.north(true); }});
   omniOptions(o,'north',N.north,[]);
   o.push({t:'回難民營', f:N.camp});
   setOptions(o);
@@ -1463,7 +1463,7 @@ N.south=()=>{ lastNode=N.south;
   const o=[];
   if(!fact('route')){
     o.push({t:'出錢僱人清路（500 金）', dis:body.gold<500, f:()=>{ body.gold-=500; openRoute(TXT.route_pay); }});
-    o.push({t:'自己去清（第 2 層強度的戰鬥）', f:()=>{ body.floor=2; body.flags.routeFight=1; encounter(); }});
+    o.push({t:'自己去清（第 2 層強度的戰鬥）', f:()=>{ body.flags.routeFight=1; encounter(pickMon(2),2); }});
     o.push({t:'談判：用真相和民心說服他', ab:fact('truth')&&body.rep.people>=20, dis:!(fact('truth')&&body.rep.people>=20), f:()=>{ openRoute(TXT.route_talk); }});
     if(sysIs('luck')&&soul.luck>=40) o.push({t:'氣運：跟他賭一把', ab:1, f:()=>{ openRoute('你們擲骰子。你連贏七把。他把骰子扔進火裡。「路給你。別再來了。」'); }});
   }
@@ -1682,8 +1682,10 @@ function makeMon(pick,floor){
   if(sysIs('rezero')&&body.nemesis===m.key) m.atk=Math.round(m.atk*.5);
   return m;
 }
-function encounter(force,fl){
-  const m=makeMon(force||pickMon(body.floor), fl||(force?6:body.floor));
+let fightFloor=1;
+function encounter(force,fl,ret){
+  const f=fl||((force&&force.tier===5)?6:body.floor); fightFloor=f; body.fightRet=ret||null;
+  const m=makeMon(force||pickMon(f), f);
   mon=m; inCombat=true; guard=false; turnNo=0; execUsed=false; monSkip=false; pending=null; ready=false; body.blessFight=!!body.flags.blessed; body.flags.blessed=0; if(!body.mode||!modeList().includes(body.mode)) body.mode='attack';
   say('title',m.n+'出現了！'+(body.floor>1&&!force?'（第 '+body.floor+' 層）':''));
   body.flags.seen=body.flags.seen||{}; if(!body.flags.seen[m.key]&&m.desc){ body.flags.seen[m.key]=1; say('narr',m.desc); }
@@ -1757,13 +1759,13 @@ function monsterAttack(){
   status();
 }
 /* 經驗值 = 12 × 魔物階級 × 樓層倍率^0.8；升級需要 等級×20 */
-function killXp(t){ return Math.round(12*t*Math.pow(floorMul(body.floor),0.8)); }
+function killXp(t){ return Math.round(12*t*Math.pow(floorMul(fightFloor),0.8)); }
 function gainXp(x){ if(sysIs('infinite')) x*=3; body.xp+=x; while(body.xp>=body.level*20){ const a0=atkNow(), h0=body.hpMax; body.xp-=body.level*20; body.level++; if(sysIs('infinite')) soul.lvUps++; if(sysIs('panel')) body.freePts+=6; body.hpMax=hpMaxNow(); body.hp=Math.min(body.hpMax,body.hp+(body.hpMax-h0)); say('title','等級提升！Lv '+body.level); say('gain','攻擊 '+a0+' → '+atkNow()+'｜HP 上限 '+h0+' → '+body.hpMax+(sysIs('panel')?'｜屬性點 +6':'')); sysText(rnd(['數字漲了。別高興太早，裂谷也在漲。','嗯，比剛來的時候像樣一點了。','你變強了。它們也是。'])); } }
 async function win(){
   if(!inCombat) return; inCombat=false; const m=curMonRef(); 
   say('gain','打倒了'+m.n+'！'); sys('kill');
   const luckMul=sysIs('luck')?(1+soul.luck/10):1;
-  const luckBonus=sysIs('panel')?body.pts.luck*NUM.killGold(1):0; const gold=Math.round(NUM.killGold(m.tier)*luckMul*(1+accSum('gold')))+luckBonus; body.gold+=gold; say('gain','金幣 +'+gold+(luckBonus?'（幸運 +'+luckBonus+'）':''));
+  const luckBonus=sysIs('panel')?body.pts.luck*NUM.killGold(1):0; const gold=Math.round(NUM.killGold(m.tier,fightFloor)*luckMul*(1+accSum('gold')))+luckBonus; body.gold+=gold; say('gain','金幣 +'+gold+(luckBonus?'（幸運 +'+luckBonus+'）':''));
   let nDrop=(ssr('loot')||chance(Math.min(1,m.drop*(lootUp()?2:1))))?1:0; if(m.tier===5)nDrop+=2; if(sysIs('luck')) nDrop+=Math.floor(soul.luck/10);
   const got=addRes('cores',nDrop); if(got) say('gain','獲得了裂谷核 ×'+got+'！');
   if(m.tier<5){ if(chance(lootUp()?.5:.25)){ const k=rnd(['hpot','hpot','smoke','bomb','whet','bandage','bandage','coredust','trap','ration']); addItem(k,1); say('gain','你在牠身邊撿到一個'+ITEMS[k].n+'。'); } if(m.tier>=3&&chance(lootUp()?.06:.03)) dropRare(); } else { addItem('hpot',2); say('gain','魔王的殘骸裡有兩瓶藥水。'); if(!hasW('fang')){ say('narr','魔王的牙還在發燙。'); giveWeapon('fang'); } if(!hasA('scale')){ giveArmor('scale'); } if(!hasAcc('kingring')){ say('narr','魔王的指骨上套著一枚戒指。'); giveAcc('kingring'); } }
@@ -1790,6 +1792,7 @@ async function win(){
   endCombat(); status();
   if(body.raidFight){ body.raidFight=0; story(TXT.raid_defend); body.rep.people+=10; body.rep.knight+=5; say('gain','民心 +10，騎士團聲望 +5'); status(); setOptions([{t:'回難民營', f:N.camp},{t:'回市集', f:N.market}]); return; }
   if(body.flags.routeFight){ body.flags.routeFight=0; openRoute(TXT.route_fight); return; }
+  if(body.fightRet==='north'){ body.fightRet=null; setOptions([{t:'回到村口', f:()=>N.north(true)}]); return; }
   if(body.regionFight){ const r=body.regionFight; body.regionFight=null; setOptions([{t:'繼續探索', f:()=>N.region(r)},{t:'回王都（一天路程）', f:()=>{ spendDay('回王都'); N.market(); }}]); return; }
   if(canChain()&&body.autoHunt&&m.tier<5&&space()>0&&body.hp>=body.hpMax*body.stopHp){ setOptions([{t:'停止連續狩獵', keep:true, f:()=>{ body.autoHunt=false; clearTimeout(nextT); endCombat(); N.rift(); }}],'1 秒後下一隻…'); nextT=setTimeout(()=>{ if(body.autoHunt&&!inCombat) encounter(); },1000); return; }
   if(body.autoHunt&&space()<=0){ say('info','背包滿了，停止狩獵。'); body.autoHunt=false; }
@@ -1806,7 +1809,7 @@ async function die(force){
   soul.deaths=(soul.deaths||0)+1; const lost=Math.round(body.gold*.1); body.gold-=lost;
   worldEvent(soul.name+' 倒在外面，被人抬回了教堂。');
   body.day++; if(body.day%3===0) growOld(1,true); worldTick();
-  body.hp=body.hpMax; body.regionFight=null; body.floor=Math.max(1,Math.min(body.floor,body.maxFloor)); mon=null; body.flags.warned=0; body.flags.lineWarned=0; body.flags.whet=0; body.flags.oiled=0; body.autoHunt=false;
+  body.hp=body.hpMax; body.regionFight=null; body.flags.routeFight=0; body.fightRet=null; body.floor=Math.max(1,Math.min(body.floor,body.maxFloor)); mon=null; body.flags.warned=0; body.flags.lineWarned=0; body.flags.whet=0; body.flags.oiled=0; body.autoHunt=false;
   if(body.raidFight){ body.raidFight=0; raidIgnored(); }
   clearLog(); story(soul.deaths>1?rnd(TXT.death_wake_re):TXT.death_wake);
   say('info','香油錢：金幣 −'+lost+'。第 '+body.day+' 天。HP 回滿。'+(sysIs('shadow')?'':'')); status(); N.chapel();
@@ -1816,7 +1819,7 @@ async function die(force){
    主神空間
    ============================================================ */
 function offlineHunt(saved){
-  const hrs=Math.min(8,(Date.now()-saved.savedAt)/H); if(hrs<0.05) return;
+  const hrs=Math.min(8,(Date.now()-saved.savedAt)/H); if(hrs<0.05) return; fightFloor=body.floor;
   let t=hrs*3600; let kills=0, gold=0, cores=0, xp=0, fled=false, died=false, fights=0;
   const stop=body.hpMax*body.stopHp;
   while(t>0){
