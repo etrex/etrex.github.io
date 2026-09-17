@@ -155,7 +155,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.5.3';
+const VERSION='2.5.4';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -552,7 +552,10 @@ function giveArmor(k){ if(hasA(k)){ say('info','你已經有'+ARMORS[k].n+'了�
 const ITEMS={
   hpot:{n:'藥水', d:'回復五成HP', out:1, fight:1, price:30},
   smoke:{n:'煙幕彈', d:'戰鬥中必定脫身（魔王除外）', fight:1, price:25},
-  bomb:{n:'炸彈', d:'扔出去，造成三倍攻擊的傷害，無視防禦（魔王減半）', fight:1, price:60},
+  bomb:{n:'炸彈', d:'扔出去，固定 300 傷害，無視防禦（魔王減半）', fight:1, price:60, dmg:300},
+  bigbomb:{n:'大炸彈', d:'扔出去，固定 3,000 傷害，無視防禦（魔王減半）', fight:1, price:600, dmg:3000},
+  hugebomb:{n:'巨型炸彈', d:'扔出去，固定 30,000 傷害，無視防禦（魔王減半）', fight:1, price:6000, dmg:30000},
+  blastbomb:{n:'爆裂彈', d:'扔出去，造成三倍攻擊的傷害，無視防禦（魔王減半）。跟著攻擊力長', fight:1, price:50000, scale:3},
   whet:{n:'力量之藥', d:'這一場（或下一場）攻擊力 ×1.5', out:1, fight:1, price:40},
   bandage:{n:'藥草', d:'回復兩成半HP', out:1, fight:1, price:12},
   ration:{n:'帳篷', d:'戰鬥外回復三成HP', out:1, price:15},
@@ -590,7 +593,7 @@ function useItem(k){
   if(k==='hpot'){ const h=Math.round(body.hpMax*.5); body.hp=Math.min(body.hpMax,body.hp+h); say('gain','藥水：HP +'+h+'（'+body.hp+'/'+body.hpMax+'）'); }
   if(k==='whet'){ body.flags.whet=1; say('gain','喝下力量之藥。'+(inCombat?'這一場':'下一場')+'攻擊力 ×1.5。'); }
   if(k==='smoke'){ say('info','煙幕彈炸開。順利逃走了！'); leaveFight(); return; }
-  if(k==='bomb'){ const d=Math.round(atkNow()*3*(isKing(mon)?.5:1)); mon.hp-=d; say('combat','炸彈在'+mon.n+'身上炸開。'+d+' 傷害。'); if(mon.hp<=0){ win(); return; } }
+  if(ITEMS[k].dmg||ITEMS[k].scale){ const base=ITEMS[k].scale?atkNow()*ITEMS[k].scale:ITEMS[k].dmg; const d=Math.round(base*(isKing(mon)?.5:1)); mon.hp-=d; say('combat',ITEMS[k].n+'在'+mon.n+'身上炸開。'+fmt(d)+' 傷害。'); if(mon.hp<=0){ win(); return; } }
   status(); if(inCombat) renderCombat(); else save();
 }
 function gearMenu(){
