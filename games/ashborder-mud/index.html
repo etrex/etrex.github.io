@@ -155,7 +155,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.6.2';
+const VERSION='2.6.3';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -1952,7 +1952,7 @@ async function die(force){
   body.day++; if(body.day%3===0) growOld(1,true); worldTick();
   body.hp=body.hpMax; body.regionFight=null; body.flags.routeFight=0; body.fightRet=null; body.floor=Math.max(1,Math.min(body.floor,body.maxFloor)); mon=null; body.flags.warned=0; body.flags.lineWarned=0; body.flags.whet=0; body.flags.oiled=0; body.autoHunt=false;
   if(body.raidFight){ body.raidFight=0; raidIgnored(); }
-  clearLog(); story(soul.deaths>1?rnd(TXT.death_wake_re):TXT.death_wake);
+  story(soul.deaths>1?rnd(TXT.death_wake_re):TXT.death_wake);
   say('info',(lost?'香油錢：金幣 −'+lost+'。':'祭壇的印在你胸口發亮。修女沒有碰你的錢袋。')+'第 '+body.day+' 天。HP 回滿。'+(sysIs('shadow')?'':'')); status(); N.chapel();
 }
 
