@@ -155,7 +155,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.1.5';
+const VERSION='2.2.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -716,8 +716,8 @@ function setOptions(list,hint,noExtras){
   const nav=list.filter(isNav); if(nav.length){ const g=document.createElement('div'); g.className='grid'; nav.forEach(o=>g.appendChild(mk(o))); opts.appendChild(g); }
 }
 function defGainPct(){ const k=repAtk(body.floor); const D=defNow(); const ehp=d=>(k+d)/k; return ((ehp(D+1)/ehp(D)-1)*100).toFixed(1); }
-function showFormula(){ const D=defNow(); const r=k=>Math.round(100*D/(k+D)); say('info','數值說明\n攻擊 =（8 + 等級×2 + 武器 + 永久加成 + 屬性點 + 飾品）× 1.15^(等級−5) × 肉身係數　現在：'+atkBase()+' × '+levelMul(lv()).toFixed(2)+' × '+(sysIs('ancestor')?1:ageFactor(body.age)).toFixed(2)+' = '+atkNow()+'\n你打魔物 = 攻擊 × 0.85～1.15 − 魔物防禦（穿刺無視防禦、弱點 ×2 無視防禦）\n魔物打你 = 魔物攻擊² ÷（魔物攻擊力 + 防禦）　防禦 '+D+' 對第一層的犬減傷 '+r(7)+'%、蛛 '+r(10)+'%、巨獸 '+r(16)+'%、魔王 '+r(24)+'%；魔物越深越強，防禦要跟著長\n環境 = HP 上限 × 環境係數（火 15%、冰 12%、毒 10%、雷 20%）×（1 − 抗性），每一步一次，戰鬥中每次被攻擊再 0.3 次\n防禦 = 防具 + 加固 + 屬性點 + 等級 + 永久加成 + 職業 + 飾品；防具與飾品的「再減」在防禦之後另外乘，合計最多六成\nHP =（40 + 等級×4 + 永久加成 + 屬性點×3 + 飾品）× 1.15^(0.8×(等級−5))\n魔物 = 基礎值 × 1.7^(樓層−1)；魔王（Lv 50）與火龍（Lv 46）= 基礎值 × 1.15^(等級−5) × 1.4；經驗值 = 12 × 階級 × 樓層倍率^0.8；升級要 等級×20\n年齡：20 歲前 ×0.85，40 歲起每歲 −2%，60 歲起每歲 −1%（最低 0.4）'); }
-function showStatus(){ say('info','<b>'+esc(soul.name)+'</b>　Lv '+body.level+'（經驗值 '+body.xp+'/'+(body.level*20)+'）｜攻擊力 '+atkNow()+'｜防禦力 '+defNow()+'｜HP '+body.hp+'/'+body.hpMax+'\n'+body.age+' 歲｜第 '+body.day+' 天\n金幣 '+body.gold+'｜裂谷核 '+body.cores+'｜背包 '+load()+'/'+body.coreCap+'\n武器：'+wText(eqW())+'\n道具：'+itemsText()+'\n資源：'+(Object.keys(RES).filter(k=>k!=='gold'&&k!=='cores'&&body[k]>0).map(k=>RES[k]+' '+body[k]).join('、')||'無')+'\n聲望：騎士團 '+body.rep.knight+'、神殿 '+body.rep.temple+'、王室 '+body.rep.crown+'、民心 '+body.rep.people+(body.flags.quest?'｜義務 '+Math.min(body.quest,10)+'/10':'')); }
+function showFormula(){ const D=defNow(); const r=k=>Math.round(100*D/(k+D)); say('info','數值說明\n攻擊 =（8 + 等級×2 + 武器 + 永久加成 + 屬性點 + 飾品）× 1.15^(等級−5) × 肉身係數　現在：'+atkBase()+' × '+levelMul(lv()).toFixed(2)+' × '+(sysIs('ancestor')?1:ageFactor(body.age)).toFixed(2)+' = '+atkNow()+'\n你打魔物 = 攻擊 × 0.85～1.15 − 魔物防禦（穿刺無視防禦、弱點 ×2 無視防禦）\n魔物打你 = 魔物攻擊² ÷（魔物攻擊力 + 防禦）　防禦 '+D+' 對第一層的犬減傷 '+r(7)+'%、蛛 '+r(10)+'%、巨獸 '+r(16)+'%、魔王 '+r(24)+'%；魔物越深越強，防禦要跟著長\n環境 = HP 上限 × 環境係數（火 15%、冰 12%、毒 10%、雷 20%）×（1 − 抗性），每一步一次，戰鬥中每次被攻擊再 0.3 次\n防禦 = 防具 + 加固 + 屬性點 + 等級 + 永久加成 + 職業 + 飾品；防具與飾品的「再減」在防禦之後另外乘，合計最多六成\nHP =（40 + 等級×4 + 永久加成 + 屬性點×3 + 飾品）× 1.15^(0.8×(等級−5))\n魔物 = Lv1 基礎值 × 成長率^(等級−1)，每種魔物成長率不同（HP 約 1.18、攻擊約 1.15、防禦約 1.18）；裂谷 1～5 層魔物等級 1～4、4～9、9～15、15～23、25～40，魔王固定 Lv 50、火龍固定 Lv 46\n經驗值 = 4 × 1.25^(魔物等級−1) ×（1 + 0.1×(階級−1)）；魔物比你低 5 級以上每差一級 ×0.85；升級需要 = 同級魔物一隻的經驗 × 隻數（Lv 5 起 15 隻、每級 ×1.8，Lv 10 起 700 隻、每級 ×1.06）\n年齡：20 歲前 ×0.85，40 歲起每歲 −2%，60 歲起每歲 −1%（最低 0.4）'); }
+function showStatus(){ say('info','<b>'+esc(soul.name)+'</b>　Lv '+body.level+'（經驗值 '+fmt(body.xp)+'/'+fmt(xpNeed(body.level))+'）｜攻擊力 '+atkNow()+'｜防禦力 '+defNow()+'｜HP '+body.hp+'/'+body.hpMax+'\n'+body.age+' 歲｜第 '+body.day+' 天\n金幣 '+body.gold+'｜裂谷核 '+body.cores+'｜背包 '+load()+'/'+body.coreCap+'\n武器：'+wText(eqW())+'\n道具：'+itemsText()+'\n資源：'+(Object.keys(RES).filter(k=>k!=='gold'&&k!=='cores'&&body[k]>0).map(k=>RES[k]+' '+body[k]).join('、')||'無')+'\n聲望：騎士團 '+body.rep.knight+'、神殿 '+body.rep.temple+'、王室 '+body.rep.crown+'、民心 '+body.rep.people+(body.flags.quest?'｜義務 '+Math.min(body.quest,10)+'/10':'')); }
 function status(){
   if(!body){document.getElementById('status').innerHTML='';renderSystem();renderChar();renderQuests();renderAchs();return;}
   body.hpMax=hpMaxNow(); body.hp=Math.min(body.hp,body.hpMax);
@@ -730,7 +730,7 @@ function renderChar(){
   const c=document.getElementById('charCard'); if(!body){c.innerHTML='<h2>角色</h2><div class="slot"><span>尚未降生。</span></div>';return;}
   const items=(body.weapons||[]).map((w,i)=>(i===body.wpn?'▶ ':'')+wName(w)).concat((body.armors||[]).map((a,i)=>(i===body.arm?'▶ ':'')+aName(a))).concat((body.accs||[]).filter(a=>ACCS[a.key]).map(a=>(body.acc&&body.acc[ACCS[a.key].slot]===a.key?'▶ ':'')+ACCS[a.key].n+'［'+ASLOT[ACCS[a.key].slot]+'］')).concat(body.armorPlus?['加固 +'+body.armorPlus]:[]).concat(body.flags.seal?['裂谷之印']:[]).concat(body.revive?['鳳凰之尾 ×'+body.revive]:[]);
   c.innerHTML='<h2>'+esc(soul.name)+'</h2>'+
-    '<div class="slot"><b>Lv '+body.level+'</b><span>經驗值 '+body.xp+'/'+(body.level*20)+'｜攻擊力 '+atkNow()+'｜防禦力 '+defNow()+'｜HP '+body.hp+'/'+body.hpMax+'</span></div>'+
+    '<div class="slot"><b>Lv '+body.level+'</b><span>經驗值 '+fmt(body.xp)+'/'+fmt(xpNeed(body.level))+'｜攻擊力 '+atkNow()+'｜防禦力 '+defNow()+'｜HP '+body.hp+'/'+body.hpMax+'</span></div>'+
     '<div class="slot"><b>'+job().n+'</b><span>'+job().desc+(allWeapons()?'（系統：全武器可用）':'')+'</span></div>'+
     '<div class="slot"><b>抗性</b><span>'+Object.keys(ENV).map(k=>ENV[k].n+' '+(resist(k)>=1?'免疫':Math.round(resist(k)*100)+'%')).join('｜')+(body.flags.blessed?'｜已受祝福':'')+'</span></div>'+
     '<div class="slot"><b>'+body.age+' 歲</b><span>'+(sysIs('ancestor')?'壽元無盡':'肉身係數 ×'+ageFactor(body.age).toFixed(2))+'｜第 '+body.day+' 天</span></div>'+
@@ -831,7 +831,7 @@ function raidIgnored(){ story(TXT.raid_ignore); body.rep.people-=10; body.flags.
 function pendingEvent(back){
   const p=body.pending; if(!p) return false; body.pending=null;
   if(p==='raid'){ say('title','魔物潮'); story(TXT.raid); setOptions([
-    {t:'去北門', f:()=>{ body.raidFight=1; encounter(MON('dog'),Math.max(2,Math.min(4,body.maxFloor))); }},
+    {t:'去北門', f:()=>{ body.raidFight=1; encounter(MON('dog'),RIFT_LV[Math.max(2,Math.min(4,body.maxFloor))]); }},
     ...(itemN('flare')>0?[{t:'放信號彈', f:()=>{ body.items.flare--; body.flags.used=body.flags.used||{}; body.flags.used.flare=1; story('煙升到北門上空的時候，營房的門開了。七個騎士，布蘭德在最前面。\n\n你到的時候已經結束了。狗躺了一地，布蘭德在擦劍。「信號彈不是這麼用的。」他說。「不過，行。」'); body.rep.people+=10; body.rep.knight+=5; say('gain','民心 +10，騎士團聲望 +5'); status(); back(); }}]:[]),
     {t:'不管。這不是你的事', f:()=>{ raidIgnored(); status(); back(); }}],'',true); return true; }
   if(p==='kingDead'){ say('title','喪鐘'); story(TXT.king_dead); body.rep.temple+=10; setOptions([{t:'……', f:back}],'',true); return true; }
@@ -1356,7 +1356,7 @@ N.region=(r)=>{ lastNode=()=>N.region(r);
   { const known=Object.keys(CRAFT).filter(k=>k.startsWith(r)&&body.facts['sched_'+k]); const today=known.filter(k=>CRAFT[k].on(body.day)); if(known.length) say('info','第 '+body.day+' 天。'+(today.length?'今天 '+today.map(k=>CRAFT[k].who).join('、')+'在這裡，探索就能找到。':'今天工匠都不在。'+known.map(k=>CRAFT[k].hint).join(' '))); }
   const o=[];
   o.push({t:'探索（可能遇到事件或敵人）', f:()=>{ if(envTick()) return; body.regionFlags['g_'+r]=Math.max(0,(body.regionFlags['g_'+r]||0)-1); body.regionFlags['g2_'+r]=Math.max(0,(body.regionFlags['g2_'+r]||0)-1);
-    if(chance(R.threat)){ if(body.flags.torch){ body.flags.torch=0; say('narr','有東西在聖水灑過的地方停了一下，走了。'); } else if((aDef(eqA()).quiet||job().quiet)&&chance(.3)){ say('narr','有東西從你身邊走過去。牠沒有看見你。'); } else { say('narr','不對勁。'); body.regionFight=r; encounter(regionMon(r),d); return; } }
+    if(chance(R.threat)){ if(body.flags.torch){ body.flags.torch=0; say('narr','有東西在聖水灑過的地方停了一下，走了。'); } else if((aDef(eqA()).quiet||job().quiet)&&chance(.3)){ say('narr','有東西從你身邊走過去。牠沒有看見你。'); } else { say('narr','不對勁。'); body.regionFight=r; encounter(regionMon(r),REGION_LV[r][d-1]); return; } }
     const due=craftToday(r).map(k=>CRAFT[k]); const forced=R.events.find(e=>due.some(c=>c.match(e)));
     const ev=forced||rnd(R.events.filter(e=>!e.fight&&!Object.values(CRAFT).some(c=>c.match(e))));
     say('narr',ev.dyn?ev.dyn():ev.t);
@@ -1451,7 +1451,7 @@ N.north=(again)=>{ lastNode=N.north;
   const o=[];
   if(!body.flags.northHerb) o.push({t:'到井邊採灰葉草', f:()=>{ story(TXT.north_well); body.flags.northHerb=1; addRes('herbs',2); say('gain','北村的灰葉草 +2'); status(); N.north(true); }});
   if(!body.flags.northStone) o.push({t:'看村口那塊石頭', f:()=>{ story(TXT.north_stone); body.flags.northStone=1; learn('witness','村口的石頭上有燒過的痕跡和一枚神殿的徽章。魔物來之前，這裡先有火。'); status(); N.north(true); }});
-  o.push({t:'搜索屋子', f:()=>{ story(TXT.north_house); if(chance(.7)){ const g=30+Math.floor(Math.random()*40); body.gold+=g; say('gain','床墊底下有 '+g+' 金。'); } else { say('hurt','一隻魔狼從屋裡衝出來。'); encounter(MON('dog'),1,'north'); return; } status(); N.north(true); }});
+  o.push({t:'搜索屋子', f:()=>{ story(TXT.north_house); if(chance(.7)){ const g=30+Math.floor(Math.random()*40); body.gold+=g; say('gain','床墊底下有 '+g+' 金。'); } else { say('hurt','一隻魔狼從屋裡衝出來。'); encounter(MON('dog'),[2,4],'north'); return; } status(); N.north(true); }});
   omniOptions(o,'north',N.north,[]);
   o.push({t:'回難民營', f:N.camp});
   setOptions(o);
@@ -1463,7 +1463,7 @@ N.south=()=>{ lastNode=N.south;
   const o=[];
   if(!fact('route')){
     o.push({t:'出錢僱人清路（500 金）', dis:body.gold<500, f:()=>{ body.gold-=500; openRoute(TXT.route_pay); }});
-    o.push({t:'自己去清（第 2 層強度的戰鬥）', f:()=>{ body.flags.routeFight=1; encounter(pickMon(2),2); }});
+    o.push({t:'自己去清（第 2 層強度的戰鬥）', f:()=>{ body.flags.routeFight=1; encounter(pickMon(2),RIFT_LV[2]); }});
     o.push({t:'談判：用真相和民心說服他', ab:fact('truth')&&body.rep.people>=20, dis:!(fact('truth')&&body.rep.people>=20), f:()=>{ openRoute(TXT.route_talk); }});
     if(sysIs('luck')&&soul.luck>=40) o.push({t:'氣運：跟他賭一把', ab:1, f:()=>{ openRoute('你們擲骰子。你連贏七把。他把骰子扔進火裡。「路給你。別再來了。」'); }});
   }
@@ -1603,32 +1603,32 @@ function rest(){ body.day++; body.hp=body.hpMax; if(body.day%3===0) growOld(1,tr
    戰鬥
    ============================================================ */
 const MONSTERS=[
-  {n:'魔狼',key:'dog',fam:'dog',hp:28,atk:7,def:1,iv:1.4,tier:1,drop:.6,weak:'咽喉',floors:[1,2],desc:'比狼瘦，比狼快。眼睛是紅的，不反光。'},
-  {n:'史萊姆',key:'rats',fam:'dog',hp:20,atk:6,def:0,iv:1.0,tier:1,drop:.4,weak:'領頭的那隻',floors:[1,1],desc:'藍色的、軟的、會跳。每個勇者的第一個對手。'},
-  {n:'殺人蜂',key:'fly',fam:'spider',hp:18,atk:8,def:0,iv:0.9,tier:1,drop:.5,weak:'翅根',floors:[1,2],desc:'拳頭大的蜂。針有手指長。'},
-  {n:'大蜘蛛',key:'spider',fam:'spider',hp:42,atk:10,def:3,iv:1.8,tier:2,drop:.75,weak:'腹節',floors:[1,3],desc:'八條腿，每一條都比你的手臂長。'},
-  {n:'岩石魔像',key:'crab',fam:'beast',hp:50,atk:8,def:8,iv:2.2,tier:2,drop:.7,weak:'甲縫',floors:[2,3],desc:'石頭堆成的人形。牠不動的時候就是一堆石頭。'},
-  {n:'地獄犬',key:'shadowdog',fam:'dog',hp:36,atk:14,def:2,iv:1.2,tier:2,drop:.7,weak:'眼',floors:[3,4],desc:'沒有影子的犬。牠自己就是影子。'},
-  {n:'食人魔',key:'beast',fam:'beast',hp:85,atk:16,def:6,iv:2.4,tier:3,drop:.95,weak:'眼窩',floors:[2,4],desc:'比牛大，比牛慢，比牛硬。'},
-  {n:'骷髏兵',key:'bonespider',fam:'spider',hp:70,atk:18,def:5,iv:1.9,tier:3,drop:.9,weak:'關節',floors:[3,5],desc:'前幾個勇者的骨頭，還握著劍。'},
-  {n:'吸血蝙蝠',key:'leech',fam:'spider',hp:60,atk:12,def:2,iv:1.6,tier:2,drop:.6,weak:'吸盤',floors:[4,4],leech:1,desc:'從血池上空撲下來的。咬到你的時候牠會變胖。'},
-  {n:'鐵甲龜',key:'turtle',fam:'beast',hp:140,atk:14,def:14,iv:3.0,tier:4,drop:1,weak:'頸縫',floors:[4,5],desc:'殼是鐵的。劍砍上去會彈回來。'},
-  {n:'毒蛾',key:'moth',fam:'spider',hp:75,atk:20,def:3,iv:1.5,tier:3,drop:.85,weak:'鱗粉下的身體',floors:[5,5],desc:'毒霧就是牠的鱗粉。牠飛過的地方空氣是綠的。'},
-  {n:'獨眼巨人',key:'gatekeeper',fam:'beast',hp:130,atk:22,def:8,iv:2.0,tier:4,drop:1,weak:'還沒硬的腹部',floors:[5,5],desc:'一隻眼睛，三個人高。手裡的棍子是一棵樹。'},
-  {n:'野狼',key:'wolf',fam:'dog',hp:30,atk:8,def:1,iv:1.3,tier:1,drop:.5,weak:'咽喉',region:'forest',desc:'燒過的森林裡剩下的狼。毛是灰的，不是天生的。'},
-  {n:'蜥蜴人',key:'lizard',fam:'beast',hp:55,atk:12,def:5,iv:2.0,tier:2,drop:.7,weak:'腹側',region:'forest',deep:1,desc:'直立行走的蜥蜴，拿著人的武器。'},
-  {n:'白狼',key:'snowwolf',fam:'dog',hp:40,atk:11,def:2,iv:1.3,tier:2,drop:.6,weak:'咽喉',region:'snow',desc:'白的。你看見牠的時候牠已經在你身邊了。'},
-  {n:'殭屍',key:'frozen',fam:'beast',hp:110,atk:14,def:9,iv:3.2,tier:3,drop:.8,weak:'胸口的裂縫',region:'snow',deep:1,desc:'村子裡的人。死了，還在走。'},
-  {n:'盜賊',key:'thug',fam:'man',hp:34,atk:9,def:2,iv:1.6,tier:1,drop:.3,weak:'膝蓋',region:'port',desc:'碼頭上討生活的人。刀比話快。'},
-  {n:'傭兵',key:'enforcer',fam:'man',hp:60,atk:14,def:5,iv:1.8,tier:2,drop:.4,weak:'下巴',region:'port',deep:1,desc:'商會僱來的劍士。收了錢就不講理。'},
-  {n:'大蝙蝠',key:'bat',fam:'spider',hp:22,atk:7,def:0,iv:1.0,tier:1,drop:.5,weak:'翅膜',region:'mine',desc:'成群的。燈一滅牠們就下來。'},
-  {n:'沙蟲',key:'worm',fam:'beast',hp:90,atk:13,def:10,iv:2.6,tier:3,drop:.9,weak:'環節之間',region:'mine',deep:1,desc:'從巷道底下鑽出來的。牠的皮就是岩石。'},
-  {n:'火龍',key:'firelizard',fam:'beast',lvl:46,hp:120,atk:20,def:7,iv:1.8,tier:4,drop:1,weak:'喉囊',region:'mine',deep:2,desc:'熔心裡睡著的東西。牠張嘴的時候，鐵會軟。'},
+  {n:'魔狼',key:'dog',fam:'dog',hp:44,atk:10,def:2,gh:1.185,ga:1.155,gd:1.185,iv:1.4,tier:1,drop:.6,weak:'咽喉',floors:[1,2],desc:'比狼瘦，比狼快。眼睛是紅的，不反光。'},
+  {n:'史萊姆',key:'rats',fam:'dog',hp:40,atk:9,def:1,gh:1.18,ga:1.15,gd:1.18,iv:1.0,tier:1,drop:.4,weak:'領頭的那隻',floors:[1,1],desc:'藍色的、軟的、會跳。每個勇者的第一個對手。'},
+  {n:'殺人蜂',key:'fly',fam:'spider',hp:30,atk:16,def:0,gh:1.175,ga:1.145,gd:1.17,iv:0.9,tier:1,drop:.5,weak:'翅根',floors:[1,2],desc:'拳頭大的蜂。針有手指長。'},
+  {n:'大蜘蛛',key:'spider',fam:'spider',hp:50,atk:11,def:3,gh:1.185,ga:1.15,gd:1.185,iv:1.8,tier:2,drop:.75,weak:'腹節',floors:[1,3],desc:'八條腿，每一條都比你的手臂長。'},
+  {n:'岩石魔像',key:'crab',fam:'beast',hp:76,atk:9,def:8,gh:1.18,ga:1.15,gd:1.19,iv:2.2,tier:2,drop:.7,weak:'甲縫',floors:[2,3],desc:'石頭堆成的人形。牠不動的時候就是一堆石頭。'},
+  {n:'地獄犬',key:'shadowdog',fam:'dog',hp:36,atk:17,def:1,gh:1.175,ga:1.15,gd:1.175,iv:1.2,tier:2,drop:.7,weak:'眼',floors:[3,4],desc:'沒有影子的犬。牠自己就是影子。'},
+  {n:'食人魔',key:'beast',fam:'beast',hp:60,atk:14,def:3,gh:1.185,ga:1.16,gd:1.18,iv:2.4,tier:3,drop:.95,weak:'眼窩',floors:[2,4],desc:'比牛大，比牛慢，比牛硬。'},
+  {n:'骷髏兵',key:'bonespider',fam:'spider',hp:50,atk:12,def:4,gh:1.185,ga:1.155,gd:1.185,iv:1.9,tier:3,drop:.9,weak:'關節',floors:[3,5],desc:'前幾個勇者的骨頭，還握著劍。'},
+  {n:'吸血蝙蝠',key:'leech',fam:'spider',hp:42,atk:11,def:1,gh:1.185,ga:1.15,gd:1.18,iv:1.6,tier:2,drop:.6,weak:'吸盤',floors:[4,4],leech:1,desc:'從血池上空撲下來的。咬到你的時候牠會變胖。'},
+  {n:'鐵甲龜',key:'turtle',fam:'beast',hp:90,atk:8,def:10,gh:1.18,ga:1.145,gd:1.19,iv:3.0,tier:4,drop:1,weak:'頸縫',floors:[4,5],desc:'殼是鐵的。劍砍上去會彈回來。'},
+  {n:'毒蛾',key:'moth',fam:'spider',hp:34,atk:18,def:1,gh:1.175,ga:1.15,gd:1.17,iv:1.5,tier:3,drop:.85,weak:'鱗粉下的身體',floors:[5,5],desc:'毒霧就是牠的鱗粉。牠飛過的地方空氣是綠的。'},
+  {n:'獨眼巨人',key:'gatekeeper',fam:'beast',hp:66,atk:15,def:4,gh:1.185,ga:1.16,gd:1.185,iv:2.0,tier:4,drop:1,weak:'還沒硬的腹部',floors:[5,5],desc:'一隻眼睛，三個人高。手裡的棍子是一棵樹。'},
+  {n:'野狼',key:'wolf',fam:'dog',hp:44,atk:10,def:1,gh:1.185,ga:1.155,gd:1.185,iv:1.3,tier:1,drop:.5,weak:'咽喉',region:'forest',desc:'燒過的森林裡剩下的狼。毛是灰的，不是天生的。'},
+  {n:'蜥蜴人',key:'lizard',fam:'beast',hp:48,atk:11,def:3,gh:1.185,ga:1.15,gd:1.185,iv:2.0,tier:2,drop:.7,weak:'腹側',region:'forest',deep:1,desc:'直立行走的蜥蜴，拿著人的武器。'},
+  {n:'白狼',key:'snowwolf',fam:'dog',hp:42,atk:11,def:1,gh:1.185,ga:1.155,gd:1.18,iv:1.3,tier:2,drop:.6,weak:'咽喉',region:'snow',desc:'白的。你看見牠的時候牠已經在你身邊了。'},
+  {n:'殭屍',key:'frozen',fam:'beast',hp:80,atk:9,def:7,gh:1.18,ga:1.15,gd:1.19,iv:3.2,tier:3,drop:.8,weak:'胸口的裂縫',region:'snow',deep:1,desc:'村子裡的人。死了，還在走。'},
+  {n:'盜賊',key:'thug',fam:'man',hp:40,atk:10,def:1,gh:1.185,ga:1.155,gd:1.185,iv:1.6,tier:1,drop:.3,weak:'膝蓋',region:'port',desc:'碼頭上討生活的人。刀比話快。'},
+  {n:'傭兵',key:'enforcer',fam:'man',hp:48,atk:12,def:3,gh:1.185,ga:1.155,gd:1.185,iv:1.8,tier:2,drop:.4,weak:'下巴',region:'port',deep:1,desc:'商會僱來的劍士。收了錢就不講理。'},
+  {n:'大蝙蝠',key:'bat',fam:'spider',hp:30,atk:14,def:0,gh:1.175,ga:1.145,gd:1.17,iv:1.0,tier:1,drop:.5,weak:'翅膜',region:'mine',desc:'成群的。燈一滅牠們就下來。'},
+  {n:'沙蟲',key:'worm',fam:'beast',hp:70,atk:10,def:8,gh:1.18,ga:1.15,gd:1.19,iv:2.6,tier:3,drop:.9,weak:'環節之間',region:'mine',deep:1,desc:'從巷道底下鑽出來的。牠的皮就是岩石。'},
+  {n:'火龍',key:'firelizard',fam:'beast',lvl:46,hp:30,atk:7.5,def:1.5,gh:1.185,ga:1.16,gd:1.185,iv:1.8,tier:4,drop:1,weak:'喉囊',region:'mine',deep:2,desc:'熔心裡睡著的東西。牠張嘴的時候，鐵會軟。'},
 ];
-const KING={n:'裂谷魔王',key:'king',fam:'king',lvl:50,hp:170,atk:24,def:10,iv:2.0,tier:5,drop:1,weak:'心口',desc:'牠坐在倒過來的王座上。牠在看你，用奧文的眼神。'};
+const KING={n:'裂谷魔王',key:'king',fam:'king',lvl:50,hp:42,atk:9.6,def:2.4,gh:1.185,ga:1.16,gd:1.185,iv:2.0,tier:5,drop:1,weak:'心口',desc:'牠坐在倒過來的王座上。牠在看你，用奧文的眼神。'};
 function MON(k){ return MONSTERS.find(m=>m.key===k)||MONSTERS[0]; }
 function floorPool(f){ const p=MONSTERS.filter(m=>m.floors&&f>=m.floors[0]&&f<=m.floors[1]); return p.length?p:[MONSTERS[0]]; }
-function repAtk(f){ const p=floorPool(f); return p.reduce((a,m)=>a+m.atk,0)/p.length; }
+function repAtk(f){ if(f>=6) return monStats(KING,KING.lvl).atk; const [a,b]=RIFT_LV[f]||[1,4]; const L=Math.round((a+b)/2); const p=floorPool(f); return p.reduce((s,m)=>s+monStats(m,L).atk,0)/p.length; }
 const floorMul = f => Math.pow(1.7, f-1);
 const FLOORS=[null,'裂谷入口','斷崖','暗道','血池','毒霧','王座'];
 /* 檢定：每一道門都不看攻擊力 */
@@ -1676,24 +1676,27 @@ N.rift=()=>{ lastNode=N.rift;
   omniOptions(o,'rift',N.rift,body.flags.sixthPath?['第六勇者']:[]); townExtras(o,N.rift); setOptions(o);
 };
 function pickMon(floor){ const p=floorPool(floor); const w=p.map(m=>Math.max(.5,4.5-m.tier)); let r=Math.random()*w.reduce((a,b)=>a+b,0); for(let i=0;i<p.length;i++){ r-=w[i]; if(r<=0) return p[i]; } return p[p.length-1]; }
-/* 有等級的魔物（魔王、火龍）：基礎值 × 1.15^(等級−5) × 1.4，跟玩家的成長曲線同步 */
-const lvlMul = lv => Math.pow(1.15, lv-5)*1.4;
-let fightMul=1;
-function makeMon(pick,floor){
-  const m=JSON.parse(JSON.stringify(pick)); const mul=pick.lvl?lvlMul(pick.lvl):floorMul(floor); fightMul=mul;   // 一般怪物只看樓層
-  m.hp=Math.round(m.hp*mul); m.hpMax=m.hp; m.atk=Math.round(m.atk*mul); m.def=Math.round(m.def*mul);
+/* 魔物等級制：數值 = Lv1 基礎值 × 成長率^(等級−1)。每種魔物的 HP／攻擊／防禦成長率不同。
+   一般魔物的等級在所在地點的範圍內隨機；魔王、火龍這類頭目等級固定。 */
+const RIFT_LV={1:[1,4],2:[4,9],3:[9,15],4:[15,23],5:[25,40]};
+const REGION_LV={forest:[[1,4],[6,11],[14,22]],snow:[[3,7],[9,15],[18,28]],port:[[2,5],[7,12],[15,23]],mine:[[3,7],[9,15],[20,30]]};
+function monStats(p,L){ return {hp:Math.round(p.hp*Math.pow(p.gh||1.18,L-1)), atk:Math.round(p.atk*Math.pow(p.ga||1.15,L-1)), def:Math.round(p.def*Math.pow(p.gd||1.18,L-1))}; }
+function rollLv(lv){ if(Array.isArray(lv)){ const [a,b]=lv; return a+Math.floor(Math.random()*(b-a+1)); } return lv||1; }
+function makeMon(pick,lv){
+  const m=JSON.parse(JSON.stringify(pick)); const L=pick.lvl||rollLv(lv); m.lv=L;
+  const st=monStats(pick,L); m.hp=st.hp; m.hpMax=st.hp; m.atk=st.atk; m.def=st.def;
   if(sysIs('rezero')&&body.nemesis===m.key) m.atk=Math.round(m.atk*.5);
   return m;
 }
-let fightFloor=1;
-function encounter(force,fl,ret){
-  const f=fl||((force&&force.tier===5)?6:body.floor); fightFloor=f; body.fightRet=ret||null;
-  const m=makeMon(force||pickMon(f), f);
+
+function encounter(force,lv,ret){
+  body.fightRet=ret||null;
+  const m=makeMon(force||pickMon(body.floor), lv||RIFT_LV[body.floor]||[1,4]);
   mon=m; inCombat=true; guard=false; turnNo=0; execUsed=false; monSkip=false; pending=null; ready=false; body.blessFight=!!body.flags.blessed; body.flags.blessed=0; if(!body.mode||!modeList().includes(body.mode)) body.mode='attack';
   say('title',m.n+'出現了！'+(body.floor>1&&!force?'（第 '+body.floor+' 層）':''));
   body.flags.seen=body.flags.seen||{}; if(!body.flags.seen[m.key]&&m.desc){ body.flags.seen[m.key]=1; say('narr',m.desc); }
   const seeStats=sysIs('omni')||sysIs('panel');
-  say('combat',m.n+(m.lvl?'｜Lv '+m.lvl:'')+'｜HP '+m.hp+'｜攻速 '+mInterval(m).toFixed(1)+' 秒'+(seeStats?'｜攻擊力 '+m.atk+'｜防禦力 '+m.def:'')+(sysIs('omni')?'｜<span class="reveal w">弱點：'+m.weak+'</span>':''));
+  say('combat',m.n+'｜Lv '+m.lv+'｜HP '+fmt(m.hp)+'｜攻速 '+mInterval(m).toFixed(1)+' 秒'+(seeStats?'｜攻擊力 '+m.atk+'｜防禦力 '+m.def:'')+(sysIs('omni')?'｜<span class="reveal w">弱點：'+m.weak+'</span>':''));
   monSkipN=0;
   if(sysIs('ancestor')&&m.hp<atkNow()*3){ monSkip=true; say('info','威壓：'+m.n+'第一擊不敢出手。'); }
   else if(wDef(eqW()).calm&&m.tier<5){ monSkip=true; say('info',m.n+'看見了那把劍，退了半步。第一擊不敢出手。'); }
@@ -1744,7 +1747,7 @@ function playerAct(k){
 }
 /* 魔物傷害 = 攻擊 × 攻擊 ÷（攻擊力 + 防禦）：防禦越高減得越多，但永遠減不到零。探索進度不進公式。 */
 function monDamage(M,D){ return Math.max(1,M*M/(M+D)); }
-function defPct(){ const M=(body.floor>=6?KING.atk:repAtk(body.floor))*floorMul(body.floor); const Dm=defNow(); return Math.round(100*Dm/(M+Dm)); }
+function defPct(){ const M=repAtk(body.floor); const Dm=defNow(); return Math.round(100*Dm/(M+Dm)); }
 function monsterAttack(){
   if(monSkip){ monSkip=false; say('info',mon.n+'的這一擊落空了。'); return; }
   if(monSkipN>0){ monSkipN--; say('info',mon.n+'被陷阱絆住，這一擊落空了。'); return; }
@@ -1762,17 +1765,24 @@ function monsterAttack(){
   status();
 }
 /* 經驗值 = 12 × 魔物階級 × 樓層倍率^0.8；升級需要 等級×20 */
-function killXp(t){ return Math.round(12*t*Math.pow(fightMul,0.8)); }
-function gainXp(x){ if(sysIs('infinite')) x*=3; body.xp+=x; while(body.xp>=body.level*20){ const a0=atkNow(), h0=body.hpMax; body.xp-=body.level*20; body.level++; if(sysIs('infinite')) soul.lvUps++; if(sysIs('panel')) body.freePts+=6; body.hpMax=hpMaxNow(); body.hp=Math.min(body.hpMax,body.hp+(body.hpMax-h0)); say('title','等級提升！Lv '+body.level); say('gain','攻擊 '+a0+' → '+atkNow()+'｜HP 上限 '+h0+' → '+body.hpMax+(sysIs('panel')?'｜屬性點 +6':'')); sysText(rnd(['數字漲了。別高興太早，裂谷也在漲。','嗯，比剛來的時候像樣一點了。','你變強了。它們也是。'])); } }
+const fmt=n=>Math.round(n).toLocaleString('en-US');
+/* 擊殺經驗值 = 4 × 1.25^(魔物等級−1) ×（1 + 0.1×(階級−1)）；魔物比自己低 5 級以上，每差一級 ×0.85（最低 5%）；比自己高每級 +5%（最多 +50%） */
+function xpMul(mlv){ const d=lv()-mlv; if(d>5) return Math.max(.05,Math.pow(.85,d-5)); if(d<0) return 1+Math.min(.5,.05*-d); return 1; }
+function killXp(m){ return Math.max(1,Math.round(4*Math.pow(1.25,m.lv-1)*(1+.1*(m.tier-1))*xpMul(m.lv))); }
+function killGoldLv(m){ return Math.max(1,Math.round(4*Math.pow(1.2,m.lv-1)*(1+.25*(m.tier-1)))); }
+/* 升級需求 = 同級魔物一隻的經驗值 × 所需隻數；所需隻數 Lv 5 起 15 隻、每級 ×1.8，Lv 10 起 700 隻、每級 ×1.06 */
+function xpKills(L){ return L<10?15*Math.pow(1.8,Math.max(0,L-5)):700*Math.pow(1.06,L-10); }
+function xpNeed(L){ return Math.round(xpKills(L)*4*Math.pow(1.25,L-1)); }
+function gainXp(x){ if(sysIs('infinite')) x*=3; body.xp+=x; while(body.xp>=xpNeed(body.level)){ const a0=atkNow(), h0=body.hpMax; body.xp-=xpNeed(body.level); body.level++; if(sysIs('infinite')) soul.lvUps++; if(sysIs('panel')) body.freePts+=6; body.hpMax=hpMaxNow(); body.hp=Math.min(body.hpMax,body.hp+(body.hpMax-h0)); say('title','等級提升！Lv '+body.level); say('gain','攻擊 '+a0+' → '+atkNow()+'｜HP 上限 '+h0+' → '+body.hpMax+(sysIs('panel')?'｜屬性點 +6':'')); sysText(rnd(['數字漲了。別高興太早，裂谷也在漲。','嗯，比剛來的時候像樣一點了。','你變強了。它們也是。'])); } }
 async function win(){
   if(!inCombat) return; inCombat=false; const m=curMonRef(); 
   say('gain','打倒了'+m.n+'！'); sys('kill');
   const luckMul=sysIs('luck')?(1+soul.luck/10):1;
-  const luckBonus=sysIs('panel')?body.pts.luck*NUM.killGold(1):0; const gold=Math.round(NUM.killGold(m.tier,null,fightMul)*luckMul*(1+accSum('gold')))+luckBonus; body.gold+=gold; say('gain','金幣 +'+gold+(luckBonus?'（幸運 +'+luckBonus+'）':''));
+  const luckBonus=sysIs('panel')?body.pts.luck*NUM.killGold(1):0; const gold=Math.round(killGoldLv(m)*luckMul*(1+accSum('gold')))+luckBonus; body.gold+=gold; say('gain','金幣 +'+gold+(luckBonus?'（幸運 +'+luckBonus+'）':''));
   let nDrop=(ssr('loot')||chance(Math.min(1,m.drop*(lootUp()?2:1))))?1:0; if(m.tier===5)nDrop+=2; if(sysIs('luck')) nDrop+=Math.floor(soul.luck/10);
   const got=addRes('cores',nDrop); if(got) say('gain','獲得了裂谷核 ×'+got+'！');
   if(m.tier<5){ if(chance(lootUp()?.5:.25)){ const k=rnd(['hpot','hpot','smoke','bomb','whet','bandage','bandage','coredust','trap','ration']); addItem(k,1); say('gain','你在牠身邊撿到一個'+ITEMS[k].n+'。'); } if(m.tier>=3&&chance(lootUp()?.06:.03)) dropRare(); } else { addItem('hpot',2); say('gain','魔王的殘骸裡有兩瓶藥水。'); if(!hasW('fang')){ say('narr','魔王的牙還在發燙。'); giveWeapon('fang'); } if(!hasA('scale')){ giveArmor('scale'); } if(!hasAcc('kingring')){ say('narr','魔王的指骨上套著一枚戒指。'); giveAcc('kingring'); } }
-  let xp=killXp(m.tier); if(sysIs('infinite')&&m.hpMax>body.hpMax) xp*=3; gainXp(xp);
+  let xp=killXp(m); if(sysIs('infinite')&&m.hpMax>body.hpMax) xp*=3; gainXp(xp);
   if(sysIs('devour')){ if(m.fam&&m.fam!=='man'&&!body.eaten[m.fam]){ body.eaten[m.fam]=1; say('gain','捕食：你得到了'+({dog:'狼的速度',spider:'蛛的毒',beast:'魔的硬皮',king:'魔王的力'})[m.fam]+'。'); if(Object.keys(body.eaten).length>=4&&!body.evolved){ body.evolved=true; say('title','進化'); say('gain','攻擊與HP翻倍。'); } } grow('devour','血肉累積：HP 上限 +1',()=>{ soul.eats++; }); }
   if(sysIs('shadow')){ soul.shadows++; body.flags.dailyKills=(body.flags.dailyKills||0)+1; say('gain','影子抽取成功。影子軍團：'+soul.shadows+'。'); grow('shadow','影之鍛：攻擊力永久 +1',()=>{ soul.permAtk++; }); }
   if(sysIs('luck')&&m.tier>=3) addLuck(m.tier===5?15:5,'擊殺強敵');
@@ -1822,11 +1832,11 @@ async function die(force){
    主神空間
    ============================================================ */
 function offlineHunt(saved){
-  const hrs=Math.min(8,(Date.now()-saved.savedAt)/H); if(hrs<0.05) return; fightFloor=body.floor;
+  const hrs=Math.min(8,(Date.now()-saved.savedAt)/H); if(hrs<0.05) return;
   let t=hrs*3600; let kills=0, gold=0, cores=0, xp=0, fled=false, died=false, fights=0;
   const stop=body.hpMax*body.stopHp;
   while(t>0){
-    const m=makeMon(pickMon(body.floor), body.floor); fights++;
+    const m=makeMon(pickMon(body.floor), RIFT_LV[body.floor]||[1,4]); fights++;
     const pdps=Math.max(1,atkNow()*(body.mode==='weak'?2:1)-(body.mode==='weak'?0:m.def))/pInterval();
     let mdmg=monDamage(m.atk,defNow()); if(soul.system.weak==='hated') mdmg+=NUM.hated(); if(body.flags.seal) mdmg*=.8; if(body.mode==='guard') mdmg*=.5;
     const mdps=mdmg/mInterval(m); const dur=m.hp/pdps; const taken=Math.round(mdps*dur);
@@ -1835,7 +1845,7 @@ function offlineHunt(saved){
       if(body.hp<=1&&!fled){ died=true; break; }
       fled=true; break;
     }
-    body.hp-=taken; t-=dur+1; kills++; gold+=NUM.killGold(m.tier); xp+=killXp(m.tier);
+    body.hp-=taken; t-=dur+1; kills++; gold+=killGoldLv(m); xp+=killXp(m);
     if(ssr('loot')||chance(m.drop)){ if(space()-cores>0) cores++; else { break; } }
   }
   body.gold+=gold; addRes('cores',cores); soul.kills=(soul.kills||0)+kills; soul.idleHours=(soul.idleHours||0)+Math.floor(hrs);
