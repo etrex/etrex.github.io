@@ -155,7 +155,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.5.2';
+const VERSION='2.5.3';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -1555,12 +1555,14 @@ N.guild=()=>{ lastNode=N.guild; place('王城市集 · 冒險者公會');
 /* 拍賣所：每天一件拍品 */
 function auctionPool(){ return Object.keys(ARMORS).filter(k=>!hasA(k)&&!ARMORS[k].any&&!['chain','ironplate','cloth1','core'].includes(k)).map(k=>'A:'+k).concat(Object.keys(ACCS).filter(k=>!hasAcc(k)&&!ACCS[k].sys&&!['strawshoes','clothgloves','kingring'].includes(k)).map(k=>'C:'+k)); }
 function auctionLot(){ const pool=auctionPool(); if(!pool.length) return null; return pool[(body.day*7+(soul.name||'').length)%pool.length]; }
-function lotPrice(l){ const [t,k]=l.split(':'); if(t==='A'){ const D=ARMORS[k]; return D.def*70+(D.ward||D.regen?300:0)+(D.res?4000:0); } const D=ACCS[k]; return Math.round((D.atk||0)*60+(D.def||0)*60+(D.hp||0)*8+Math.abs(D.spd||0)*500+(D.res?4000:0)+(isRare(k)?1200:200)); }
+/* 拍賣品分級：傳說 1,000 萬、稀有 100 萬、精良依數值。免疫、頂級防具、魔王與龍的東西是傳說。 */
+function lotGrade(l){ const [t,k]=l.split(':'); if(t==='A'){ const D=ARMORS[k]; if(D.res||D.def>=18) return '傳說'; if(D.def>=12||D.ward||D.regen) return '稀有'; return '精良'; } const D=ACCS[k]; if(D.res||['kingring','starring','thunderring','luckring'].includes(k)) return '傳說'; if(isRare(k)) return '稀有'; return '精良'; }
+function lotPrice(l){ const g=lotGrade(l); if(g==='傳說') return 10000000; if(g==='稀有') return 1000000; const [t,k]=l.split(':'); if(t==='A') return ARMORS[k].def*2000; const D=ACCS[k]; return Math.round(10000+((D.atk||0)+(D.def||0))*2000+(D.hp||0)*200+Math.abs(D.spd||0)*20000); }
 function lotText(l){ const [t,k]=l.split(':'); return t==='A'?aText({key:k}):accName(k); }
 N.auction=()=>{ lastNode=N.auction; place('王城市集 · 拍賣所');
   if(!body.flags.auction){ body.flags.auction=1; story(TXT.auction1); } else say('narr',rnd(TXT.auction_re));
   const o=[]; const lot=auctionLot();
-  if(lot&&body.flags.auctionDay!==body.day){ const p=lotPrice(lot); say('info','今天的拍品：'+lotText(lot)+'　一口價 '+p+' 金'); o.push({t:'買下今天的拍品（'+p+' 金）', dis:body.gold<p, f:()=>{ body.gold-=p; body.flags.auctionDay=body.day; body.flags.auctionBought=(body.flags.auctionBought||0)+1; const [t,k]=lot.split(':'); say('npc','管事把木槌舉起來，又放下。「成交。」'); if(t==='A') giveArmor(k); else giveAcc(k); status(); N.auction(); }}); }
+  if(lot&&body.flags.auctionDay!==body.day){ const p=lotPrice(lot); say('info','今天的拍品：［'+lotGrade(lot)+'］'+lotText(lot)+'　一口價 '+fmt(p)+' 金'); o.push({t:'買下今天的拍品（'+fmt(p)+' 金）', dis:body.gold<p, f:()=>{ body.gold-=p; body.flags.auctionDay=body.day; body.flags.auctionBought=(body.flags.auctionBought||0)+1; const [t,k]=lot.split(':'); say('npc','管事把木槌舉起來，又放下。「成交。」'); if(t==='A') giveArmor(k); else giveAcc(k); status(); N.auction(); }}); }
   else if(lot) o.push({t:'（今天的拍品已經賣掉了，明天換一件）', dis:true, f:()=>{}});
   else o.push({t:'（桌上空的。這座城裡值錢的東西你都有了）', dis:true, f:()=>{}});
   if(body.relics>0) o.push({t:'委託拍賣遺物（'+body.relics+' 件，每件 80 金，抽一成）', f:()=>{ const g=Math.round(80*body.relics*0.9); body.gold+=g; say('gain','金幣 +'+g); body.relics=0; status(); N.auction(); }});
