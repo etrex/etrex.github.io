@@ -155,7 +155,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.6.5';
+const VERSION='2.6.6';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -1856,7 +1856,7 @@ function tick(){
 }
 let lastCrit=false;
 function playerAtk(){ let a=atkNow()*(0.85+Math.random()*.3); if(body.flags.whet) a*=1.5; const D=wDef(eqW()); { const cr=(D.crit||0)+accSum('crit'); lastCrit=cr>0&&chance(cr); } if(lastCrit) a*=2; return Math.round(a); }
-function afterHit(d){ const D=wDef(eqW()); if(eat('ash')&&d>0){ const bd=Math.max(1,Math.round(atkNow()*.1*eatF('ash'))); mon.hp-=bd; say('combat','餘燼：'+fmt(bd)+' 傷害。'); } if(eat('bat')&&d>0&&body.hp<body.hpMax){ const h=Math.max(1,Math.round(d*.05*eatF('bat'))); body.hp=Math.min(body.hpMax,body.hp+h); say('gain','吸血：HP +'+h); } if(D.poison){ const p=Math.max(1,Math.round(mon.hpMax*D.poison)); mon.hp-=p; say('combat','毒：'+mon.n+'失去 '+p+' HP。'); } if(D.stun&&chance(D.stun)){ monSkipN=(monSkipN||0)+1; say('combat','震：'+mon.n+'被打得站不穩，下一擊會落空。'); } { const rg=(D.regen||0)+(job().regen||0)+(aDef(eqA()).regen||0)+accSum('regen')+.02*eatF('slime'); if(rg>0){ const h=Math.round(body.hpMax*rg); if(h>0&&body.hp<body.hpMax){ body.hp=Math.min(body.hpMax,body.hp+h); say('gain','回復：HP +'+h); } } } if(D.burn){ const b=Math.round(atkNow()*D.burn); mon.hp-=b; say('combat','餘熱：'+b+' 傷害。'); } if(D.leech&&d>0){ const h=Math.round(d*D.leech); if(h>0){ body.hp=Math.min(body.hpMax,body.hp+h); say('gain','吸血：HP +'+h); } } }
+function afterHit(d){ const D=wDef(eqW()); if(eat('ash')&&d>0){ const bd=Math.max(1,Math.round(atkNow()*.1*eatF('ash'))); mon.hp-=bd; say('combat','餘燼：'+fmt(bd)+' 傷害。'); } if(eat('bat')&&d>0&&body.hp<body.hpMax){ const h=Math.max(1,Math.round(d*.05*eatF('bat'))); body.hp=Math.min(body.hpMax,body.hp+h); say('gain','吸血：HP +'+h); } if(D.poison){ const p=Math.max(1,Math.round(mon.hpMax*D.poison)); mon.hp-=p; say('combat','毒：'+mon.n+'失去 '+p+' HP。'); } if(D.stun&&chance(D.stun)){ monSkipN=(monSkipN||0)+1; say('combat','震：'+mon.n+'被打得站不穩，下一擊會落空。'); } { const rg=(D.regen||0)+(job().regen||0)+(aDef(eqA()).regen||0)+accSum('regen')+.02*eatF('slime'); if(rg>0){ const h=Math.max(1,Math.round(body.hpMax*rg)); if(h>0&&body.hp<body.hpMax){ body.hp=Math.min(body.hpMax,body.hp+h); say('gain','回復：HP +'+h); } } } if(D.burn){ const b=Math.round(atkNow()*D.burn); mon.hp-=b; say('combat','餘熱：'+b+' 傷害。'); } if(D.leech&&d>0){ const h=Math.round(d*D.leech); if(h>0){ body.hp=Math.min(body.hpMax,body.hp+h); say('gain','吸血：HP +'+h); } } }
 function playerAct(k){
   turnNo++; if(!k) k=body.mode;
   if(eat('bug')){ const p=Math.max(1,Math.round(mon.hpMax*0.08*eatF('bug'))); mon.hp-=p; say('combat','蛛毒：'+mon.n+'失去 '+p+' HP。'); }
