@@ -113,6 +113,8 @@
   @media(min-width:900px){ .close{display:none} }
   #opts .grid{display:grid;grid-template-columns:1fr 1fr;gap:.35rem;margin-top:.2rem}
   #opts .grid button.opt{margin:0;font-size:.85rem;padding:.4rem .6rem;color:var(--paper-dim)}
+  /* 電腦版：右側面板已經顯示的資訊（角色、任務、圖鑑）不再放按鈕 */
+  @media(min-width:900px){ #opts button.side{display:none} }
   @media(max-width:899px){
     header{padding:.35rem .7rem;gap:.4rem .8rem}
     header h1{font-size:.95rem}
@@ -155,7 +157,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.6.7';
+const VERSION='2.6.8';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -731,11 +733,11 @@ function setOptions(list,hint,noExtras){
   if(!inCombat&&(typing||tq.length)){ opts.innerHTML='<div class="hint wait">文字顯示中……點上方的箭頭列加速。</div>'; afterFns.push(()=>{ if(!inCombat) setOptions(list,hint,noExtras); }); return; }
   if(body&&!inCombat){ checkQuests(); checkAchs(); renderAchs(); }
   opts.innerHTML=hint?'<div class="hint">'+hint+'</div>':'';
-  if(body&&!inCombat&&!noExtras){ if(sysIs('panel')&&body.freePts>0) list=list.concat([{t:'分配屬性點（未分配 '+body.freePts+'）', ab:1, f:panelMenu}]); list=list.concat([{t:'裝備與道具', f:gearMenu},{t:'任務日誌', keep:true, f:showJournal},{t:'圖鑑與成就', keep:true, f:showAchs},{t:'數值說明', keep:true, f:showFormula},{t:'查看狀態與持有物', keep:true, f:showStatus}]); }
+  if(body&&!inCombat&&!noExtras){ if(sysIs('panel')&&body.freePts>0) list=list.concat([{t:'分配屬性點（未分配 '+body.freePts+'）', ab:1, f:panelMenu}]); list=list.concat([{t:'裝備與道具', f:gearMenu},{t:'任務日誌', keep:true, side:1, f:showJournal},{t:'圖鑑與成就', keep:true, side:1, f:showAchs},{t:'數值說明', keep:true, f:showFormula},{t:'查看狀態與持有物', keep:true, side:1, f:showStatus}]); }
   if(sysIs('omni')&&list.length){ const best=list.find(o=>o.ab&&!/^(窺探|調查)/.test(o.t))||list.find(o=>/裂谷|狩獵/.test(o.t)); if(best) best.t='★ '+best.t; }
   scrollBottom(); save();
   const isNav=o=>!o.ab&&/^(退回|返回|回大殿|回市集|回王都|回難民營|去市集|去裂谷|去王座廳|去王城市集|去騎士團|去神殿|去北門|去南方|出發|查看狀態|安全線|跟奧文去|關閉商城|先不分配|算了|走開|不碰|不賣|不賭|不買了|不了|離開|裝備與道具|任務日誌|圖鑑與成就|數值說明)/.test(o.t);
-  const mk=o=>{ const b=document.createElement('button'); b.className='opt'+(o.ab?' ab':''); b.textContent=o.t; b.disabled=!!o.dis; b.onclick=()=>{ if(o.keep){o.f();return;} opts.innerHTML=''; say('info','— '+o.t); o.f(); }; return b; };
+  const mk=o=>{ const b=document.createElement('button'); b.className='opt'+(o.ab?' ab':'')+(o.side?' side':''); b.textContent=o.t; b.disabled=!!o.dis; b.onclick=()=>{ if(o.keep){o.f();return;} opts.innerHTML=''; say('info','— '+o.t); o.f(); }; return b; };
   list.filter(o=>!isNav(o)).forEach(o=>opts.appendChild(mk(o)));
   const nav=list.filter(isNav); if(nav.length){ const g=document.createElement('div'); g.className='grid'; nav.forEach(o=>g.appendChild(mk(o))); opts.appendChild(g); }
 }
