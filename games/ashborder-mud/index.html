@@ -166,7 +166,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.6.10';
+const VERSION='2.7.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -1167,7 +1167,7 @@ function stockWord(loc,res){ const m=stockOf(loc,res); const s0=(STOCK0[loc]||{}
 function canSeeStock(){ return sysIs('omni')||sysIs('trader'); }
 function exKnown(id){ return sysIs('trader')||!!body.facts['ex_'+id]; }
 function exchangeOptions(where,back){
-  const list=EXCH.filter(e=>e.where===where&&exKnown(e.id)); if(!list.length) return null;
+  const list=EXCH.filter(e=>exWhere(e)===where&&exKnown(e.id)); if(!list.length) return null;
   return {t:'交換（你知道 '+list.length+' 條管道）', f:()=>{
     const o=[];
     const nameOf=k=>k.startsWith('rep_')?({rep_people:'民心',rep_knight:'騎士團聲望'})[k]:RES[k];
@@ -1196,9 +1196,12 @@ function exchangeOptions(where,back){
     o.push({t:'不換了', f:back}); setOptions(o,'交換　每個人隔幾天才需要一批貨；沒人送，需求會囤，最多囤三輪。價格看他手上有多少。'+(canSeeStock()?'你看得見存量。':'你只看得出大概。'));
   }};
 }
-function npcAt(n){ if(n.n==='書記官'&&body.flags.ledgerHow==='steal') return 'camp'; return n.where; }
+function caravanIn(){ return !!(body&&body.flags.ev&&body.flags.ev.caravan); }
+function riftClosed(){ return !!(body&&body.flags.ending); }
+function npcAt(n){ if(n.n==='書記官'&&body.flags.ledgerHow==='steal') return 'camp'; if(n.n==='商隊頭子'&&caravanIn()) return 'market'; return n.where; }
+function exWhere(e){ if(e.npc==='商隊頭子'&&caravanIn()) return 'market'; return e.where; }
 /* 離開或死亡的人：地窖老人死於魔物潮；國王病逝；奧文在揭發結局後被押走 */
-function npcGone(name){ if(!body) return false; if(name==='地窖老人') return !!body.flags.oldDead; if(name==='國王') return !!body.flags.kingDead; if(name==='奧文') return body.flags.ending==='expose'; return false; }
+function npcGone(name){ if(!body) return false; if(name==='地窖老人') return !!body.flags.oldDead; if(name==='國王') return !!body.flags.kingDead; if(name==='奧文') return body.flags.ending==='expose'; if(name==='第六勇者') return body.flags.ending==='seal'; return false; }
 function npcHere(n,where){ return npcAt(n)===where&&(!n.show||n.show())&&!npcGone(n.n); }
 function talkOptions(where,back){
   const here=NPCS.filter(n=>npcHere(n,where)); if(!here.length) return null;
@@ -1505,6 +1508,7 @@ N.north=(again)=>{ lastNode=N.north;
 N.south=()=>{ lastNode=N.south;
   place('南方哨站');
   if(!body.flags.south){ body.flags.south=1; spendDay('走到南方哨站'); story(TXT.south1); }
+  else if(caravanIn()){ if(!body.flags.southAfter){ body.flags.southAfter=1; story(TXT.south_after); } else say('narr',rnd(TXT.south_after_re)); }
   else say('narr',rnd(TXT.south_re));
   const o=[];
   if(!fact('route')){
@@ -1513,13 +1517,18 @@ N.south=()=>{ lastNode=N.south;
     o.push({t:'談判：用真相和民心說服他', ab:fact('truth')&&body.rep.people>=20, dis:!(fact('truth')&&body.rep.people>=20), f:()=>{ openRoute(TXT.route_talk); }});
     if(sysIs('luck')&&soul.luck>=40) o.push({t:'氣運：跟他賭一把', ab:1, f:()=>{ openRoute('你們擲骰子。你連贏七把。他把骰子扔進火裡。「路給你。別再來了。」'); }});
   }
-  if(fact('route')&&!hasW('scimitar')) o.push({t:'跟商隊頭子買一把曲刀（300 金）', dis:body.gold<300, f:()=>{ body.gold-=300; say('npc','「南方的鋼。別拿去砍柴。」'); giveWeapon('scimitar'); status(); N.south(); }});
-  if(fact('route')) o.push({t:'跟商隊做生意（裂谷核每枚 '+Math.round(world.price*1.6)+' 金）', dis:body.cores<1, f:()=>{ const n=body.cores; body.gold+=Math.round(world.price*1.6)*n; body.cores=0; say('gain','賣出 '+n+' 枚，金幣 +'+Math.round(world.price*1.6)*n); status(); N.south(); }});
+  if(fact('route')&&!caravanIn()) chiefOptions(o,N.south);
   { const t=talkOptions('south',N.south); if(t) o.push(t); const x=exchangeOptions('south',N.south); if(x) o.push(x); }
-  omniOptions(o,'south',N.south,['商隊頭子']);
+  omniOptions(o,'south',N.south,caravanIn()?[]:['商隊頭子']);
   o.push({t:'回市集（一天路程）', f:()=>{ spendDay('回王都'); N.market(); }});
   setOptions(o);
 };
+/* 商隊頭子的生意：商路剛通時在哨站；商隊進城後搬到市集口的南方商行 */
+function chiefOptions(o,back){
+  const tag=caravanIn()?'南方商行：':'';
+  if(!hasW('scimitar')) o.push({t:tag+'跟商隊頭子買一把曲刀（300 金）', dis:body.gold<300, f:()=>{ body.gold-=300; say('npc','「南方的鋼。別拿去砍柴。」'); giveWeapon('scimitar'); status(); back(); }});
+  o.push({t:tag+'跟商隊做生意（裂谷核每枚 '+Math.round(world.price*1.6)+' 金）', dis:body.cores<1, f:()=>{ const n=body.cores; body.gold+=Math.round(world.price*1.6)*n; body.cores=0; say('gain','賣出 '+n+' 枚，金幣 +'+Math.round(world.price*1.6)*n); status(); back(); }});
+}
 function clerkOptions(o,back,here){
   const clerkHere=(here==='camp')===(body.flags.ledgerHow==='steal'); if(!clerkHere) return;
   if(fact('ledger')&&!fact('names')&&(body.talked['書記官']||0)>=3) o.push({t:'請書記官讓你看帳冊的背面', ab:1, f:()=>{ talk(TXT.ledger_back); learn('names','帳冊背面：三十年來死於魔物的人的名字。'); back(); }});
@@ -1534,7 +1543,7 @@ function ending(k){
   const T={seal:'封印',expose:'揭發',release:'放歸',leave:'離開'}[k];
   say('title','結局：'+T);
   if(k==='leave'){ story(TXT.end_leave); const e=TXT.epi; const ps=[body.flags.kingCured?e.cured:body.flags.kingDead?e.dead:e.sick]; if(fact('ledger')) ps.push(e.exposed); if(fact('witness')) ps.push(e.witness); if(body.flags.sixthPath) ps.push(e.sixth); if(body.rep.people>=30) ps.push(e.people); if(ps.length===1) ps.push(e.none); story(ps.join('\n\n')); } else story(TXT.end[k]);
-  body.flags.ending=k; soul.endings=soul.endings||[]; if(!soul.endings.includes(k)) soul.endings.push(k); body.rep.crown+=50; addLuck(30,'改變一個世界');
+  body.flags.ending=k; body.floor=1; body.autoHunt=false; body.idleArmed=false; soul.endings=soul.endings||[]; if(!soul.endings.includes(k)) soul.endings.push(k); body.rep.crown+=50; addLuck(30,'改變一個世界');
   say('gain','稱號：「'+({seal:'守誓者',expose:'揭幕者',release:'開門人',leave:'過客'})[k]+'」。灰燼邊境的故事在你手上'+(k==='leave'?'停了':'寫完了')+'。');
   sysText('一個世界結束了。你還在。這就是有系統的意思。');
   say('info','（穿越到下一個世界尚未開放。你可以留在灰燼邊境繼續，或轉生重新開始。）');
@@ -1551,12 +1560,13 @@ N.market=()=>{ lastNode=N.market; if(pendingEvent(N.market)) return;
   if(body.pelts>0) o.push({t:'賣獸皮（'+body.pelts+' 張，每張 25 金）', f:()=>{ body.gold+=25*body.pelts; say('gain','金幣 +'+25*body.pelts); body.pelts=0; status(); N.market(); }});
   if(body.herbs>1) o.push({t:'賣灰葉草（留 1 株，每株 15 金）', f:()=>{ const n=body.herbs-1; body.gold+=15*n; body.herbs=1; say('gain','金幣 +'+15*n); status(); N.market(); }});
   if(body.relics>0) o.push({t:'把遺物交給王室（每件王室聲望 +5、民心 +3）', f:()=>{ body.rep.crown+=5*body.relics; body.rep.people+=3*body.relics; say('gain','王室聲望 +'+5*body.relics+'，民心 +'+3*body.relics); body.relics=0; status(); N.market(); }});
+  if(caravanIn()) chiefOptions(o,N.market);
   o.push({t:'冒險者公會', f:N.guild}); o.push({t:'拍賣所', f:N.auction}); o.push({t:'酒館（休息、傳聞）', f:N.tavern}); o.push({t:'教堂（治療、祝福、轉生）', f:N.chapel}); o.push({t:'武器店（武器、防具、飾品）', f:N.wshop}); o.push({t:'道具店', f:stallMenu});
   o.push({t:'去北門難民營', f:N.camp}); o.push({t:'去南方哨站（一天路程）', f:N.south});
   o.push({t:'出發：灰燼森林', f:()=>N.region('forest')}); o.push({t:'出發：北方雪原', f:()=>N.region('snow')}); if(fact('route')) o.push({t:'出發：南方港市', f:()=>N.region('port')}); o.push({t:'出發：東方礦坑', f:()=>N.region('mine')});
   o.push({t:'去裂谷', f:N.rift}); o.push({t:'回大殿', f:N.hall}); if(body.flags.throne) o.push({t:'去王座廳', f:N.throne});
   { const t=talkOptions('market',N.market); if(t) o.push(t); const x=exchangeOptions('market',N.market); if(x) o.push(x); }
-  omniOptions(o,'market',N.market,['南方商人']); townExtras(o,N.market); setOptions(o);
+  omniOptions(o,'market',N.market,caravanIn()?['南方商人','商隊頭子']:['南方商人']); townExtras(o,N.market); setOptions(o);
 };
 function stallMenu(){ lastNode=stallMenu; place('王城市集 · 道具店');
   if(!body.flags.stall){ body.flags.stall=1; story(TXT.market_stall); } else say('narr','獨眼的老闆娘抬了抬下巴。「先付錢。」');
@@ -1584,7 +1594,7 @@ N.wshop=()=>{ lastNode=N.wshop; place('王城市集 · 武器店');
 /* 冒險者公會：委託與等級 */
 const GUILD_RANK=[['F',0],['E',3],['D',8],['C',15],['B',25],['A',40],['S',60]];
 function guildRank(){ const p=body.guildPts||0; let r='F'; GUILD_RANK.forEach(([n,t])=>{ if(p>=t) r=n; }); return r; }
-function newBounty(){ const pool=floorPool(Math.min(9,Math.max(1,body.maxFloor||1))).concat(MONSTERS.filter(m=>m.region&&!m.lvl&&body.regionFlags[m.region]&&Math.min(...m.depths)<=regionDepthOf(m.region))); const m=rnd(pool); body.bounty={key:m.key, n:0, need:3, day:body.day, reward:Math.round(NUM.killGold(m.tier)*8)}; }
+function newBounty(){ const reg=MONSTERS.filter(m=>m.region&&!m.lvl&&body.regionFlags[m.region]&&Math.min(...m.depths)<=regionDepthOf(m.region)); const pool=(riftClosed()&&reg.length)?reg:floorPool(Math.min(9,Math.max(1,body.maxFloor||1))).concat(reg); const m=rnd(pool); body.bounty={key:m.key, n:0, need:3, day:body.day, reward:Math.round(NUM.killGold(m.tier)*8)}; }
 N.guild=()=>{ lastNode=N.guild; place('王城市集 · 冒險者公會');
   if(!body.flags.guild){ body.flags.guild=1; story(TXT.guild1); } else say('narr',rnd(TXT.guild_re));
   say('info','公會等級 <b>'+guildRank()+'</b>（完成委託 '+(body.guildPts||0)+' 件）');
@@ -1801,6 +1811,11 @@ let pending=null, ready=false;
 function chooseAct(k){ body.mode=k; if(ready){ ready=false; pending=null; playerAct(k); if(inCombat){ pT=pInterval(); renderCombat(); } } else { pending=k; say('info','下一次行動：'+MODES[k]); renderCombat(); } save(); }
 
 N.rift=()=>{ lastNode=N.rift;
+  if(riftClosed()){ body.floor=1; body.autoHunt=false; body.idleArmed=false; place('裂谷'); const k=body.flags.ending;
+    if(!body.flags.riftClosedSeen){ body.flags.riftClosedSeen=1; story(TXT.rift_closed[k]); } else say('narr',rnd(TXT.rift_closed_re[k]));
+    const o=[{t:'返回王城', f:N.market}];
+    { const t=talkOptions('rift',N.rift); if(t) o.push(t); const x=exchangeOptions('rift',N.rift); if(x) o.push(x); }
+    omniOptions(o,'rift',N.rift,body.flags.sixthPath?['第六勇者']:[]); townExtras(o,N.rift); setOptions(o); return; }
   place('裂谷 · 第 '+body.floor+' 層 '+FLOORS[body.floor]);
   if(!body.flags.rift){ body.flags.rift=1; story(TXT.rift1); }
   else if(body.floor>1&&!body.flags['fl'+body.floor]){ body.flags['fl'+body.floor]=1; story(TXT.floor[body.floor]); if(body.floor===4){ story(TXT.pool_look); body.flags.sawPool=1; } }
@@ -1986,6 +2001,7 @@ async function die(force){
    主神空間
    ============================================================ */
 function offlineHunt(saved){
+  if(body.flags.ending) return;
   const hrs=Math.min(8,(Date.now()-saved.savedAt)/H); if(hrs<0.05) return;
   let t=hrs*3600; let kills=0, gold=0, cores=0, xp=0, fled=false, died=false, fights=0;
   const stop=body.hpMax*body.stopHp;
