@@ -166,7 +166,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.7.1';
+const VERSION='2.7.2';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -1612,23 +1612,29 @@ N.guild=()=>{ lastNode=N.guild; place('王城市集 · 冒險者公會');
   setOptions(o,'冒險者公會　委託每天一件，殺三隻回來領錢。');
 };
 /* 拍賣所：每天一件拍品 */
-function auctionPool(){ return Object.keys(ARMORS).filter(k=>!hasA(k)&&!ARMORS[k].any&&!['chain','ironplate','cloth1','core'].includes(k)).map(k=>'A:'+k).concat(Object.keys(ACCS).filter(k=>!hasAcc(k)&&!ACCS[k].sys&&!['strawshoes','clothgloves','kingring'].includes(k)).map(k=>'C:'+k)); }
-function auctionLot(){ const pool=auctionPool(); if(!pool.length) return null; return pool[(body.day*7+(soul.name||'').length)%pool.length]; }
+/* 拍賣品：基本裝備（店裡買得到的、素面的低階貨）不上桌 */
+const AUC_SKIP={A:['chain','ironplate','cloth1','core','hunter'],C:['strawshoes','clothgloves','kingring','leatherboots','leathergloves','ironring']};
+function auctionPool(){ return Object.keys(ARMORS).filter(k=>!hasA(k)&&!ARMORS[k].any&&!AUC_SKIP.A.includes(k)).map(k=>'A:'+k).concat(Object.keys(ACCS).filter(k=>!hasAcc(k)&&!ACCS[k].sys&&!AUC_SKIP.C.includes(k)).map(k=>'C:'+k)); }
+const LOT_GRADES=['精良','稀有','傳說'];
+/* 每天三件：精良、稀有、傳說各一，依日期在該級的池子裡輪流 */
+function auctionLots(){ const pool=auctionPool(); return LOT_GRADES.map(g=>{ const p=pool.filter(l=>lotGrade(l)===g); return p.length?p[(body.day*7+(soul.name||'').length)%p.length]:null; }); }
 /* 拍賣品分級：傳說 1,000 萬、稀有 100 萬、精良依數值。免疫、頂級防具、魔王與龍的東西是傳說。 */
 function lotGrade(l){ const [t,k]=l.split(':'); if(t==='A'){ const D=ARMORS[k]; if(D.res||D.def>=18) return '傳說'; if(D.def>=12||D.ward||D.regen) return '稀有'; return '精良'; } const D=ACCS[k]; if(D.res||['kingring','starring','thunderring','luckring'].includes(k)) return '傳說'; if(isRare(k)) return '稀有'; return '精良'; }
-function lotPrice(l){ const g=lotGrade(l); if(g==='傳說') return 10000000; if(g==='稀有') return 1000000; const [t,k]=l.split(':'); if(t==='A') return ARMORS[k].def*2000; const D=ACCS[k]; return Math.round(10000+((D.atk||0)+(D.def||0))*2000+(D.hp||0)*200+Math.abs(D.spd||0)*20000); }
+function lotPrice(l){ return {'傳說':10000000,'稀有':1000000,'精良':100000}[lotGrade(l)]; }
 function lotText(l){ const [t,k]=l.split(':'); return t==='A'?aText({key:k}):accName(k); }
 N.auction=()=>{ lastNode=N.auction; place('王城市集 · 拍賣所');
   if(!body.flags.auction){ body.flags.auction=1; story(TXT.auction1); } else say('narr',rnd(TXT.auction_re));
-  const o=[]; const lot=auctionLot();
-  if(lot&&body.flags.auctionDay!==body.day){ const p=lotPrice(lot); say('info','今天的拍品：［'+lotGrade(lot)+'］'+lotText(lot)+'　一口價 '+fmt(p)+' 金'); o.push({t:'買下今天的拍品（'+fmt(p)+' 金）', dis:body.gold<p, f:()=>{ body.gold-=p; body.flags.auctionDay=body.day; body.flags.auctionBought=(body.flags.auctionBought||0)+1; const [t,k]=lot.split(':'); say('npc','管事把木槌舉起來，又放下。「成交。」'); if(t==='A') giveArmor(k); else giveAcc(k); status(); N.auction(); }}); }
-  else if(lot) o.push({t:'（今天的拍品已經賣掉了，明天換一件）', dis:true, f:()=>{}});
-  else o.push({t:'（桌上空的。這座城裡值錢的東西你都有了）', dis:true, f:()=>{}});
+  const o=[]; const lots=auctionLots(); const sold=body.flags.auctionSold||(body.flags.auctionSold={});
+  if(!lots.some(Boolean)) o.push({t:'（三張桌子都是空的。這座城裡值錢的東西你都有了）', dis:true, f:()=>{}});
+  lots.forEach((lot,i)=>{ const g=LOT_GRADES[i]; if(!lot){ o.push({t:'（'+g+'的桌子空了。這一級的東西你都有了）', dis:true, f:()=>{}}); return; }
+    if(sold[g]===body.day){ o.push({t:'（'+g+'：今天的拍品已經賣掉了，明天換一件）', dis:true, f:()=>{}}); return; }
+    const p=lotPrice(lot); say('info','［'+g+'］'+lotText(lot)+'　一口價 '+fmt(p)+' 金');
+    const [tt,kk]=lot.split(':'); o.push({t:'買下［'+g+'］'+(tt==='A'?ARMORS[kk].n:ACCS[kk].n)+'（'+fmt(p)+' 金）', dis:body.gold<p, f:()=>{ body.gold-=p; sold[g]=body.day; body.flags.auctionBought=(body.flags.auctionBought||0)+1; const [t,k]=lot.split(':'); say('npc','管事把木槌舉起來，又放下。「成交。」'); if(t==='A') giveArmor(k); else giveAcc(k); status(); N.auction(); }}); });
   if(body.relics>0) o.push({t:'委託拍賣遺物（'+body.relics+' 件，每件 80 金，抽一成）', f:()=>{ const g=Math.round(80*body.relics*0.9); body.gold+=g; say('gain','金幣 +'+g); body.relics=0; status(); N.auction(); }});
   ['worldleaf','frostcrystal','pearl','starmetal'].filter(k=>body[k]>0).forEach(k=>o.push({t:'委託拍賣'+RES[k]+'（'+body[k]+' 個，每個 400 金，抽一成）', f:()=>{ const g=Math.round(400*body[k]*0.9); body.gold+=g; say('npc','管事的手停了一下。「這個……我得另外找買家。」'); say('gain','金幣 +'+g); body[k]=0; status(); N.auction(); }}));
   if(body.pelts>0) o.push({t:'委託拍賣獸皮（'+body.pelts+' 張，每張 35 金，抽一成）', f:()=>{ const g=Math.round(35*body.pelts*0.9); body.gold+=g; say('gain','金幣 +'+g); body.pelts=0; status(); N.auction(); }});
   o.push({t:'回市集', f:N.market});
-  setOptions(o,'拍賣所　一口價。明天是別的東西。');
+  setOptions(o,'拍賣所　三張桌子，精良 10 萬、稀有 100 萬、傳說 1,000 萬。一口價，明天是別的東西。');
 };
 /* 酒館：休息與傳聞 */
 N.tavern=()=>{ lastNode=N.tavern; place('王城市集 · 酒館');
@@ -1798,7 +1804,7 @@ const GATES={
   4:{name:'毒霧', text:TXT.gate[4], check:()=>{ if(resist('poison')>=1) return {ok:true,why:aDef(eqA()).sealed?'法袍把霧擋在外面。奧文沒有騙你。':'霧碰不到你。'}; return {ok:true,why:'霧鑽進來了。你每走一步都在掉血——回頭是來得及的。'}; }, hint:'藥婆說她見過人從毒霧裡走出來——身體不一樣的人，或者喝了她的藥的人。'},
   5:{name:'斷橋', text:TXT.gate[5], check:()=>{ if(hasAcc('windboots')||hasAcc('dragonboots')||hasAcc('sysboots')) return {ok:true,why:'你退了十步，跑起來。落地的時候腳下是對岸的石墩。'}; if(body.rep.knight>=40) return {ok:true,why:'布蘭德派來的工兵在你身後架起了一座新橋。「騎士團欠你的。」'}; if(sysIs('shadow')&&(soul.shadows||0)>=20) return {ok:true,why:'影子軍團在溝上排成一列，你踩著它們的背走過去。'}; if(sysIs('omni')) return {ok:true,why:'你看見了溝底——它沒有你以為的那麼深。你沿著岩壁的凸起爬了過去。'}; return {ok:false,why:'二十步。你跳不過去，也沒有人替你搭橋。'}; }, hint:'跳得過去的靴子、騎士團的工兵（聲望 40）、影子軍團二十個，或者全知的眼睛。'},
   6:{name:'無光迴廊', text:TXT.gate[6], check:()=>{ if(hasA('cloak')) return {ok:true,why:'你把隱身斗篷拉到頭頂。腳步聲從你身邊走過去，沒有停。'}; if(hasA('bishoprobe')) return {ok:true,why:'大主教法衣在黑暗裡發出一點光。腳步聲退開了。'}; if(body.rep.temple>=40) return {ok:true,why:'奧文給你的聖印在胸口發熱。你循著那點熱走到了盡頭。'}; if(sysIs('omni')) return {ok:true,why:'你不需要光。你知道路。'}; if(sysIs('rezero')&&(soul.returns||0)>=3) return {ok:true,why:'你死過三次，記得每一步。'}; return {ok:false,why:'你走了不知道多久，摸到的還是同一面牆。腳步聲一直在你身後。'}; }, hint:'隱身斗篷、大主教法衣、神殿的聖印（聲望 40）、全知，或者死過三次的記憶。'},
-  7:{name:'雷門', text:TXT.gate[7], check:()=>{ let r=0; const add=D=>{ if(D&&D.res&&D.res.lightning) r+=D.res.lightning; }; add(aDef(eqA())); accEq().forEach(add); if(r>=.6) return {ok:true,why:'電光爬到你身上，繞了一圈，找不到地方進去。你走過拱門。'}; if(sysIs('reflect')) return {ok:true,why:'電打在你身上，又彈回拱門。石頭裂了。'}; if(sysIs('ancestor')) return {ok:true,why:'你的血認得這種電。它繞開了。'}; return {ok:false,why:'電光彎過來，你退了回去。左手有一陣子不聽使喚。'}; }, hint:'雷抗性六成以上（絕緣手套、雷之戒、系統接地環），或者反傷、遠古血脈。'},
+  7:{name:'雷門', text:TXT.gate[7], check:()=>{ const r=resist('lightning'); if(r>=1) return {ok:true,why:'雷免疫。電光爬到你身上，連一根頭髮都沒有豎起來。你走過拱門。'}; if(r>=.6) return {ok:true,why:'電光爬到你身上，繞了一圈，找不到地方進去。你走過拱門。'}; if(sysIs('reflect')) return {ok:true,why:'電打在你身上，又彈回拱門。石頭裂了。'}; if(sysIs('ancestor')) return {ok:true,why:'你的血認得這種電。它繞開了。'}; return {ok:false,why:'電光彎過來，你退了回去。左手有一陣子不聽使喚。'}; }, hint:'雷抗性六成以上或雷免疫（絕緣手套、雷之戒、系統接地環、吃過雷霆家族），或者反傷、遠古血脈。'},
   8:{name:'六勇者之門', text:TXT.gate[8], check:()=>{ if(hasW('oldsword')) return {ok:true,why:'你舉起勇者之劍。六具鎧甲一起低下頭，讓開了。'}; if(hasA('bishoprobe')) return {ok:true,why:'牠們看見法衣上的印記。奧文的印記。牠們讓開了。'}; if(body.rep.people>=50) return {ok:true,why:'牠們看你的手，看了很久。然後其中一具說：「他們記得你。」牠們讓開了。'}; if(sysIs('omni')) return {ok:true,why:'你叫出了牠們每一個的名字。牠們讓開了。'}; return {ok:false,why:'牠們看你的手。你的手裡沒有牠們要的東西。'}; }, hint:'第六勇者的劍、大主教法衣、民心 50，或者知道牠們名字的眼睛。'},
   9:{name:'王座之門', text:TXT.gate[9], check:()=>{ if(!fact('truth')) return {ok:false,why:'你不知道它的名字。'}; if(!canFirst()&&defNow()<20){ if(sysIs('rezero')){ body.flags.kingDeaths=(body.flags.kingDeaths||0)+1; if(body.flags.kingDeaths>=3) return {ok:true,why:'第三次。你在它出手前就喊完了名字。'}; return {ok:false,lethal:true,why:'魔王一擊。（死亡回歸：'+body.flags.kingDeaths+'/3）'}; } return {ok:false,lethal:true,why:'魔王一擊。你連名字都沒喊完。'}; } return {ok:true,why:'你喊出了那個名字。門開了。'}; }, hint:'知其名者入。名字之外，還得活過它的第一擊。'},
 };
