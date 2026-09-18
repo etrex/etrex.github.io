@@ -166,7 +166,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.6.9';
+const VERSION='2.6.10';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -909,7 +909,7 @@ function growOld(n,silent){ if(sysIs('ancestor')){ body.age=25; return; } const 
 function omniOptions(o,where,back,people){
   if(!sysIs('omni')) return;
   body.peeked=body.peeked||{};
-  const ppl=(people||[]).filter(n=>TXT.mind[n]&&!(n==='地窖老人'&&body.flags.oldDead));
+  const ppl=(people||[]).filter(n=>TXT.mind[n]&&!npcGone(n));
   if(ppl.length) o.push({t:'窺探某個人的念頭', ab:1, f:()=>{
     setOptions(ppl.map(n=>{ const left=(TXT.mind[n]||[]).length-(body.peeked[n]||0); return {t:n+(left>0?'':'（沒有新的念頭）'), dis:left<=0, f:()=>{ peek(n); status(); back(); }}; }).concat([{t:'算了', f:back}]),'全知：你看著一個人，他的念頭浮上來。每次只看得見最上面那一層。',true);
   }});
@@ -1042,7 +1042,7 @@ N.hall=()=>{ lastNode=N.hall; if(pendingEvent(N.hall)) return;
     say('info','肉身生成完畢：第七勇者，'+body.age+' 歲，等級 '+body.level+'。義務：討伐裂谷魔物 10 隻。'); sys('hello');
   } else say('narr',rnd(body.flags.kingDead?TXT.hall_dead_re:TXT.hall_re));
   const o=[];
-  o.push({t:'跟奧文去王座廳見國王', f:N.throne});
+  o.push({t:npcGone('奧文')?'去王座廳':'跟奧文去王座廳見國王', f:N.throne});
   if(!fact('sixth')) o.push({t:'問奧文：「前六個勇者去哪了？」', f:()=>{ talk(TXT.hall_ask_six); body.rep.temple-=5; say('info','神殿聲望 −5'); N.hall(); }});
   if(fact('brand_knee')&&!body.knee) o.push({t:'走向布蘭德，問：「你的左膝還好嗎？」', ab:1, f:()=>{ story(TXT.hall_knee); body.knee=true; body.rep.knight+=15; say('gain','騎士團聲望 +15。營房路線開放。'); addLuck(5,'折服強者'); N.hall(); }});
   if(!body.knee&&body.questDone){ talk(TXT.hall_quest_done); body.knee=true; say('gain','營房路線開放。'); }
@@ -1197,7 +1197,9 @@ function exchangeOptions(where,back){
   }};
 }
 function npcAt(n){ if(n.n==='書記官'&&body.flags.ledgerHow==='steal') return 'camp'; return n.where; }
-function npcHere(n,where){ return npcAt(n)===where&&(!n.show||n.show())&&!(n.n==='地窖老人'&&body.flags.oldDead); }
+/* 離開或死亡的人：地窖老人死於魔物潮；國王病逝；奧文在揭發結局後被押走 */
+function npcGone(name){ if(!body) return false; if(name==='地窖老人') return !!body.flags.oldDead; if(name==='國王') return !!body.flags.kingDead; if(name==='奧文') return body.flags.ending==='expose'; return false; }
+function npcHere(n,where){ return npcAt(n)===where&&(!n.show||n.show())&&!npcGone(n.n); }
 function talkOptions(where,back){
   const here=NPCS.filter(n=>npcHere(n,where)); if(!here.length) return null;
   return {t:'找人說話（'+here.map(n=>n.n).join('、')+'）', f:()=>{
@@ -1436,22 +1438,23 @@ function spendDay(what){ body.day++; if(body.day%3===0) growOld(1,true); worldTi
 N.temple=()=>{ lastNode=N.temple; if(pendingEvent(N.temple)) return;
   place('神殿');
   if(!body.flags.temple){ body.flags.temple=1; story(TXT.temple1); }
+  else if(npcGone('奧文')) say('narr',rnd(TXT.temple_owen_gone_re));
   else say('narr',rnd(body.flags.ledgerHow==='steal'?TXT.temple_stolen_re:TXT.temple_re));
-  const o=[];
+  const o=[]; const ow=!npcGone('奧文');
   if(!fact('ledger')){
-    if(body.rep.temple>=10) o.push({t:'請奧文讓你看神殿的帳冊', f:()=>{ talk(TXT.temple_ledger_friend); body.flags.ledgerHow='friend'; learn('ledger','帳冊：三十年來，神殿每年把裂谷核賣給南方，數量比王國的稅收還多。'); N.temple(); }});
+    if(ow&&body.rep.temple>=10) o.push({t:'請奧文讓你看神殿的帳冊', f:()=>{ talk(TXT.temple_ledger_friend); body.flags.ledgerHow='friend'; learn('ledger','帳冊：三十年來，神殿每年把裂谷核賣給南方，數量比王國的稅收還多。'); N.temple(); }});
     else if(body.rep.temple<=-20) o.push({t:'趁奧文不在，跟書記官要帳冊', ab:body.rep.people>=10, f:()=>{ if(body.rep.people>=10||sysIs('omni')||(sysIs('luck')&&soul.luck>=30)){ talk(TXT.temple_ledger_steal); body.flags.ledgerHow='steal'; learn('ledger','帳冊：三十年來，神殿每年把裂谷核賣給南方，數量比王國的稅收還多。'); } else { talk(TXT.temple_no_trust); say('info','他需要理由相信你。民心 10，或讓他看見你的眼睛。'); } N.temple(); }});
     else o.push({t:'旁敲側擊神殿的帳', f:()=>{ talk(TXT.temple_ask_ledger); say('info','要嘛成為神殿的朋友（聲望 10），要嘛成為它的敵人（聲望 −20），中間人什麼都看不到。'); N.temple(); }});
   }
   clerkOptions(o,N.temple,'temple');
-  if(body.flags.vaultKnown&&!fact('mold')){ if(body.rep.temple>=40) o.push({t:'奧文說要帶你去看一樣東西', ab:1, f:()=>{ talk(TXT.vault_owen); body.flags.owenConfess=1; say('npc','奧文把法杖遞給你。「拿著。下去的時候比劍有用。」'); giveWeapon('bishopstaff'); say('npc','他又把法衣脫下來披在你肩上。「這件也拿去。我用不到了。」'); giveArmor('bishoprobe'); learn('mold','神殿的模子：三個記號連起來，門就開了。'); N.temple(); }}); else o.push({t:'夜裡潛入神殿庫房（要神殿聲望 −20，或民心 20）', ab:1, dis:!(body.rep.temple<=-20||body.rep.people>=20), f:()=>{ story(TXT.vault_sneak); learn('mold','神殿的模子：三個記號連起來，門就開了。'); body.rep.temple-=10; say('info','神殿聲望 −10'); N.temple(); }}); }
-  if((body.rep.temple<=-30||fact('mold'))&&!body.flags.owenDeal) o.push({t:'奧文想跟你談談', f:()=>{ body.flags.owenDeal=1; talk(TXT.temple_owen_deal); learn('ritual','冬至，神殿要在裂谷底舉行儀式。'); say('info','神殿聲望 +20（他把你當成可以談的人）'); body.rep.temple+=20; N.temple(); }});
-  if(body.rep.temple>=0&&!fact('ritual')&&body.flags.temple) o.push({t:'問奧文冬天怎麼辦', f:()=>{ talk(TXT.temple_ritual); learn('ritual','冬至，神殿要在裂谷底舉行儀式。'); N.temple(); }});
+  if(ow&&body.flags.vaultKnown&&!fact('mold')){ if(body.rep.temple>=40) o.push({t:'奧文說要帶你去看一樣東西', ab:1, f:()=>{ talk(TXT.vault_owen); body.flags.owenConfess=1; say('npc','奧文把法杖遞給你。「拿著。下去的時候比劍有用。」'); giveWeapon('bishopstaff'); say('npc','他又把法衣脫下來披在你肩上。「這件也拿去。我用不到了。」'); giveArmor('bishoprobe'); learn('mold','神殿的模子：三個記號連起來，門就開了。'); N.temple(); }}); else o.push({t:'夜裡潛入神殿庫房（要神殿聲望 −20，或民心 20）', ab:1, dis:!(body.rep.temple<=-20||body.rep.people>=20), f:()=>{ story(TXT.vault_sneak); learn('mold','神殿的模子：三個記號連起來，門就開了。'); body.rep.temple-=10; say('info','神殿聲望 −10'); N.temple(); }}); }
+  if(ow&&(body.rep.temple<=-30||fact('mold'))&&!body.flags.owenDeal) o.push({t:'奧文想跟你談談', f:()=>{ body.flags.owenDeal=1; talk(TXT.temple_owen_deal); learn('ritual','冬至，神殿要在裂谷底舉行儀式。'); say('info','神殿聲望 +20（他把你當成可以談的人）'); body.rep.temple+=20; N.temple(); }});
+  if(ow&&body.rep.temple>=0&&!fact('ritual')&&body.flags.temple) o.push({t:'問奧文冬天怎麼辦', f:()=>{ talk(TXT.temple_ritual); learn('ritual','冬至，神殿要在裂谷底舉行儀式。'); N.temple(); }});
   if(body.relics>0&&!body.regionFlags.relicRead) o.push({t:'請書記官解讀雪原的遺物', f:()=>{ body.regionFlags.relicRead=1; talk(TXT.temple_relic); if(!fact('witness')) learn('witness','遺物上的記號和神殿的徽章是同一個模子。'); N.temple(); }});
-  if(body.flags.templeDeedDay!==body.day) o.push({t:'替神殿辦事：送 3 份墨或 5 株灰葉草（神殿聲望 +5，計入貢獻）', dis:body.ink<3&&body.herbs<5, f:()=>{ if(body.ink>=3) body.ink-=3; else body.herbs-=5; body.flags.templeDeedDay=body.day; body.flags.templeDeeds=(body.flags.templeDeeds||0)+1; body.rep.temple+=5; say('gain','書記官收下了。「奧文會知道是你送的。」貢獻 '+body.flags.templeDeeds); status(); N.temple(); }});
-  if(body.rep.temple>=30&&!hasA('robe')) o.push({t:'奧文說有東西要給你', ab:1, f:()=>{ say('npc','奧文從長桌底下拿出一件疊好的法袍。「我縫的。毒霧穿不透——三十年前我就是穿著它下去的。」'); giveArmor('robe'); giveWeapon('staff'); N.temple(); }});
-  if(body.rep.temple>=60&&!hasW('holylance')) o.push({t:'奧文說神殿有一件聖物該交給你了', ab:1, f:()=>{ say('npc','壁龕最深處有一支槍，槍頭是白的。「三十年沒人碰過。你是第一個配得上它的人。」'); giveWeapon('holylance'); say('npc','「槍旁邊那副鎧，是同一個人留下的。」'); giveArmor('holyplate'); N.temple(); }});
-  if(body.rep.temple>=40&&!hasAcc('holygloves')) o.push({t:'奧文說有一雙手套適合你', ab:1, f:()=>{ say('npc','「洗過聖水的。戴著它，傷口會合得快一點。」'); giveAcc('holygloves'); N.temple(); }});
+  if(body.flags.templeDeedDay!==body.day) o.push({t:'替神殿辦事：送 3 份墨或 5 株灰葉草（神殿聲望 +5，計入貢獻）', dis:body.ink<3&&body.herbs<5, f:()=>{ if(body.ink>=3) body.ink-=3; else body.herbs-=5; body.flags.templeDeedDay=body.day; body.flags.templeDeeds=(body.flags.templeDeeds||0)+1; body.rep.temple+=5; say('gain','書記官收下了。'+(ow?'「奧文會知道是你送的。」':'「神殿會記得的。」')+'貢獻 '+body.flags.templeDeeds); status(); N.temple(); }});
+  if(!npcGone('奧文')&&body.rep.temple>=30&&!hasA('robe')) o.push({t:'奧文說有東西要給你', ab:1, f:()=>{ say('npc','奧文從長桌底下拿出一件疊好的法袍。「我縫的。毒霧穿不透——三十年前我就是穿著它下去的。」'); giveArmor('robe'); giveWeapon('staff'); N.temple(); }});
+  if(!npcGone('奧文')&&body.rep.temple>=60&&!hasW('holylance')) o.push({t:'奧文說神殿有一件聖物該交給你了', ab:1, f:()=>{ say('npc','壁龕最深處有一支槍，槍頭是白的。「三十年沒人碰過。你是第一個配得上它的人。」'); giveWeapon('holylance'); say('npc','「槍旁邊那副鎧，是同一個人留下的。」'); giveArmor('holyplate'); N.temple(); }});
+  if(!npcGone('奧文')&&body.rep.temple>=40&&!hasAcc('holygloves')) o.push({t:'奧文說有一雙手套適合你', ab:1, f:()=>{ say('npc','「洗過聖水的。戴著它，傷口會合得快一點。」'); giveAcc('holygloves'); N.temple(); }});
   if(body.rep.temple>=50&&!hasAcc('wardneck')) o.push({t:'書記官從聖物匣裡取出一條項鍊', ab:1, f:()=>{ say('npc','「這是給第一個勇者的。他沒有回來拿。」'); giveAcc('wardneck'); N.temple(); }});
   o.push({t:'捐獻（100 金，神殿聲望 +10）', dis:body.gold<100, f:()=>{ body.gold-=100; body.rep.temple+=10; say('gain','神殿聲望 +10'); status(); N.temple(); }});
   if(body.flags.owenDeal&&!body.flags.ending){ const need=[]; if(body.cores<10) need.push('儀式要 10 枚裂谷核當引'); if((body.flags.templeDeeds||0)<2) need.push('奧文要看你替神殿做過事（'+(body.flags.templeDeeds||0)+'/2）'); if(body.rep.temple<20) need.push('神殿聲望 20');
