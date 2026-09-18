@@ -166,7 +166,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.7.0';
+const VERSION='2.7.1';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -1203,16 +1203,19 @@ function exWhere(e){ if(e.npc==='商隊頭子'&&caravanIn()) return 'market'; re
 /* 離開或死亡的人：地窖老人死於魔物潮；國王病逝；奧文在揭發結局後被押走 */
 function npcGone(name){ if(!body) return false; if(name==='地窖老人') return !!body.flags.oldDead; if(name==='國王') return !!body.flags.kingDead; if(name==='奧文') return body.flags.ending==='expose'; if(name==='第六勇者') return body.flags.ending==='seal'; return false; }
 function npcHere(n,where){ return npcAt(n)===where&&(!n.show||n.show())&&!npcGone(n.n); }
+/* 結局之後每個人的話都變了：先講結局後的話，講完才是「沒有新的話」 */
+function endLines(n){ const k=body.flags.ending; if(!k) return null; const L=(TXT.npc_end[n.n]||{})[k]; if(L) return L; return k==='leave'?TXT.npc_end_leave:null; }
 function talkOptions(where,back){
   const here=NPCS.filter(n=>npcHere(n,where)); if(!here.length) return null;
   return {t:'找人說話（'+here.map(n=>n.n).join('、')+'）', f:()=>{
     const o=here.map(n=>({t:n.n, f:()=>{ const c=body.talked[n.n]||0; body.talked[n.n]=c+1;
       if(n.cond&&!n.cond()){ say('npc',n.lines[0]); say('info',n.condText); back(); return; }
-      say('npc',n.lines[Math.min(c,n.lines.length-1)]); if(n.onTalk) n.onTalk();
+      const EL=endLines(n); let cc=c, LL=n.lines; if(EL){ body.talkedEnd=body.talkedEnd||{}; cc=body.talkedEnd[n.n]||0; body.talkedEnd[n.n]=cc+1; LL=EL; }
+      say('npc',LL[Math.min(cc,LL.length-1)]); if(n.onTalk) n.onTalk();
       [n.sched,n.sched2].filter(Boolean).forEach(k=>{ if(!body.facts['sched_'+k]&&c>=1){ body.facts['sched_'+k]=1; say('gain','情報：'+CRAFT[k].hint); } });
       const rv=n.reveals.filter(id=>!body.facts['ex_'+id]);
       if(rv.length){ const id=rv[0]; body.facts['ex_'+id]=1; if(sysIs('omni')){ body.coreCap+=1; say('gain','博聞：背包 +1'); } const e=EXCH.find(x=>x.id===id); say('gain','情報：'+e.text); addLuck(2,'打聽消息'); }
-      else if(c>=n.lines.length) say('info','他沒有新的話要說。');
+      else if(cc>=LL.length) say('info','他沒有新的話要說。');
       back(); }}));
     o.push({t:'不聊了', f:back}); setOptions(o,'找人說話');
   }};
