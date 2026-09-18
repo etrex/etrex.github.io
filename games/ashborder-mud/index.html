@@ -93,6 +93,15 @@
   aside .slot{padding:.4rem 0;border-bottom:1px dashed var(--rule)}
   aside .slot b{color:var(--paper)}
   aside .slot span{color:var(--paper-dim);display:block}
+  aside .kv{display:flex;justify-content:space-between;gap:.6rem;padding:.08rem 0;font-size:.84rem;line-height:1.5}
+  aside .kv i{font-style:normal;color:var(--paper-dim);flex:none}
+  aside .kv em{font-style:normal;color:var(--paper);text-align:right;word-break:break-all}
+  aside .kv em.dim{color:var(--paper-dim)}
+  aside .chips{display:flex;flex-wrap:wrap;gap:.25rem .4rem;padding:.15rem 0}
+  aside .chips span{display:inline-block;padding:0 .4rem;border:1px solid var(--rule);border-radius:3px;font-size:.78rem;color:var(--paper-dim);line-height:1.6}
+  aside .chips span.on{color:var(--paper);border-color:var(--paper-dim)}
+  aside .line{display:block;font-size:.84rem;color:var(--paper-dim);padding:.08rem 0}
+  aside .cols{display:grid;grid-template-columns:1fr 1fr;gap:0 .8rem}
   aside .cost{color:var(--ember)}
   aside ul{margin:.2rem 0 0;padding-left:1.1rem;color:var(--paper-dim)}
   aside li{margin-bottom:.25rem}
@@ -157,7 +166,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.6.8';
+const VERSION='2.6.9';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -279,7 +288,8 @@ const SYSTEMS={
     {n:'三選一', d:()=>'系統丟給你三個選項：金幣、攻擊力永久 +1、HP 上限永久 +2。每 18 秒一次，每日 100 次（'+growInfo('choice')+'）。'},
     {n:'選擇即正義', d:()=>'選項的獎勵永遠掛在你的等級基準上，越晚越大。'}]},
   devour:{name:'吞噬進化系統', skills:[
-    {n:'捕食', d:()=>'吃掉你殺死的魔物，得到牠的家族特質。效果依該家族吃過的最高階級成長，吃到五階才是滿值。二十四個家族各一種，滿值例如：狼的速度（先手、攻速 −0.3）、蛛的毒（敵人每回合失去最大 HP 8%）、魔像的硬皮（防禦 +30%）、惡魔的心（攻擊 +15%）、魔王的力（攻擊 +30%）、各種免疫……'+(body&&body.eaten?'　已吃：'+(Object.keys(body.eaten).filter(k=>DEVOUR[k]).map(k=>devText(k,body.eaten[k])).join('；')||'無'):'')},
+    {n:'捕食', d:()=>'吃掉你殺死的魔物，得到牠的家族特質。效果依該家族吃過的最高階級成長，吃到五階才是滿值。二十四個家族各一種，滿值例如：狼的速度（先手、攻速 −0.3）、蛛的毒（敵人每回合失去最大 HP 8%）、魔像的硬皮（防禦 +30%）、惡魔的心（攻擊 +15%）、魔王的力（攻擊 +30%）、各種免疫……'},
+    {n:'已吃的家族', d:()=>{ const l=body&&body.eaten?Object.keys(body.eaten).filter(k=>DEVOUR[k]):[]; return l.length?l.map(k=>'<span class="line">・'+devText(k,body.eaten[k])+'</span>').join('')+'<span class="line">'+l.length+' / '+Object.keys(DEVOUR).length+' 種</span>':'還沒有吃過任何家族。'; }},
     {n:'血肉累積', d:()=>'每吃一隻，HP 上限永久 +1（目前 +'+eatHp()+'）。沒有冷卻，不限次數。'},
     {n:'進化', d:()=>'吃過 8 個家族：進化，攻擊與 HP ×1.5；16 個：超進化 ×2；24 個：究極進化 ×3。'+(body?'（目前 '+eatN()+' 種'+(evoStage()?'，'+EVO[evoStage()][1]:'')+'）':'')}]},
   infinite:{name:'無限升級系統', skills:[
@@ -754,17 +764,23 @@ function status(){
 const FACT_NAME={names:'帳冊背面的名簿',mold:'神殿的模子',buyer:'神殿的買家',brand_knee:'布蘭德的舊傷',owen_hide:'奧文在隱瞞',hall_door:'大殿暗門',sixth:'第六勇者還活著',sixth_path:'裂谷小徑',truth:'裂谷的真相',king_ill:'國王在生病',core_price:'裂谷核的價格',ledger:'神殿的帳冊',ritual:'冬至的儀式',witness:'孩子看見的東西',cure:'國王的藥方',route:'南方商路'};
 function renderChar(){
   const c=document.getElementById('charCard'); if(!body){c.innerHTML='<h2>角色</h2><div class="slot"><span>尚未降生。</span></div>';return;}
-  const items=(body.weapons||[]).map((w,i)=>(i===body.wpn?'▶ ':'')+wName(w)).concat((body.armors||[]).map((a,i)=>(i===body.arm?'▶ ':'')+aName(a))).concat((body.accs||[]).filter(a=>ACCS[a.key]).map(a=>(body.acc&&body.acc[ACCS[a.key].slot]===a.key?'▶ ':'')+ACCS[a.key].n+'［'+ASLOT[ACCS[a.key].slot]+'］')).concat(body.armorPlus?['加固 +'+body.armorPlus]:[]).concat(body.flags.seal?['裂谷之印']:[]).concat(body.revive?['鳳凰之尾 ×'+body.revive]:[]);
-  c.innerHTML='<h2>'+esc(soul.name)+'</h2>'+
-    '<div class="slot"><b>Lv '+body.level+'</b><span>經驗值 '+fmt(body.xp)+'/'+fmt(xpNeed(body.level))+'｜攻擊力 '+atkNow()+'｜防禦力 '+defNow()+'｜HP '+body.hp+'/'+body.hpMax+'</span></div>'+
-    '<div class="slot"><b>'+job().n+'</b><span>'+job().desc+(allWeapons()?'（系統：全武器可用）':'')+'</span></div>'+
-    '<div class="slot"><b>抗性</b><span>'+Object.keys(ENV).map(k=>ENV[k].n+' '+(resist(k)>=1?'免疫':Math.round(resist(k)*100)+'%')).join('｜')+(body.flags.blessed?'｜已受祝福':'')+'</span></div>'+
-    '<div class="slot"><b>'+body.age+' 歲</b><span>'+(sysIs('ancestor')?'壽元無盡':'肉身係數 ×'+ageFactor(body.age).toFixed(2))+'｜第 '+body.day+' 天</span></div>'+
-    '<div class="slot"><b>持有</b><span>金幣 '+body.gold+'｜裂谷核 '+body.cores+'｜背包 '+load()+'/'+body.coreCap+(sysIs('shop')?'｜積分 '+soul.points:'')+(sysIs('luck')?'｜氣運 '+soul.luck:'')+'</span><span>灰葉草 '+body.herbs+'｜獸皮 '+body.pelts+'｜遺物 '+body.relics+'｜礦石 '+body.ore+'</span>'+(['worldleaf','frostcrystal','pearl','starmetal'].some(k=>body[k]>0)?'<span>稀有素材：'+['worldleaf','frostcrystal','pearl','starmetal'].filter(k=>body[k]>0).map(k=>RES[k]+' '+body[k]).join('、')+'</span>':'')+'<span>'+items.join('、')+'</span><span>道具：'+itemsText()+'</span></div>'+
-    (sysIs('panel')?'<div class="slot"><b>屬性點</b><span>攻 '+body.pts.atk+'｜防 '+body.pts.def+'｜體 '+body.pts.hp+'｜運 '+body.pts.luck+'｜未分配 '+body.freePts+'</span></div>':'')+
-    '<div class="slot"><b>聲望</b><span>騎士團 '+body.rep.knight+'｜神殿 '+body.rep.temple+'｜王室 '+body.rep.crown+'｜民心 '+body.rep.people+'</span></div>'+
-    (body.flags.quest?'<div class="slot"><b>義務</b><span>討伐 '+Math.min(body.quest,10)+'/10'+(body.questDone?'（完成）':'')+'</span></div>':'')+
-    (Object.keys(body.facts).length?'<div class="slot"><b>已知</b><span>'+Object.keys(body.facts).map(k=>FACT_NAME[k]||(k.startsWith('ex_')?'管道：'+(EXCH.find(e=>e.id===k.slice(3))||{text:k}).text:k.startsWith('sched_')?CRAFT[k.slice(6)].hint:k)).join('、')+'</span></div>':'');
+  const kv=(k,v,dim)=>'<div class="kv"><i>'+k+'</i><em'+(dim?' class="dim"':'')+'>'+v+'</em></div>';
+  const chips=list=>list.length?'<div class="chips">'+list.map(([t,on])=>'<span'+(on?' class="on"':'')+'>'+t+'</span>').join('')+'</div>':'';
+  const slot=(title,inner)=>'<div class="slot"><b>'+title+'</b>'+inner+'</div>';
+  const accOf=sl=>{ const k=body.acc&&body.acc[sl]; return k&&ACCS[k]?ACCS[k].n:'—'; };
+  const spare=(body.weapons||[]).length-1+(body.armors||[]).length-1+Math.max(0,(body.accs||[]).length-accEq().length);
+  const resMain=['herbs','pelts','relics','ore'].map(k=>[RES[k]+' '+body[k],body[k]>0]);
+  const resOther=['grain','salt','timber','fish','ink','coal','worldleaf','frostcrystal','pearl','starmetal'].filter(k=>body[k]>0).map(k=>[RES[k]+' '+body[k],true]);
+  c.innerHTML='<h2>'+esc(soul.name)+'　<span style="font-weight:400;font-size:.85rem;color:var(--paper-dim)">'+job().n+' Lv '+body.level+'</span></h2>'+
+    slot('狀態', kv('經驗值',fmt(body.xp)+' / '+fmt(xpNeed(body.level)))+kv('攻擊力',fmt(atkNow()))+kv('防禦力',fmt(defNow())+'（減傷 '+defPct()+'%）')+kv('HP',fmt(body.hp)+' / '+fmt(body.hpMax))+kv('攻速',pInterval().toFixed(1)+' 秒')+kv('年齡',body.age+' 歲'+(sysIs('ancestor')?'（壽元無盡）':'（肉身 ×'+ageFactor(body.age).toFixed(2)+'）'))+kv('日子','第 '+body.day+' 天'))+
+    slot('職業　'+job().n, '<span class="line">'+job().desc+(allWeapons()?'（系統：全武器可用）':'')+'</span>')+
+    slot('抗性', '<div class="cols">'+Object.keys(ENV).map(k=>kv(ENV[k].n,resist(k)>=1?'免疫':Math.round(resist(k)*100)+'%',resist(k)<=0)).join('')+'</div>'+(body.flags.blessed?'<span class="line">已受祝福：下一場再減傷兩成</span>':''))+
+    slot('裝備', kv('武器',wDef(eqW()).n)+kv('防具',aDef(eqA()).n+(body.armorPlus?'（加固 +'+body.armorPlus+'）':''))+kv('鞋',accOf('boots'),accOf('boots')==='—')+kv('手套',accOf('gloves'),accOf('gloves')==='—')+kv('項鍊',accOf('neck'),accOf('neck')==='—')+kv('戒指',accOf('ring'),accOf('ring')==='—')+(spare>0?'<span class="line">背包裡另有 '+spare+' 件裝備</span>':'')+(body.flags.seal?'<span class="line">裂谷之印：所受傷害減少</span>':'')+(body.revive?'<span class="line">鳳凰之尾 ×'+body.revive+'</span>':''))+
+    slot('持有', kv('金幣',fmt(body.gold))+kv('裂谷核',body.cores)+kv('背包',load()+' / '+body.coreCap)+(sysIs('shop')?kv('積分',soul.points):'')+(sysIs('luck')?kv('氣運',soul.luck):'')+chips(resMain.concat(resOther))+'<span class="line">道具：'+itemsText()+'</span>')+
+    (sysIs('panel')?slot('屬性點', '<div class="cols">'+kv('攻',body.pts.atk)+kv('防',body.pts.def)+kv('體',body.pts.hp)+kv('運',body.pts.luck)+'</div>'+kv('未分配',body.freePts)):'')+
+    slot('聲望', '<div class="cols">'+kv('騎士團',body.rep.knight)+kv('神殿',body.rep.temple)+kv('王室',body.rep.crown)+kv('民心',body.rep.people)+'</div>')+
+    (body.flags.quest?slot('義務', kv('討伐',Math.min(body.quest,10)+' / 10'+(body.questDone?'（完成）':''))):'')+
+    (Object.keys(body.facts).length?slot('已知', Object.keys(body.facts).map(k=>'<span class="line">・'+(FACT_NAME[k]||(k.startsWith('ex_')?'管道：'+(EXCH.find(e=>e.id===k.slice(3))||{text:k}).text:k.startsWith('sched_')?CRAFT[k.slice(6)].hint:k))+'</span>').join('')):'');
 }
 /* ============================================================
    任務：主線三幕、四條派閥線、支線
@@ -1014,7 +1030,8 @@ const ACHS=[
 function checkAchs(){ if(!body) return; soul.ach=soul.ach||{}; ACHS.forEach(a=>{ if(soul.ach[a.id]) return; let ok=false; try{ ok=a.c(); }catch(e){} if(ok){ soul.ach[a.id]=1; say('ach',a.n+'——'+a.d); addLuck(5,'成就'); } }); }
 function renderAchs(){ const c=document.getElementById('achCard'); if(!body){ c.innerHTML='<h2>圖鑑與成就</h2><div class="slot"><span>尚未降生。</span></div>'; return; }
   const got=Object.keys(soul.ach||{}).length; const known=Object.keys(FACT_NAME).filter(fact).length;
-  const col='<div class="slot"><b>圖鑑</b><span>認識的人 '+NPCS.filter(n=>body.talked[n.n]).length+'/'+NPCS.length+'｜交換管道 '+EXCH.filter(e=>exKnown(e.id)).length+'/'+EXCH.length+'｜秘密 '+known+'/'+Object.keys(FACT_NAME).length+'</span><span>武器 '+(body.weapons||[]).length+'/'+Object.keys(WEAPONS).length+'｜防具 '+(body.armors||[]).length+'/'+Object.keys(ARMORS).length+'｜飾品 '+(body.accs||[]).length+'/'+Object.keys(ACCS).length+'｜用過的道具 '+Object.keys(body.flags.used||{}).length+'/'+Object.keys(ITEMS).length+'｜到過的地方 '+PLACES.filter(p=>body.flags.been&&body.flags.been[p]).length+'/'+PLACES.length+'｜魔物 '+Object.keys(body.flags.seen||{}).length+'/'+(MONSTERS.length+1)+'</span></div>';
+  const kv=(k,v)=>'<div class="kv"><i>'+k+'</i><em>'+v+'</em></div>';
+  const col='<div class="slot"><b>圖鑑</b><div class="cols">'+kv('認識的人',NPCS.filter(n=>body.talked[n.n]).length+' / '+NPCS.length)+kv('交換管道',EXCH.filter(e=>exKnown(e.id)).length+' / '+EXCH.length)+kv('秘密',known+' / '+Object.keys(FACT_NAME).length)+kv('武器',(body.weapons||[]).length+' / '+Object.keys(WEAPONS).length)+kv('防具',(body.armors||[]).length+' / '+Object.keys(ARMORS).length)+kv('飾品',(body.accs||[]).length+' / '+Object.keys(ACCS).length)+kv('用過的道具',Object.keys(body.flags.used||{}).length+' / '+Object.keys(ITEMS).length)+kv('到過的地方',PLACES.filter(p=>body.flags.been&&body.flags.been[p]).length+' / '+PLACES.length)+kv('魔物',Object.keys(body.flags.seen||{}).length+' / '+(MONSTERS.length+1))+'</div></div>';
   c.innerHTML='<h2>圖鑑與成就（'+got+'/'+ACHS.length+'）</h2>'+col+ACHS.map(a=>'<div class="ach'+(soul.ach&&soul.ach[a.id]?' on':'')+'"><b>'+(soul.ach&&soul.ach[a.id]?'✓ ':'')+a.n+'</b>　'+a.d+'</div>').join(''); }
 function showAchs(){ if(!body) return; const got=ACHS.filter(a=>soul.ach&&soul.ach[a.id]); say('info','圖鑑：認識的人 '+NPCS.filter(n=>body.talked[n.n]).length+'/'+NPCS.length+'、交換管道 '+EXCH.filter(e=>exKnown(e.id)).length+'/'+EXCH.length+'、秘密 '+Object.keys(FACT_NAME).filter(fact).length+'/'+Object.keys(FACT_NAME).length+'、武器 '+(body.weapons||[]).length+'/'+Object.keys(WEAPONS).length+'、防具 '+(body.armors||[]).length+'/'+Object.keys(ARMORS).length+'、飾品 '+(body.accs||[]).length+'/'+Object.keys(ACCS).length+'、用過的道具 '+Object.keys(body.flags.used||{}).length+'/'+Object.keys(ITEMS).length+'、到過的地方 '+PLACES.filter(p=>body.flags.been&&body.flags.been[p]).length+'/'+PLACES.length+'\n成就 '+got.length+'/'+ACHS.length+'：'+(got.map(a=>a.n).join('、')||'還沒有')+'\n未達成：'+ACHS.filter(a=>!(soul.ach&&soul.ach[a.id])).map(a=>a.n+'（'+a.d+'）').join('、')); }
 const N={};
