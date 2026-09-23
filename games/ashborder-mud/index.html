@@ -169,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.8.3';
+const VERSION='2.8.4';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -1362,6 +1362,21 @@ const REGIONS={
       {t:'雪暴來了。', o:[
         {t:'找地方躲（一天）', f:()=>{ spendDay('躲雪暴'); }},
         {t:'硬走', f:()=>{ const d=Math.round(body.hpMax*.3); body.hp=Math.max(1,body.hp-d); say('hurt','凍傷。HP −'+d); }}]},
+      {t:'一輛行商的馬車凍在冰裡，車轅朝天。車上的布蓋還在，底下鼓鼓的。', o:[
+        {t:'撬開來看', f:()=>{ if(chance(.6)){ const k=chance(.5)?'salt':'grain'; const n=k==='salt'?2:4; addRes(k,n); say('gain',RES[k]+' +'+n+'。凍了不知道多少年，還能用。'); } else { const d=Math.round(body.hpMax*.15); body.hp=Math.max(1,body.hp-d); say('hurt','冰裂了。你的腳陷進去，拔出來的時候靴子裡全是水。HP −'+d); } }},
+        {t:'不碰', f:()=>{}}]},
+      {t:'廢村的一間屋子還有屋頂。灶是冷的，柴堆在牆角，沒有人動過。', o:[
+        {t:'生火歇一會', f:()=>{ if(body.regionFlags.snowFireDay===body.day){ say('info','柴已經燒完了。'); return; } body.regionFlags.snowFireDay=body.day; const h=Math.round(body.hpMax*.3); body.hp=Math.min(body.hpMax,body.hp+h); say('gain','火升起來的時候屋子裡響了一聲，是冰在化。HP +'+h); }},
+        {t:'翻柴堆', f:()=>{ if(chance(.4)){ addRes('relics',1); say('gain','柴底下壓著一塊木牌，刻著神殿的記號。遺物 +1'); } else if(chance(.5)){ addRes('pelts',2); say('gain','兩張硝好的皮，硬得像板子。獸皮 +2'); } else say('info','只有柴。'); }},
+        {t:'離開', f:()=>{}}]},
+      {t:'一隻白狼躺在雪裡，後腿夾在獵人的鐵夾裡。牠看著你，沒有叫。', o:[
+        {t:'打開鐵夾', f:()=>{ body.rep.people+=2; addLuck(5,'善行'); addItem('trap',1); say('gain','牠一瘸一瘸地走了，走幾步回頭看你一次。你把鐵夾收起來。捕獸夾 +1，民心 +2'); }},
+        {t:'取皮', f:()=>{ addRes('pelts',2); say('gain','獸皮 +2。牠到最後都沒有叫。'); addLuck(-3,'殺了一隻不能動的東西'); }},
+        {t:'走開', f:()=>{}}]},
+      {t:'湖面上有個人鑿了個洞在釣魚。他旁邊的桶裡已經有半桶。「幫我拉一下網，分你一些。」', o:[
+        {t:'幫他拉網（一天）', f:()=>{ spendDay('拉網'); addRes('fish',5); say('gain','魚乾 +5。他把魚在冰上一條一條攤開，說明天就乾了。'); }},
+        {t:'買他桶裡的魚（每條 8 金）', req:()=>body.gold>=8, q:()=>({unit:'條', max:Math.min(space(),Math.floor(body.gold/8),20), cost:n=>fmt(8*n)+' 金', f:n=>{ body.gold-=8*n; addRes('fish',n); say('gain','魚乾 +'+n); }})},
+        {t:'不了', f:()=>{}}]},
       {t:'雪下面有東西在動。', fight:true}]},
   port:{name:'南方港市', res:'fish', resName:'魚乾', res2:'salt', depths:['碼頭','商會','總督府'], threat:0.1,
     intro:TXT.region.port,
