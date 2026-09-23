@@ -78,6 +78,9 @@
   button.opt.ab{border-left:3px solid var(--gold)}
   button.opt.ab::after{content:" — 能力選項";color:var(--gold);font-size:.8rem}
   button.opt:disabled{opacity:.45;cursor:default}
+  .qtyrow{display:flex;gap:.4rem;margin:0 0 .45rem}
+  .qtyrow input{flex:1;margin:0;min-width:0}
+  .qtyrow button.opt{width:auto;margin:0;flex:none}
   input.name{
     width:100%;font:inherit;padding:.5rem .7rem;background:var(--ink-2);color:var(--paper);
     border:1px solid var(--rule);border-radius:3px;margin:0 0 .5rem;
@@ -166,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.7.2';
+const VERSION='2.8.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -747,10 +750,26 @@ function setOptions(list,hint,noExtras){
   if(sysIs('omni')&&list.length){ const best=list.find(o=>o.ab&&!/^(窺探|調查)/.test(o.t))||list.find(o=>/裂谷|狩獵/.test(o.t)); if(best) best.t='★ '+best.t; }
   scrollBottom(); save();
   const isNav=o=>!o.ab&&/^(退回|返回|回大殿|回市集|回王都|回難民營|去市集|去裂谷|去王座廳|去王城市集|去騎士團|去神殿|去北門|去南方|出發|查看狀態|安全線|跟奧文去|關閉商城|先不分配|算了|走開|不碰|不賣|不賭|不買了|不了|離開|裝備與道具|任務日誌|圖鑑與成就|數值說明)/.test(o.t);
-  const mk=o=>{ const b=document.createElement('button'); b.className='opt'+(o.ab?' ab':'')+(o.side?' side':''); b.textContent=o.t; b.disabled=!!o.dis; b.onclick=()=>{ if(o.keep){o.f();return;} opts.innerHTML=''; say('info','— '+o.t); o.f(); }; return b; };
+  const mk=o=>{ if(o.input){ const d=document.createElement('div'); d.className='qtyrow'; const inp=document.createElement('input'); inp.type='number'; inp.min=1; inp.max=o.max; inp.value=Math.min(o.max,1); inp.className='name'; inp.placeholder='輸入數量'; const b=document.createElement('button'); b.className='opt'; const upd=()=>{ const n=Math.floor(Number(inp.value)||0); b.textContent='確定 '+n+' '+o.unit+(n>=1&&n<=o.max?'（'+o.cost(n)+'）':''); }; inp.oninput=upd; upd(); b.onclick=()=>{ opts.innerHTML=''; say('info','— 數量 '+inp.value); o.run(inp.value); }; inp.onkeydown=e=>{ if(e.key==='Enter') b.onclick(); }; d.appendChild(inp); d.appendChild(b); return d; }
+    const b=document.createElement('button'); b.className='opt'+(o.ab?' ab':'')+(o.side?' side':''); b.textContent=o.t; b.disabled=!!o.dis; b.onclick=()=>{ if(o.keep){o.f();return;} opts.innerHTML=''; say('info','— '+o.t); o.f(); }; return b; };
   list.filter(o=>!isNav(o)).forEach(o=>opts.appendChild(mk(o)));
   const nav=list.filter(isNav); if(nav.length){ const g=document.createElement('div'); g.className='grid'; nav.forEach(o=>g.appendChild(mk(o))); opts.appendChild(g); }
 }
+/* ===== 數量交易：可重複的買賣都能輸入數量（一次性的裝備與劇情物品除外） ===== */
+function qtyMenu(q){
+  const max=Math.max(0,Math.floor(q.max||0)); const unit=q.unit||'個';
+  const run=n=>{ n=Math.floor(Number(n)||0); if(n<1||n>max){ say('info','數量要在 1 到 '+max+' 之間。'); qtyMenu(q); return; } q.f(n); status(); q.back(); };
+  const o=[];
+  [1,10,100,1000].filter(n=>n<max).forEach(n=>o.push({t:n+' '+unit+'（'+q.cost(n)+'）', f:()=>run(n)}));
+  if(max>=1) o.push({t:'全部 '+max+' '+unit+'（'+q.cost(max)+'）', f:()=>run(max)});
+  o.push({input:1, unit, max, cost:q.cost, run});
+  o.push({t:'算了', f:q.back});
+  setOptions(o, q.title+'　最多 '+max+' '+unit+'。'+(q.note||''), true);
+}
+const capN=(a,b)=>Math.min(a==null?1e9:a,b);
+function buyQ(title,unit,price,back,f,limit){ qtyMenu({title, unit, max:capN(limit,Math.floor(body.gold/price)), cost:n=>fmt(price*n)+' 金', f:n=>{ body.gold-=price*n; f(n); }, back}); }
+function sellQ(title,unit,have,price,back,f,note){ qtyMenu({title, unit, max:have, cost:n=>'+'+fmt(price*n)+' 金', note, f:n=>{ body.gold+=price*n; f(n); }, back}); }
+function payQ(title,unit,res,each,back,f,limit){ qtyMenu({title, unit, max:capN(limit,Math.floor(body[res]/each)), cost:n=>RES[res]+' −'+fmt(each*n), f:n=>{ body[res]-=each*n; f(n); }, back}); }
 function defGainPct(){ const k=repAtk(body.floor); const D=defNow(); const ehp=d=>(k+d)/k; return ((ehp(D+1)/ehp(D)-1)*100).toFixed(1); }
 function showFormula(){ const D=defNow(); const r=k=>Math.round(100*D/(k+D)); say('info','數值說明\n攻擊 =（8 + 等級×2 + 武器 + 永久加成 + 屬性點 + 飾品）× 1.15^(等級−5) × 肉身係數　現在：'+atkBase()+' × '+levelMul(lv()).toFixed(2)+' × '+(sysIs('ancestor')?1:ageFactor(body.age)).toFixed(2)+' = '+atkNow()+'\n你打魔物 = 攻擊 × 0.85～1.15 − 魔物防禦（穿刺無視防禦、弱點 ×2 無視防禦）\n魔物打你 = 魔物攻擊² ÷（魔物攻擊力 + 防禦）　防禦 '+D+' 對第一層的犬減傷 '+r(7)+'%、蛛 '+r(10)+'%、巨獸 '+r(16)+'%、魔王 '+r(24)+'%；魔物越深越強，防禦要跟著長\n環境 = HP 上限 × 環境係數（火 15%、冰 12%、毒 10%、雷 20%）×（1 − 抗性），每一步一次，戰鬥中每次被攻擊再 0.3 次\n防禦 = 防具 + 加固 + 屬性點 + 等級 + 永久加成 + 職業 + 飾品；防具與飾品的「再減」在防禦之後另外乘，合計最多六成\nHP =（40 + 等級×4 + 永久加成 + 屬性點×3 + 飾品）× 1.15^(0.8×(等級−5))\n魔物 = Lv1 基礎值 × 成長率^(等級−1)，每種魔物成長率不同（HP 約 1.18、攻擊約 1.15、防禦約 1.18）；裂谷 1～9 層魔物等級 1～4、4～8、8～12、12～17、17～22、22～28、28～34、34～40、40～46，魔王固定 Lv 50、火龍固定 Lv 46\n經驗值 = 4 × 1.25^(魔物等級−1) × 1.5^(階級−3)（三階為準，一階 0.44 倍、五階 2.25 倍）；升級需要 = 同級三階魔物一隻的經驗 × 隻數 x(L)（Lv 5 起 12 隻、每級 ×1.7，Lv 10 起 900 隻、每級 ×1.06）\n每個地點都有一到五階各一種魔物，階級越高越少見（出現權重 5：3.5：2：1：0.4）\n擊殺金幣 = 5 × 1.2^(魔物等級−1) ×（1 + 0.25×(階級−1)），系統與飾品加成另外乘上去\n年齡：20 歲前 ×0.85，40 歲起每歲 −2%，60 歲起每歲 −1%（最低 0.4）'); }
 function showStatus(){ say('info','<b>'+esc(soul.name)+'</b>　Lv '+body.level+'（經驗值 '+fmt(body.xp)+'/'+fmt(xpNeed(body.level))+'）｜攻擊力 '+atkNow()+'｜防禦力 '+defNow()+'｜HP '+body.hp+'/'+body.hpMax+'\n'+body.age+' 歲｜第 '+body.day+' 天\n金幣 '+body.gold+'｜裂谷核 '+body.cores+'｜背包 '+load()+'/'+body.coreCap+'\n武器：'+wText(eqW())+'\n道具：'+itemsText()+'\n資源：'+(Object.keys(RES).filter(k=>k!=='gold'&&k!=='cores'&&body[k]>0).map(k=>RES[k]+' '+body[k]).join('、')||'無')+'\n聲望：騎士團 '+body.rep.knight+'、神殿 '+body.rep.temple+'、王室 '+body.rep.crown+'、民心 '+body.rep.people+(body.flags.quest?'｜義務 '+Math.min(body.quest,10)+'/10':'')); }
@@ -944,15 +963,16 @@ function shopMenu(back){
   const half=!body.flags['shop'+new Date().toDateString()];
   const P=(p)=>half?Math.ceil(p/2):p;
   const buy=(cost,f)=>()=>{ if(soul.points<cost){ say('hurt','積分不足。'); shopMenu(back); return; } soul.points-=cost; body.flags['shop'+new Date().toDateString()]=1; f(); status(); shopMenu(back); };
+  const buyN=(title,unit,cost,f,limit)=>()=>qtyMenu({title, unit, max:capN(limit,Math.floor(soul.points/cost)), cost:n=>fmt(cost*n)+' 點', f:n=>{ soul.points-=cost*n; body.flags['shop'+new Date().toDateString()]=1; f(n); }, back:()=>shopMenu(back)});
   const a=1, h=1;
   setOptions([
-    {t:'回春藥（'+P(20)+' 點）年輕 3 歲', ab:1, dis:soul.points<P(20), f:buy(P(20),()=>{ body.age=Math.max(16,body.age-3); say('gain','年齡 −3'); })},
+    {t:'回春藥（'+P(20)+' 點）年輕 3 歲', ab:1, dis:soul.points<P(20)||body.age<=16, f:buyN('回春藥','瓶',P(20),n=>{ body.age=Math.max(16,body.age-3*n); say('gain','年齡 −'+3*n); },Math.ceil((body.age-16)/3))},
     {t:'攻擊力永久 +'+a+'（'+P(30)+' 點，'+growInfo('shop')+'）', ab:1, dis:soul.points<P(30)||!growReady('shop'), f:buy(P(30),()=>{ grow('shop','攻擊力永久 +'+a,()=>{ soul.permAtk+=a; }); })},
     {t:'HP 上限永久 +2（'+P(30)+' 點，'+growInfo('shop')+'）', ab:1, dis:soul.points<P(30)||!growReady('shop'), f:buy(P(30),()=>{ grow('shop','HP 上限 +2',()=>{ soul.permHp+=2; }); })},
-    {t:'藥水（'+P(10)+' 點）', ab:1, dis:soul.points<P(10), f:buy(P(10),()=>{ addItem('hpot',1); say('gain','藥水 +1'); })},
-    {t:'裂谷核（'+P(5)+' 點）', ab:1, dis:soul.points<P(5)||space()<1, f:buy(P(5),()=>{ addRes('cores',1); say('gain','裂谷核 +1'); })},
-    {t:'空間背包（'+P(40)+' 點）背包 +15', ab:1, dis:soul.points<P(40), f:buy(P(40),()=>{ body.coreCap+=15; say('gain','背包 +15 格（現在 '+body.coreCap+'）'); })},
-    {t:'鳳凰之尾（'+P(50)+' 點）', ab:1, dis:soul.points<P(50), f:buy(P(50),()=>{ body.revive++; say('gain','鳳凰之尾 +1'); })},
+    {t:'藥水（'+P(10)+' 點）', ab:1, dis:soul.points<P(10), f:buyN('藥水','瓶',P(10),n=>{ addItem('hpot',n); say('gain','藥水 +'+n); })},
+    {t:'裂谷核（'+P(5)+' 點）', ab:1, dis:soul.points<P(5)||space()<1, f:buyN('裂谷核','枚',P(5),n=>{ addRes('cores',n); say('gain','裂谷核 +'+n); },space())},
+    {t:'空間背包（'+P(40)+' 點）背包 +15', ab:1, dis:soul.points<P(40), f:buyN('空間背包','個',P(40),n=>{ body.coreCap+=15*n; say('gain','背包 +'+15*n+' 格（現在 '+body.coreCap+'）'); })},
+    {t:'鳳凰之尾（'+P(50)+' 點）', ab:1, dis:soul.points<P(50), f:buyN('鳳凰之尾','根',P(50),n=>{ body.revive+=n; say('gain','鳳凰之尾 +'+n); })},
     ...['sysboots','sysgloves','sysneck','sysring'].filter(k=>!hasAcc(k)).map(k=>({t:accName(k)+'（'+P(1500)+' 點）', ab:1, dis:soul.points<P(1500), f:buy(P(1500),()=>{ giveAcc(k); })})),
     {t:'關閉商城', f:back}], half?'今日首購半價':'');
 }
@@ -1190,8 +1210,9 @@ function exchangeOptions(where,back){
         ? '　存量：'+[fromK,toK].filter(k=>stockOf(where,k)).map(k=>RES[k]+' '+stockOf(where,k).v).join('、')
         : '　（'+[fromK,toK].filter(k=>stockOf(where,k)).map(k=>RES[k]+stockWord(where,k)).join('，')+'）';
       const pl=exPool(e.id); const ms=stockOf(where,fromK); const full=ms&&ms.v>((STOCK0[where]||{})[fromK]||0)*2;
-      o.push({t:RES[fromK]+' '+need+' → '+nameOf(toK)+' +'+q+(sysIs('trader')?'（抽成）':'')+'　'+(full?(EX_WHO[e.id]||e.npc)+'的'+RES[fromK]+'堆到沒地方放，暫時不收':demandText(e))+info, dis:body[fromK]<need||pl.pool<=0||full, f:()=>{ doOnce(false); status(); back(); }});
-      o.push({t:'　└ 把他這一輪的需求全部做掉（價格會隨你的交易變動）', dis:body[fromK]<need||pl.pool<=0, f:()=>{ let n=0; const g0=toK==='gold'?body.gold:toK.startsWith('rep_')?body.rep[toK.slice(4)]:body[toK]; while(n<200&&doOnce(true)) n++; const g1=toK==='gold'?body.gold:toK.startsWith('rep_')?body.rep[toK.slice(4)]:body[toK]; say('gain','換了 '+n+' 次：'+RES[fromK]+' −'+need*n+'，'+nameOf(toK)+' +'+(g1-g0)+'。'+(sysIs('trader')?'行商：背包 +'+n+'。':'')+'現在的價：'+quote()+'。'+(exPool(e.id).pool<=0?(EX_WHO[e.id]||e.npc)+'這一輪夠了，過幾天再來。':'')); status(); back(); }});
+      const had=()=>toK==='gold'?body.gold:toK.startsWith('rep_')?body.rep[toK.slice(4)]:body[toK];
+      o.push({t:RES[fromK]+' '+need+' → '+nameOf(toK)+' +'+q+(sysIs('trader')?'（抽成）':'')+'　'+(full?(EX_WHO[e.id]||e.npc)+'的'+RES[fromK]+'堆到沒地方放，暫時不收':demandText(e))+info, dis:body[fromK]<need||pl.pool<=0||full, f:()=>{
+        qtyMenu({title:RES[fromK]+' '+need+' → '+nameOf(toK), unit:'次', max:Math.min(pl.pool,Math.floor(body[fromK]/need),200), cost:n=>RES[fromK]+' −'+need*n+'，約 '+nameOf(toK)+' +'+q*n, note:'價格會隨你的交易變動，換到他不收為止。', f:n=>{ let k=0; const g0=had(); while(k<n&&doOnce(true)) k++; const g1=had(); say('gain','換了 '+k+' 次：'+RES[fromK]+' −'+need*k+'，'+nameOf(toK)+' +'+(g1-g0)+'。'+(sysIs('trader')?'行商：背包 +'+k+'。':'')+'現在的價：'+quote()+'。'+(exPool(e.id).pool<=0?(EX_WHO[e.id]||e.npc)+'這一輪夠了，過幾天再來。':k<n?'他手上的貨堆滿了，只收到這裡。':'')); }, back:()=>{ back(); }}); }});
     });
     o.push({t:'不換了', f:back}); setOptions(o,'交換　每個人隔幾天才需要一批貨；沒人送，需求會囤，最多囤三輪。價格看他手上有多少。'+(canSeeStock()?'你看得見存量。':'你只看得出大概。'));
   }};
@@ -1305,15 +1326,15 @@ const REGIONS={
         {t:'幫他修陷阱（一天）', f:()=>{ spendDay('修陷阱'); addRes('pelts',2); body.rep.people+=3; body.regionFlags.trap=1; say('gain','獸皮 +2，民心 +3。他記住你了。'); }},
         {t:'請他做毛皮斗篷（30 張獸皮、裂谷核 5）', req:()=>body.pelts>=30&&body.cores>=5&&!hasA('fur'), f:()=>{ body.pelts-=30; body.cores-=5; say('npc','「三十張皮，一層一層縫。核磨成粉塞在夾層裡，冰碰不到你。」'); giveArmor('fur'); }},
         {t:'買他的陷阱（2 張獸皮）', req:()=>body.pelts>=2, f:()=>{ body.pelts-=2; addItem('trap',1); say('gain','捕獸夾 +1'); }},
-        {t:'請他縫一層皮襯（3 張獸皮，防禦力 +1）', req:()=>body.pelts>=3, f:()=>{ body.pelts-=3; body.armorPlus=(body.armorPlus||0)+1; say('gain','皮襯：防禦力 +1（現在 '+defNow()+'）'); }},
-        {t:'請他縫一個皮囊（8 張獸皮，背包 +15）', req:()=>body.pelts>=8, f:()=>{ body.pelts-=8; body.coreCap+=15; say('gain','皮囊：背包 +15 格（現在 '+body.coreCap+'）'); }},
+        {t:'請他縫皮襯（每層 3 張獸皮，防禦力 +1）', req:()=>body.pelts>=3, q:()=>({unit:'層', max:Math.floor(body.pelts/3), cost:n=>'獸皮 −'+3*n+'，防禦力 +'+n, f:n=>{ body.pelts-=3*n; body.armorPlus=(body.armorPlus||0)+n; say('gain','皮襯：防禦力 +'+n+'（現在 '+defNow()+'）'); }})},
+        {t:'請他縫皮囊（每個 8 張獸皮，背包 +15）', req:()=>body.pelts>=8, q:()=>({unit:'個', max:Math.floor(body.pelts/8), cost:n=>'獸皮 −'+8*n+'，背包 +'+15*n, f:n=>{ body.pelts-=8*n; body.coreCap+=15*n; say('gain','皮囊：背包 +'+15*n+' 格（現在 '+body.coreCap+'）'); }})},
         {t:'請他做硬皮鎧（5 張獸皮，防禦力 +5）', req:()=>body.pelts>=5&&!hasA('hunter'), f:()=>{ body.pelts-=5; giveArmor('hunter'); }},
         {t:'請他做獵人皮鎧（8 張獸皮，防禦力 +8、採集多一份）', req:()=>body.pelts>=8&&!hasA('hunterplate'), f:()=>{ body.pelts-=8; giveArmor('hunterplate'); }},
         {t:'請他做皮靴（3 張獸皮）', req:()=>body.pelts>=3&&!hasAcc('leatherboots'), f:()=>{ body.pelts-=3; giveAcc('leatherboots'); }},
         {t:'請他做皮手套（3 張獸皮）', req:()=>body.pelts>=3&&!hasAcc('leathergloves'), f:()=>{ body.pelts-=3; giveAcc('leathergloves'); }},
         {t:'請他做雪靴（15 張獸皮）', req:()=>body.pelts>=15&&!hasAcc('snowboots'), f:()=>{ body.pelts-=15; giveAcc('snowboots'); }},
         {t:'請他把霜晶鑲成項鍊（霜晶 3、獸皮 10）', req:()=>body.frostcrystal>=3&&body.pelts>=10&&!hasAcc('frostneck'), f:()=>{ body.frostcrystal-=3; body.pelts-=10; say('npc','他把霜晶對著光看了很久。「這東西我只在雪原深處見過一次。」'); giveAcc('frostneck'); }},
-        {t:'買他的獸皮（60 金一張）', req:()=>body.gold>=60, f:()=>{ body.gold-=60; addRes('pelts',1); say('gain','獸皮 +1。'); }},
+        {t:'買他的獸皮（60 金一張）', req:()=>body.gold>=60, q:()=>({unit:'張', max:Math.min(space(),Math.floor(body.gold/60)), cost:n=>fmt(60*n)+' 金', f:n=>{ body.gold-=60*n; addRes('pelts',n); say('gain','獸皮 +'+n+'。'); }})},
         {t:'買他的短劍（60 金，攻擊力 +3、攻速快 0.5 秒）', req:()=>body.gold>=60&&!hasW('dagger'), f:()=>{ body.gold-=60; giveWeapon('dagger'); }},
         {t:'請他做一把骨之刃（4 張獸皮，會心）', req:()=>body.pelts>=4&&!hasW('bone'), f:()=>{ body.pelts-=4; giveWeapon('bone'); }},
         {t:'走開', f:()=>{}}]},
@@ -1324,8 +1345,8 @@ const REGIONS={
         {t:'憑感覺走（一天）', f:()=>{ spendDay('迷路'); if(sysIs('omni')||(sysIs('luck')&&soul.luck>=30)){ say('gain','你一下就走出來了，順手摘了草。'); addRes('herbs',2); } else say('info','你繞了一整天。'); }},
         {t:'順著溪走', f:()=>{ addRes('herbs',1); say('gain','溪邊有灰葉草。+1'); }}]},
       {t:'樵夫在林緣歇腳，旁邊堆著剛劈好的板子和一個釘到一半的木箱。「板子能釘箱子，木材也賣。」', o:[
-        {t:'請他釘一個木箱（6 根木材，背包 +15）', req:()=>body.timber>=6, f:()=>{ body.timber-=6; body.coreCap+=15; say('gain','木箱：背包 +15 格（現在 '+body.coreCap+'）'); }},
-        {t:'買他的木材（30 金，+3）', req:()=>body.gold>=30, f:()=>{ body.gold-=30; addRes('timber',3); say('gain','木材 +3'); }},
+        {t:'請他釘木箱（每個 6 根木材，背包 +15）', req:()=>body.timber>=6, q:()=>({unit:'個', max:Math.floor(body.timber/6), cost:n=>'木材 −'+6*n+'，背包 +'+15*n, f:n=>{ body.timber-=6*n; body.coreCap+=15*n; say('gain','木箱：背包 +'+15*n+' 格（現在 '+body.coreCap+'）'); }})},
+        {t:'買他的木材（30 金一捆，每捆 3 根）', req:()=>body.gold>=30, q:()=>({unit:'捆', max:Math.min(Math.floor(space()/3),Math.floor(body.gold/30)), cost:n=>fmt(30*n)+' 金，木材 +'+3*n, f:n=>{ body.gold-=30*n; addRes('timber',3*n); say('gain','木材 +'+3*n); }})},
         {t:'走開', f:()=>{}}]},
       {t:'一群灰狼圍了上來。', fight:true}]},
   snow:{name:'北方雪原', res:'relics', resName:'遺物', res2:'fish', depths:['廢村群','凍湖','舊祭壇'], threat:0.3,
@@ -1346,13 +1367,13 @@ const REGIONS={
     intro:TXT.region.port,
     events:[
       {t:'商會在收裂谷核，每枚 '+0+' 金。', dyn:()=>'商會在收裂谷核，每枚 '+Math.round(world.price*2)+' 金。', o:[
-        {t:'全部賣掉', req:()=>body.cores>0, f:()=>{ const n=body.cores; body.gold+=Math.round(world.price*2)*n; body.cores=0; say('gain','金幣 +'+Math.round(world.price*2)*n); }},
+        {t:'賣裂谷核', req:()=>body.cores>0, q:()=>{ const p=Math.round(world.price*2); return {unit:'枚', max:body.cores, cost:n=>'+'+fmt(p*n)+' 金', f:n=>{ body.cores-=n; body.gold+=p*n; say('gain','賣出 '+n+' 枚，金幣 +'+fmt(p*n)); }}; }},
         {t:'不賣', f:()=>{}}]},
       {t:'賭場的門開著。莊家笑得很客氣。', o:[
         {t:'賭 200 金', req:()=>body.gold>=200, f:()=>{ const win=sysIs('luck')?chance(.5+Math.min(.4,soul.luck/200)):chance(.4); if(win){ body.gold+=200; say('gain','贏了。金幣 +200'); } else { body.gold-=200; say('hurt','輸了。金幣 −200'); } }},
         {t:'不賭', f:()=>{}}]},
       {t:'一個走私販想買你的遺物，一件 150 金。', o:[
-        {t:'賣', req:()=>body.relics>0, f:()=>{ body.gold+=150*body.relics; say('gain','金幣 +'+150*body.relics); body.relics=0; body.rep.temple-=5; }},
+        {t:'賣遺物', req:()=>body.relics>0, q:()=>({unit:'件', max:body.relics, cost:n=>'+'+fmt(150*n)+' 金', f:n=>{ body.relics-=n; body.gold+=150*n; body.rep.temple-=5; say('gain','遺物 −'+n+'，金幣 +'+fmt(150*n)+'，神殿聲望 −5'); }})},
         {t:'不賣', f:()=>{}}]},
       {t:'碼頭上有人在等你。不是好人。', fight:true}]},
   mine:{name:'東方礦坑', res:'ore', resName:'礦石', res2:'coal', depths:['坑口','主巷','熔心'], threat:0.2,
@@ -1365,7 +1386,7 @@ const REGIONS={
         {t:'替礦工說話', f:()=>{ body.rep.people+=10; body.regionFlags.sidedMiners=1; say('gain','民心 +10。礦工們記住了你。'); }},
         {t:'替工頭壓下去（80 金酬勞）', f:()=>{ body.gold+=80; body.rep.people-=10; body.regionFlags.sidedBoss=1; say('gain','金幣 +80，民心 −10'); }}]},
       {t:'鐵匠在坑口設了爐，爐邊擺著他打過的東西：一把戰斧、一台礦車、一件發黑的甲、幾塊力量之藥，還有兩瓶塞著布的火油。「礦石五塊，我把你手上的武器打亮一點。別的也能打，看你帶了什麼來。」', o:[
-        {t:'打（礦石 5，手上的武器鋒利 +2）', req:()=>body.ore>=5, f:()=>{ body.ore-=5; eqW().sharp=(eqW().sharp||0)+2; say('gain',wDef(eqW()).n+'鋒利 +2（現在 +'+eqW().sharp+'）'); }},
+        {t:'打（每次礦石 5，手上的武器鋒利 +2）', req:()=>body.ore>=5, q:()=>({unit:'次', max:Math.floor(body.ore/5), cost:n=>'礦石 −'+5*n+'，鋒利 +'+2*n, f:n=>{ body.ore-=5*n; eqW().sharp=(eqW().sharp||0)+2*n; say('gain',wDef(eqW()).n+'鋒利 +'+2*n+'（現在 +'+eqW().sharp+'）'); }})},
         {t:'打一把石斧（礦石 5）', req:()=>body.ore>=5&&!hasW('stoneaxe'), f:()=>{ body.ore-=5; giveWeapon('stoneaxe'); }},
         {t:'打一支鐵槍（礦石 6）', req:()=>body.ore>=6&&!hasW('ironspear'), f:()=>{ body.ore-=6; giveWeapon('ironspear'); }},
         {t:'打一把戰斧（礦石 8，攻擊力 +12、攻速慢 0.5 秒）', req:()=>body.ore>=8&&!hasW('axe'), f:()=>{ body.ore-=8; giveWeapon('axe'); }},
@@ -1377,15 +1398,15 @@ const REGIONS={
         {t:'打一副鐵拳套（礦石 8）', req:()=>body.ore>=8&&!hasAcc('irongauntlet'), f:()=>{ body.ore-=8; giveAcc('irongauntlet'); }},
         {t:'用星鐵打一枚戒指（星鐵 3、礦石 20）', req:()=>body.starmetal>=3&&body.ore>=20&&!hasAcc('starring'), f:()=>{ body.starmetal-=3; body.ore-=20; say('npc','「星鐵。我打了一輩子鐵，這是第二次摸到。」爐火燒了一整夜。'); giveAcc('starring'); }},
         {t:'做一副絕緣手套（礦石 30、木材 20、裂谷核 5，雷抗性六成）', req:()=>body.ore>=30&&body.timber>=20&&body.cores>=5&&!hasAcc('insulgloves'), f:()=>{ body.ore-=30; body.timber-=20; body.cores-=5; say('npc','「樹脂包鐵。雷來了會繞開，大概。」'); giveAcc('insulgloves'); }},
-        {t:'磨一塊力量之藥（礦石 2）', req:()=>body.ore>=2, f:()=>{ body.ore-=2; addItem('whet',1); say('gain','力量之藥 +1'); }},
+        {t:'磨力量之藥（每塊礦石 2）', req:()=>body.ore>=2, q:()=>({unit:'塊', max:Math.floor(body.ore/2), cost:n=>'礦石 −'+2*n, f:n=>{ body.ore-=2*n; addItem('whet',n); say('gain','力量之藥 +'+n); }})},
         {t:'替布蘭德打一副新護膝（礦石 5）', req:()=>qActive('sq_knee')&&!body.flags.newKnee&&body.ore>=5, f:()=>{ body.ore-=5; body.flags.newKnee=1; story(TXT.sq_knee_made); }},
-        {t:'灌兩瓶火油（炭 3）', req:()=>body.coal>=3, f:()=>{ body.coal-=3; addItem('bomb',2); say('gain','炸彈 +2'); }},
+        {t:'灌火油（每 3 塊炭灌兩瓶）', req:()=>body.coal>=3, q:()=>({unit:'份', max:Math.floor(body.coal/3), cost:n=>'炭 −'+3*n+'，炸彈 +'+2*n, f:n=>{ body.coal-=3*n; addItem('bomb',2*n); say('gain','炸彈 +'+2*n); }})},
         {t:'打一件耐熱鎧（礦石 40、灰葉草 15、裂谷核 10，火免疫）', req:()=>body.ore>=40&&body.herbs>=15&&body.cores>=10&&!hasA('heat'), f:()=>{ body.ore-=40; body.herbs-=15; body.cores-=10; say('npc','「四十塊礦打薄，草汁淬，核熔進去。穿著它走火裡，像走水裡。」'); giveArmor('heat'); }},
         {t:'打一把核鑰（礦石 30、裂谷核 15，開裂谷第三層的門）', req:()=>body.ore>=30&&body.cores>=15&&!body.flags.corekey, f:()=>{ body.ore-=30; body.cores-=15; body.flags.corekey=1; say('gain','核鑰：十五枚核嵌在一塊鐵上。裂谷第三層那道門認得它。'); }},
-        {t:'磨一包破甲粉（裂谷核 1）', req:()=>body.cores>=1, f:()=>{ body.cores--; addItem('coredust',1); say('gain','破甲粉 +1'); }},
-        {t:'加一片鐵（礦石 4，防禦力 +1）', req:()=>body.ore>=4, f:()=>{ body.ore-=4; body.armorPlus=(body.armorPlus||0)+1; say('gain','鐵匠把一片鐵釘進你的甲。防禦力 +1（現在 '+defNow()+'）'); }},
-        {t:'熬一罐守護之藥（礦石 2）', req:()=>body.ore>=2, f:()=>{ body.ore-=2; addItem('armoroil',1); say('gain','守護之藥 +1'); }},
-        {t:'打一台礦車（礦石 10，背包 +15）', req:()=>body.ore>=10, f:()=>{ body.ore-=10; body.coreCap+=15; say('gain','礦車：背包 +15 格（現在 '+body.coreCap+'）'); }},
+        {t:'磨破甲粉（每包裂谷核 1）', req:()=>body.cores>=1, q:()=>({unit:'包', max:body.cores, cost:n=>'裂谷核 −'+n, f:n=>{ body.cores-=n; addItem('coredust',n); say('gain','破甲粉 +'+n); }})},
+        {t:'加鐵片（每片礦石 4，防禦力 +1）', req:()=>body.ore>=4, q:()=>({unit:'片', max:Math.floor(body.ore/4), cost:n=>'礦石 −'+4*n+'，防禦力 +'+n, f:n=>{ body.ore-=4*n; body.armorPlus=(body.armorPlus||0)+n; say('gain','鐵匠把鐵片釘進你的甲。防禦力 +'+n+'（現在 '+defNow()+'）'); }})},
+        {t:'熬守護之藥（每罐礦石 2）', req:()=>body.ore>=2, q:()=>({unit:'罐', max:Math.floor(body.ore/2), cost:n=>'礦石 −'+2*n, f:n=>{ body.ore-=2*n; addItem('armoroil',n); say('gain','守護之藥 +'+n); }})},
+        {t:'打礦車（每台礦石 10，背包 +15）', req:()=>body.ore>=10, q:()=>({unit:'台', max:Math.floor(body.ore/10), cost:n=>'礦石 −'+10*n+'，背包 +'+15*n, f:n=>{ body.ore-=10*n; body.coreCap+=15*n; say('gain','礦車：背包 +'+15*n+' 格（現在 '+body.coreCap+'）'); }})},
         {t:'不了', f:()=>{}}]},
       {t:'巷道裡有東西在等。', fight:true}]},
 };
@@ -1411,7 +1432,7 @@ N.region=(r)=>{ lastNode=()=>N.region(r);
     const due=craftToday(r).map(k=>CRAFT[k]); const forced=R.events.find(e=>due.some(c=>c.match(e)));
     const ev=forced||rnd(R.events.filter(e=>!e.fight&&!Object.values(CRAFT).some(c=>c.match(e))));
     say('narr',ev.dyn?ev.dyn():ev.t);
-    setOptions(ev.o.map(op=>({t:op.t, dis:op.req&&!op.req(), f:()=>{ op.f(); status(); N.region(r); }})));
+    setOptions(ev.o.map(op=>({t:op.t, dis:op.req&&!op.req(), f:()=>{ if(op.q){ qtyMenu(Object.assign({title:op.t.replace(/（.*$/,''), back:()=>N.region(r)},op.q())); return; } op.f(); status(); N.region(r); }})));
   }});
   { const streak=body.regionFlags['g_'+r]||0; o.push({t:'在這一帶採集（一天）'+(streak>=3?'　這裡採過很多次了':''), dis:space()<=0, f:()=>{ spendDay('採集'); if(envTick()) return;
     const yieldN=Math.max(1,Math.round((R.res==='gold'?30*d:d)*Math.pow(0.7,streak))); const bonus=(R.res==='ore'&&(aDef(eqA()).ore||chance(eatF('cave')))?1:0)+((job().gather||aDef(eqA()).gather||chance(eatF('forestwolf')))?1:0);
@@ -1462,7 +1483,7 @@ N.temple=()=>{ lastNode=N.temple; if(pendingEvent(N.temple)) return;
   if(!npcGone('奧文')&&body.rep.temple>=60&&!hasW('holylance')) o.push({t:'奧文說神殿有一件聖物該交給你了', ab:1, f:()=>{ say('npc','壁龕最深處有一支槍，槍頭是白的。「三十年沒人碰過。你是第一個配得上它的人。」'); giveWeapon('holylance'); say('npc','「槍旁邊那副鎧，是同一個人留下的。」'); giveArmor('holyplate'); N.temple(); }});
   if(!npcGone('奧文')&&body.rep.temple>=40&&!hasAcc('holygloves')) o.push({t:'奧文說有一雙手套適合你', ab:1, f:()=>{ say('npc','「洗過聖水的。戴著它，傷口會合得快一點。」'); giveAcc('holygloves'); N.temple(); }});
   if(body.rep.temple>=50&&!hasAcc('wardneck')) o.push({t:'書記官從聖物匣裡取出一條項鍊', ab:1, f:()=>{ say('npc','「這是給第一個勇者的。他沒有回來拿。」'); giveAcc('wardneck'); N.temple(); }});
-  o.push({t:'捐獻（100 金，神殿聲望 +10）', dis:body.gold<100, f:()=>{ body.gold-=100; body.rep.temple+=10; say('gain','神殿聲望 +10'); status(); N.temple(); }});
+  o.push({t:'捐獻（每次 100 金，神殿聲望 +10）', dis:body.gold<100, f:()=>buyQ('捐獻','次',100,N.temple,n=>{ body.rep.temple+=10*n; say('gain','神殿聲望 +'+10*n); })});
   if(body.flags.owenDeal&&!body.flags.ending){ const need=[]; if(body.cores<10) need.push('儀式要 10 枚裂谷核當引'); if((body.flags.templeDeeds||0)<2) need.push('奧文要看你替神殿做過事（'+(body.flags.templeDeeds||0)+'/2）'); if(body.rep.temple<20) need.push('神殿聲望 20');
     if(endingReady().includes('seal')) o.push({t:'跟奧文下裂谷封印（他說就是今晚）', ab:1, f:()=>{ body.cores-=10; talk(TXT.seal_go); ending('seal'); }}); else o.push({t:'（封印：'+need.join('；')+'）', dis:true, f:()=>{}}); }
   o.push({t:'回大殿', f:N.hall}); o.push({t:'去市集', f:N.market});
@@ -1476,11 +1497,11 @@ N.camp=()=>{ lastNode=N.camp; if(pendingEvent(N.camp)) return;
   const o=[];
   clerkOptions(o,N.camp,'camp');
   if(body.rep.people>=30&&!body.flags.campBag) o.push({t:'難民營的女人們縫了一個布袋給你（民心 30 以上，容量 +5）', ab:1, f:()=>{ body.flags.campBag=1; body.coreCap+=15; say('gain','布袋：背包 +15 格（現在 '+body.coreCap+'）。「你幫過我們。」'); status(); N.camp(); }});
-  if(body.grain>=3) o.push({t:'送 3 袋糧食（民心 +6）', f:()=>{ body.grain-=3; body.rep.people+=6; body.flags.charity=(body.flags.charity||0)+1; say('gain','民心 +6。'); status(); N.camp(); }});
-  o.push({t:'送糧食（60 金，民心 +10）', dis:body.gold<60, f:()=>{ body.gold-=60; body.rep.people+=10; body.flags.charity=(body.flags.charity||0)+1; say('gain','民心 +10。孩子們不看你的劍了，看你。'); addLuck(3,'善行'); status(); N.camp(); }});
+  if(body.grain>=3) o.push({t:'送糧食（每 3 袋民心 +6，持有 '+body.grain+'）', f:()=>payQ('送糧食','份','grain',3,N.camp,n=>{ body.rep.people+=6*n; body.flags.charity=(body.flags.charity||0)+n; say('gain','糧食 −'+3*n+'，民心 +'+6*n+'。'); })});
+  o.push({t:'出錢買糧送難民營（每次 60 金，民心 +10）', dis:body.gold<60, f:()=>buyQ('出錢買糧','次',60,N.camp,n=>{ body.rep.people+=10*n; body.flags.charity=(body.flags.charity||0)+n; say('gain','民心 +'+10*n+'。孩子們不看你的劍了，看你。'); addLuck(3*n,'善行'); })});
   if(!hasAcc('leafneck')) o.push({t:'請藥婆把世界樹葉封成護符（世界樹葉 3、灰葉草 10）', dis:body.worldleaf<3||body.herbs<10, f:()=>{ body.worldleaf-=3; body.herbs-=10; say('npc','藥婆把葉子放在掌心，葉脈的光照亮她的皺紋。「還活著。掛在心口，它會替你長肉。」'); giveAcc('leafneck'); status(); N.camp(); }});
   if(!hasAcc('antidoteneck')&&fact('cure')) o.push({t:'請藥婆做一條解毒項鍊（灰葉草 30、裂谷核 15）', dis:body.herbs<30||body.cores<15, f:()=>{ body.herbs-=30; body.cores-=15; say('npc','藥婆把草搗碎，和核的粉一起封進一個小囊。「掛著。霧碰不到你。」'); giveAcc('antidoteneck'); status(); N.camp(); }});
-  if(body.cores>0) o.push({t:'把一枚裂谷核給藥婆入藥（民心 +5）', f:()=>{ body.cores--; body.rep.people+=5; body.flags.charity=(body.flags.charity||0)+1; say('gain','民心 +5。藥婆把核收進懷裡。「這東西能入藥，你知道嗎。」'); status(); N.camp(); }});
+  if(body.cores>0) o.push({t:'把裂谷核給藥婆入藥（每枚民心 +5，持有 '+body.cores+'）', f:()=>payQ('裂谷核給藥婆','枚','cores',1,N.camp,n=>{ body.rep.people+=5*n; body.flags.charity=(body.flags.charity||0)+n; say('gain','裂谷核 −'+n+'，民心 +'+5*n+'。藥婆把核收進懷裡。「這東西能入藥，你知道嗎。」'); })});
   if(fact('witness')&&!body.flags.witnessReady) o.push({t:'問孩子願不願意站上證人席（民心 30，並跟孩子談過兩次）', ab:1, dis:!(body.rep.people>=30&&(body.talked['難民孩子']||0)>=2), f:()=>{ story(TXT.witness_ready); body.flags.witnessReady=1; N.camp(); }});
   if(qActive('sq_son')&&!body.flags.sonDone) o.push({t:'把三根木材帶給樵夫的兒子', dis:body.timber<3, f:()=>{ body.timber-=3; body.flags.sonDone=1; body.flags.charity=(body.flags.charity||0)+1; story(TXT.sq_son_done); body.rep.people+=8; body.coreCap+=15; say('gain','民心 +8。樵夫的木箱：背包 +15'); status(); N.camp(); }});
   if(body.rep.people>=10&&!fact('witness')) o.push({t:'聽孩子們說話', f:()=>{ talk(TXT.camp_witness); learn('witness','孩子看見神殿的人在裂谷邊點火，然後魔物才出來。'); N.camp(); }});
@@ -1530,7 +1551,7 @@ N.south=()=>{ lastNode=N.south;
 function chiefOptions(o,back){
   const tag=caravanIn()?'南方商行：':'';
   if(!hasW('scimitar')) o.push({t:tag+'跟商隊頭子買一把曲刀（300 金）', dis:body.gold<300, f:()=>{ body.gold-=300; say('npc','「南方的鋼。別拿去砍柴。」'); giveWeapon('scimitar'); status(); back(); }});
-  o.push({t:tag+'跟商隊做生意（裂谷核每枚 '+Math.round(world.price*1.6)+' 金）', dis:body.cores<1, f:()=>{ const n=body.cores; body.gold+=Math.round(world.price*1.6)*n; body.cores=0; say('gain','賣出 '+n+' 枚，金幣 +'+Math.round(world.price*1.6)*n); status(); back(); }});
+  o.push({t:tag+'跟商隊做生意（裂谷核每枚 '+Math.round(world.price*1.6)+' 金，持有 '+body.cores+'）', dis:body.cores<1, f:()=>{ const p=Math.round(world.price*1.6); sellQ('跟商隊做生意','枚',body.cores,p,back,n=>{ body.cores-=n; say('gain','賣出 '+n+' 枚，金幣 +'+fmt(p*n)); }); }});
 }
 function clerkOptions(o,back,here){
   const clerkHere=(here==='camp')===(body.flags.ledgerHow==='steal'); if(!clerkHere) return;
@@ -1558,11 +1579,10 @@ N.market=()=>{ lastNode=N.market; if(pendingEvent(N.market)) return;
   say('info','裂谷核市價 <b>'+world.price+'</b> 金｜回春藥 '+body.elixirPrice+' 金');
   if(!canSeeWorld()&&worldLog.length&&chance(.35)&&body.flags.lastRumor!==worldLog[worldLog.length-1].ts){ body.flags.lastRumor=worldLog[worldLog.length-1].ts; const e=worldLog[worldLog.length-1].t; const vague=e.replace(/^\S+ /,'有人').replace(/\d[\d,]* ?枚/g,'一大批').replace(/\d[\d,]* ?金/g,'一大筆錢').replace(/市價跌至 \d+/,'把市價砸下去').replace(/\d[\d,]*/g,'很多'); say('npc','商人壓低聲音：「'+vague+'。別問我是誰。」'); }
   const o=[];
-  if(body.cores>0) o.push({t:'賣掉 1 枚裂谷核（'+world.price+' 金）', f:async()=>{ body.cores--; body.gold+=world.price; say('gain','金幣 +'+world.price); movePrice(-0.03); status(); N.market(); }});
-  if(body.cores>1) o.push({t:'賣掉全部裂谷核（'+body.cores+' 枚，'+(world.price*body.cores)+' 金）', f:async()=>{ const n=body.cores; body.gold+=world.price*n; body.cores=0; say('gain','金幣 +'+(world.price*n)); movePrice(-0.02*n); worldEvent(soul.name+' 一口氣賣出 '+n+' 枚裂谷核，市價跌至 '+world.price); status(); N.market(); }});
-  if(body.pelts>0) o.push({t:'賣獸皮（'+body.pelts+' 張，每張 25 金）', f:()=>{ body.gold+=25*body.pelts; say('gain','金幣 +'+25*body.pelts); body.pelts=0; status(); N.market(); }});
-  if(body.herbs>1) o.push({t:'賣灰葉草（留 1 株，每株 15 金）', f:()=>{ const n=body.herbs-1; body.gold+=15*n; body.herbs=1; say('gain','金幣 +'+15*n); status(); N.market(); }});
-  if(body.relics>0) o.push({t:'把遺物交給王室（每件王室聲望 +5、民心 +3）', f:()=>{ body.rep.crown+=5*body.relics; body.rep.people+=3*body.relics; say('gain','王室聲望 +'+5*body.relics+'，民心 +'+3*body.relics); body.relics=0; status(); N.market(); }});
+  if(body.cores>0) o.push({t:'賣裂谷核（每枚 '+world.price+' 金，持有 '+body.cores+'）', f:()=>{ const p=world.price; sellQ('賣裂谷核','枚',body.cores,p,N.market,n=>{ body.cores-=n; say('gain','賣出 '+n+' 枚，金幣 +'+fmt(p*n)); movePrice(-0.02*n); if(n>=10) worldEvent(soul.name+' 一口氣賣出 '+n+' 枚裂谷核，市價跌至 '+world.price); },'賣得越多，市價跌得越多。'); }});
+  if(body.pelts>0) o.push({t:'賣獸皮（每張 25 金，持有 '+body.pelts+'）', f:()=>sellQ('賣獸皮','張',body.pelts,25,N.market,n=>{ body.pelts-=n; say('gain','獸皮 −'+n+'，金幣 +'+fmt(25*n)); })});
+  if(body.herbs>0) o.push({t:'賣灰葉草（每株 15 金，持有 '+body.herbs+'）', f:()=>sellQ('賣灰葉草','株',body.herbs,15,N.market,n=>{ body.herbs-=n; say('gain','灰葉草 −'+n+'，金幣 +'+fmt(15*n)); })});
+  if(body.relics>0) o.push({t:'把遺物交給王室（每件王室聲望 +5、民心 +3，持有 '+body.relics+'）', f:()=>qtyMenu({title:'把遺物交給王室', unit:'件', max:body.relics, cost:n=>'王室聲望 +'+5*n+'、民心 +'+3*n, f:n=>{ body.relics-=n; body.rep.crown+=5*n; body.rep.people+=3*n; say('gain','遺物 −'+n+'，王室聲望 +'+5*n+'，民心 +'+3*n); }, back:N.market})});
   if(caravanIn()) chiefOptions(o,N.market);
   o.push({t:'冒險者公會', f:N.guild}); o.push({t:'拍賣所', f:N.auction}); o.push({t:'酒館（休息、傳聞）', f:N.tavern}); o.push({t:'教堂（治療、祝福、轉生）', f:N.chapel}); o.push({t:'武器店（武器、防具、飾品）', f:N.wshop}); o.push({t:'道具店', f:stallMenu});
   o.push({t:'去北門難民營', f:N.camp}); o.push({t:'去南方哨站（一天路程）', f:N.south});
@@ -1574,9 +1594,13 @@ N.market=()=>{ lastNode=N.market; if(pendingEvent(N.market)) return;
 function stallMenu(){ lastNode=stallMenu; place('王城市集 · 道具店');
   if(!body.flags.stall){ body.flags.stall=1; story(TXT.market_stall); } else say('narr','獨眼的老闆娘抬了抬下巴。「先付錢。」');
   const o=[];
-  Object.keys(ITEMS).filter(k=>ITEMS[k].price>0).forEach(k=>{ const p=iPrice(k); o.push({t:'買'+ITEMS[k].n+'（'+p+' 金）'+ITEMS[k].d+'　持有 '+itemN(k), dis:body.gold<p, f:()=>{ body.gold-=p; addItem(k,1); say('gain',ITEMS[k].n+' +1'); status(); stallMenu(); }}); });
-  o.push({t:'買回春藥（'+body.elixirPrice+' 金，每次漲價）', dis:body.gold<body.elixirPrice, f:()=>{ body.gold-=body.elixirPrice; addItem('elixir',1); body.elixirPrice=Math.round(body.elixirPrice*1.2); say('gain','回春藥 +1（放在道具袋裡，想用的時候再喝）'); status(); stallMenu(); }});
-  { const n=body.flags.bagBought||0; const bagCost=[120,500,2000,8000,30000][Math.min(n,4)]; o.push({t:'買皮革背包（'+bagCost+' 金，背包 +15，現在 '+body.coreCap+'）', dis:body.gold<bagCost, f:()=>{ body.gold-=bagCost; body.coreCap+=15; body.flags.bagBought=n+1; say('gain','背包 +15 格（現在 '+body.coreCap+'）。皮匠說下一個要用更好的皮。'); status(); stallMenu(); }}); }
+  Object.keys(ITEMS).filter(k=>ITEMS[k].price>0).forEach(k=>{ const p=iPrice(k); o.push({t:'買'+ITEMS[k].n+'（'+fmt(p)+' 金）'+ITEMS[k].d+'　持有 '+itemN(k), dis:body.gold<p, f:()=>buyQ('買'+ITEMS[k].n,'個',p,stallMenu,n=>{ addItem(k,n); say('gain',ITEMS[k].n+' +'+n); })}); });
+  /* 遞增價格：先算 n 件的總價，再決定最多買幾件 */
+  const ladderMax=(costOf,cap)=>{ let n=0; while(n<cap&&costOf(n+1)<=body.gold) n++; return n; };
+  { const seq=n=>{ let p=body.elixirPrice,t=0; for(let i=0;i<n;i++){ t+=p; p=Math.round(p*1.2); } return t; };
+    o.push({t:'買回春藥（'+fmt(body.elixirPrice)+' 金，每次漲價）', dis:body.gold<body.elixirPrice, f:()=>qtyMenu({title:'買回春藥', unit:'瓶', max:ladderMax(seq,200), cost:n=>fmt(seq(n))+' 金', note:'每買一瓶，下一瓶漲兩成。', f:n=>{ const t=seq(n); body.gold-=t; for(let i=0;i<n;i++) body.elixirPrice=Math.round(body.elixirPrice*1.2); addItem('elixir',n); say('gain','回春藥 +'+n+'（放在道具袋裡，想用的時候再喝），金幣 −'+fmt(t)); }, back:stallMenu})}); }
+  { const bought=body.flags.bagBought||0; const LAD=[120,500,2000,8000,30000]; const bagAt=i=>LAD[Math.min(i,4)]; const seq=n=>{ let t=0; for(let i=0;i<n;i++) t+=bagAt(bought+i); return t; };
+    o.push({t:'買皮革背包（'+fmt(bagAt(bought))+' 金，背包 +15，現在 '+body.coreCap+'）', dis:body.gold<bagAt(bought), f:()=>qtyMenu({title:'買皮革背包', unit:'個', max:ladderMax(seq,100), cost:n=>fmt(seq(n))+' 金，背包 +'+15*n, note:'皮匠說下一個要用更好的皮，越買越貴。', f:n=>{ const t=seq(n); body.gold-=t; body.coreCap+=15*n; body.flags.bagBought=bought+n; say('gain','背包 +'+15*n+' 格（現在 '+body.coreCap+'），金幣 −'+fmt(t)); }, back:stallMenu})}); }
   if(body.maxFloor>=4&&!body.flags.antidote) o.push({t:'買毒消草（3000 金，毒免疫；難民營的藥婆用草就能配）', dis:body.gold<3000, f:()=>{ body.gold-=3000; body.flags.antidote=1; say('gain','毒消草：毒霧對你無效。'); status(); stallMenu(); }});
   o.push({t:'不買了', f:N.market});
   setOptions(o,'道具店　持有金幣 '+body.gold);
@@ -1587,9 +1611,9 @@ N.wshop=()=>{ lastNode=N.wshop; place('王城市集 · 武器店');
   [['iron',150],['steel',600],['knife',40],['club',40],['woodspear',45],['woodstaff',40]].forEach(([k,p])=>{ o.push({t:'買'+WEAPONS[k].n+'（'+p+' 金，［'+WTYPE[WEAPONS[k].type]+'］攻擊力 +'+WEAPONS[k].atk+'）'+(hasW(k)?'（已有）':canUse({key:k})?'':'（'+job().n+'不能用）'), dis:body.gold<p||hasW(k), f:()=>{ body.gold-=p; giveWeapon(k); status(); N.wshop(); }}); });
   [['cloth1',30],['chain',250],['ironplate',300]].forEach(([k,p])=>{ o.push({t:'買'+ARMORS[k].n+'（'+p+' 金，［'+ATYPE[ARMORS[k].type]+'］防禦力 +'+ARMORS[k].def+'）'+(hasA(k)?'（已有）':canWear({key:k})?'':'（'+job().n+'不能穿）'), dis:body.gold<p||hasA(k), f:()=>{ body.gold-=p; giveArmor(k); status(); N.wshop(); }}); });
   [['strawshoes',25],['clothgloves',25]].forEach(([k,p])=>{ o.push({t:'買'+ACCS[k].n+'（'+p+' 金，［'+ASLOT[ACCS[k].slot]+'］'+accStat(k)+'）'+(hasAcc(k)?'（已有）':''), dis:body.gold<p||hasAcc(k), f:()=>{ body.gold-=p; giveAcc(k); status(); N.wshop(); }}); });
-  o.push({t:'磨刀（30 金，手上的武器鋒利 +1）', dis:body.gold<30, f:()=>{ body.gold-=30; eqW().sharp=(eqW().sharp||0)+1; say('gain',wDef(eqW()).n+'鋒利 +1（現在 +'+eqW().sharp+'）'); status(); N.wshop(); }});
+  o.push({t:'磨刀（每次 30 金，手上的武器鋒利 +1）', dis:body.gold<30, f:()=>buyQ('磨刀','次',30,N.wshop,n=>{ eqW().sharp=(eqW().sharp||0)+n; say('gain',wDef(eqW()).n+'鋒利 +'+n+'（現在 +'+eqW().sharp+'）'); })});
   if(!hasA('core')) o.push({t:'鍛造魔核鎧（8 枚裂谷核，［鎖甲］防禦力 +9）', dis:body.cores<8, f:()=>{ body.cores-=8; say('narr','鐵匠把裂谷核一枚一枚熔進甲片，紅光在鐵裡慢慢暗下去。'); giveArmor('core'); status(); N.wshop(); }});
-  else o.push({t:'加固護甲（6 枚裂谷核，防禦力 +2）', dis:body.cores<6, f:()=>{ body.cores-=6; body.armorPlus=(body.armorPlus||0)+2; body.flags.armorBought=(body.flags.armorBought||0)+1; say('gain','鐵匠把核熔進你身上的甲。防禦力 +2（現在 '+defNow()+'）。'); status(); N.wshop(); }});
+  else o.push({t:'加固護甲（每次 6 枚裂谷核，防禦力 +2）', dis:body.cores<6, f:()=>payQ('加固護甲','次','cores',6,N.wshop,n=>{ body.armorPlus=(body.armorPlus||0)+2*n; body.flags.armorBought=(body.flags.armorBought||0)+n; say('gain','鐵匠把核熔進你身上的甲。防禦力 +'+2*n+'（現在 '+defNow()+'）。'); })});
   o.push({t:'裝備與道具', f:gearMenu});
   o.push({t:'回市集', f:N.market});
   setOptions(o,'武器店　持有金幣 '+body.gold+'｜裂谷核 '+body.cores);
@@ -1630,9 +1654,8 @@ N.auction=()=>{ lastNode=N.auction; place('王城市集 · 拍賣所');
     if(sold[g]===body.day){ o.push({t:'（'+g+'：今天的拍品已經賣掉了，明天換一件）', dis:true, f:()=>{}}); return; }
     const p=lotPrice(lot); say('info','［'+g+'］'+lotText(lot)+'　一口價 '+fmt(p)+' 金');
     const [tt,kk]=lot.split(':'); o.push({t:'買下［'+g+'］'+(tt==='A'?ARMORS[kk].n:ACCS[kk].n)+'（'+fmt(p)+' 金）', dis:body.gold<p, f:()=>{ body.gold-=p; sold[g]=body.day; body.flags.auctionBought=(body.flags.auctionBought||0)+1; const [t,k]=lot.split(':'); say('npc','管事把木槌舉起來，又放下。「成交。」'); if(t==='A') giveArmor(k); else giveAcc(k); status(); N.auction(); }}); });
-  if(body.relics>0) o.push({t:'委託拍賣遺物（'+body.relics+' 件，每件 80 金，抽一成）', f:()=>{ const g=Math.round(80*body.relics*0.9); body.gold+=g; say('gain','金幣 +'+g); body.relics=0; status(); N.auction(); }});
-  ['worldleaf','frostcrystal','pearl','starmetal'].filter(k=>body[k]>0).forEach(k=>o.push({t:'委託拍賣'+RES[k]+'（'+body[k]+' 個，每個 400 金，抽一成）', f:()=>{ const g=Math.round(400*body[k]*0.9); body.gold+=g; say('npc','管事的手停了一下。「這個……我得另外找買家。」'); say('gain','金幣 +'+g); body[k]=0; status(); N.auction(); }}));
-  if(body.pelts>0) o.push({t:'委託拍賣獸皮（'+body.pelts+' 張，每張 35 金，抽一成）', f:()=>{ const g=Math.round(35*body.pelts*0.9); body.gold+=g; say('gain','金幣 +'+g); body.pelts=0; status(); N.auction(); }});
+  const consign=(k,unit,price,extra)=>{ if(body[k]<=0) return; o.push({t:'委託拍賣'+RES[k]+'（每'+unit+' '+price+' 金，抽一成，持有 '+body[k]+'）', f:()=>qtyMenu({title:'委託拍賣'+RES[k], unit, max:body[k], cost:n=>'+'+fmt(Math.round(price*n*0.9))+' 金', f:n=>{ const g=Math.round(price*n*0.9); body[k]-=n; body.gold+=g; if(extra) say('npc',extra); say('gain',RES[k]+' −'+n+'，金幣 +'+fmt(g)); }, back:N.auction})}); };
+  consign('relics','件',80); ['worldleaf','frostcrystal','pearl','starmetal'].forEach(k=>consign(k,'個',400,'管事的手停了一下。「這個……我得另外找買家。」')); consign('pelts','張',35);
   o.push({t:'回市集', f:N.market});
   setOptions(o,'拍賣所　三張桌子，精良 10 萬、稀有 100 萬、傳說 1,000 萬。一口價，明天是別的東西。');
 };
