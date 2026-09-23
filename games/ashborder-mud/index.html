@@ -169,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.8.0';
+const VERSION='2.8.1';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -304,7 +304,7 @@ const SYSTEMS={
     {n:'影子抽取', d:()=>'殺過的敵人變成你的影子。每個影子每回合造成你攻擊 3% 的傷害，最多算 50 個（目前 '+soul.shadows+' 個影子，每回合 '+(shadowDmg()*shadowN())+'）。'},
     {n:'影之鍛', d:()=>'每擊殺一隻，攻擊力永久 +1。每 18 秒一次，每日 100 次（'+growInfo('shadow')+'）。'},
     {n:'每日任務', d:()=>'每現實日：擊殺 5 隻。完成：'+NUM.killGold()*20+' 金與 5 枚核。未完成而上線：老化 3 年。'},
-    {n:'君主的軍勢', d:()=>'影子跨世保留。可開啟連續狩獵：影子會替你找下一個獵物。'}]},
+    {n:'君主的軍勢', d:()=>'影子是靈魂的東西：轉生後不管締結什麼系統，影子軍團都跟著你出手，只是不再增加。可開啟連續狩獵：影子會替你找下一個獵物。'}]},
   luck:{name:'氣運掠奪系統', skills:[
     {n:'奪運', d:()=>'揭露一個秘密、擊殺強敵、完成任務都會奪得氣運。目前氣運 '+soul.luck+'。'},
     {n:'天命', d:()=>'每擊殺一隻，氣運 +1。每 18 秒一次，每日 100 次（'+growInfo('luck')+'）。'},
@@ -791,7 +791,7 @@ function renderChar(){
   const resMain=['herbs','pelts','relics','ore'].map(k=>[RES[k]+' '+body[k],body[k]>0]);
   const resOther=['grain','salt','timber','fish','ink','coal','worldleaf','frostcrystal','pearl','starmetal'].filter(k=>body[k]>0).map(k=>[RES[k]+' '+body[k],true]);
   c.innerHTML='<h2>'+esc(soul.name)+'　<span style="font-weight:400;font-size:.85rem;color:var(--paper-dim)">'+job().n+' Lv '+body.level+'</span></h2>'+
-    slot('狀態', kv('經驗值',fmt(body.xp)+' / '+fmt(xpNeed(body.level)))+kv('攻擊力',fmt(atkNow()))+kv('防禦力',fmt(defNow())+'（減傷 '+defPct()+'%）')+kv('HP',fmt(body.hp)+' / '+fmt(body.hpMax))+kv('攻速',pInterval().toFixed(1)+' 秒')+kv('年齡',body.age+' 歲'+(sysIs('ancestor')?'（壽元無盡）':'（肉身 ×'+ageFactor(body.age).toFixed(2)+'）'))+kv('日子','第 '+body.day+' 天'))+
+    slot('狀態', kv('經驗值',fmt(body.xp)+' / '+fmt(xpNeed(body.level)))+kv('攻擊力',fmt(atkNow()))+kv('防禦力',fmt(defNow())+'（減傷 '+defPct()+'%）')+kv('HP',fmt(body.hp)+' / '+fmt(body.hpMax))+kv('攻速',pInterval().toFixed(1)+' 秒')+kv('年齡',body.age+' 歲'+(sysIs('ancestor')?'（壽元無盡）':'（肉身 ×'+ageFactor(body.age).toFixed(2)+'）'))+kv('日子','第 '+body.day+' 天')+(soul.shadows>0?kv('影子軍團',shadowN()+' 個'+(sysIs('shadow')?'':'（前世帶來）')):''))+
     slot('職業　'+job().n, '<span class="line">'+job().desc+(allWeapons()?'（系統：全武器可用）':'')+'</span>')+
     slot('抗性', '<div class="cols">'+Object.keys(ENV).map(k=>kv(ENV[k].n,resist(k)>=1?'免疫':Math.round(resist(k)*100)+'%',resist(k)<=0)).join('')+'</div>'+(body.flags.blessed?'<span class="line">已受祝福：下一場再減傷兩成</span>':''))+
     slot('裝備', kv('武器',wDef(eqW()).n)+kv('防具',aDef(eqA()).n+(body.armorPlus?'（加固 +'+body.armorPlus+'）':''))+kv('鞋',accOf('boots'),accOf('boots')==='—')+kv('手套',accOf('gloves'),accOf('gloves')==='—')+kv('項鍊',accOf('neck'),accOf('neck')==='—')+kv('戒指',accOf('ring'),accOf('ring')==='—')+(spare>0?'<span class="line">背包裡另有 '+spare+' 件裝備</span>':'')+(body.flags.seal?'<span class="line">裂谷之印：所受傷害減少</span>':'')+(body.revive?'<span class="line">鳳凰之尾 ×'+body.revive+'</span>':''))+
@@ -1682,7 +1682,7 @@ N.chapel=()=>{ lastNode=N.chapel; place('王城市集 · 教堂');
 function reincarnate(){ inCombat=false; clearInterval(cTimer); story(TXT.rebirth);
   worldEvent(soul.name+'（'+soul.system.name+'，'+body.age+' 歲）在教堂放下了這一世。');
   soul.lives++; soul.memory={lastSys:soul.system.key};
-  if(sysIs('shadow')) say('info','影子軍團跨世保留。'); else soul.shadows=0;
+  if(soul.shadows>0) say('info','影子軍團 '+soul.shadows+' 個跨世保留。下一世不管締結什麼系統，牠們都會跟著你出手。');
   soul.ach=soul.ach||{}; soul.endings=soul.endings||[]; soul.permAtk=0; soul.permHp=0; soul.permDef=0; soul.eats=0; soul.lvUps=0; soul.returns=0; soul.forges=0; soul.meditations=0; soul.points=0; soul.luck=0;
   body=null; soul.system=null; mon=null; status(); save();
   setOptions([{t:'回到主神空間', f:()=>startQuestionnaire()}]);
@@ -1931,7 +1931,7 @@ function afterHit(d){ const D=wDef(eqW()); if(eat('ash')&&d>0){ const bd=Math.ma
 function playerAct(k){
   turnNo++; if(!k) k=body.mode;
   if(eat('bug')){ const p=Math.max(1,Math.round(mon.hpMax*0.08*eatF('bug'))); mon.hp-=p; say('combat','蛛毒：'+mon.n+'失去 '+p+' HP。'); }
-  if(sysIs('shadow')&&soul.shadows>0){ const d=shadowDmg()*shadowN(); mon.hp-=d; say('combat','影子軍團（'+shadowN()+'）合擊：'+d+' 傷害。'); }
+  if(soul.shadows>0){ const d=shadowDmg()*shadowN(); mon.hp-=d; say('combat','影子軍團（'+shadowN()+'）合擊：'+d+' 傷害。'); }
   if(ssr('regen')){ const h=Math.round(body.hpMax*.05); body.hp=Math.min(body.hpMax,body.hp+h); }
   if(mon.hp<=0){ win(); return; }
   // 安全線：低於就自動切撤退
