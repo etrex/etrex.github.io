@@ -169,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.8.1';
+const VERSION='2.8.2';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -1571,7 +1571,7 @@ function ending(k){
   say('gain','稱號：「'+({seal:'守誓者',expose:'揭幕者',release:'開門人',leave:'過客'})[k]+'」。灰燼邊境的故事在你手上'+(k==='leave'?'停了':'寫完了')+'。');
   sysText('一個世界結束了。你還在。這就是有系統的意思。');
   say('info','（穿越到下一個世界尚未開放。你可以留在灰燼邊境繼續，或轉生重新開始。）');
-  setOptions((k==='leave'?[]:[{t:'留在灰燼邊境', f:N.market}]).concat([{t:'轉生', f:()=>{ body=null; soul.system=null; soul.lives++; status(); startQuestionnaire(); }}]));
+  setOptions((k==='leave'?[]:[{t:'留在灰燼邊境', f:N.market}]).concat([{t:'轉生', f:()=>reincarnate(true)}]));
 }
 N.market=()=>{ lastNode=N.market; if(pendingEvent(N.market)) return;
   place('王城市集');
@@ -1679,8 +1679,8 @@ N.chapel=()=>{ lastNode=N.chapel; place('王城市集 · 教堂');
   o.push({t:'回市集', f:N.market});
   setOptions(o,'教堂　死在外面的人會被抬回這裡（收一成香油錢）。');
 };
-function reincarnate(){ inCombat=false; clearInterval(cTimer); story(TXT.rebirth);
-  worldEvent(soul.name+'（'+soul.system.name+'，'+body.age+' 歲）在教堂放下了這一世。');
+function reincarnate(after){ inCombat=false; clearInterval(cTimer); story(after?TXT.rebirth_end:TXT.rebirth);
+  worldEvent(soul.name+'（'+soul.system.name+'，'+body.age+' 歲）'+(after?'寫完了灰燼邊境的故事，放下了這一世。':'在教堂放下了這一世。'));
   soul.lives++; soul.memory={lastSys:soul.system.key};
   if(soul.shadows>0) say('info','影子軍團 '+soul.shadows+' 個跨世保留。下一世不管締結什麼系統，牠們都會跟著你出手。');
   soul.ach=soul.ach||{}; soul.endings=soul.endings||[]; soul.permAtk=0; soul.permHp=0; soul.permDef=0; soul.eats=0; soul.lvUps=0; soul.returns=0; soul.forges=0; soul.meditations=0; soul.points=0; soul.luck=0;
