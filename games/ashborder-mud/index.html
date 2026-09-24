@@ -169,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.12.1';
+const VERSION='2.13.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -540,7 +540,16 @@ function accStat(k){ const D=ACCS[k]; const p=[]; if(D.atk) p.push('攻擊力 +'
 function accName(k){ const D=ACCS[k]; const st=accStat(k); return D.n+'［'+ASLOT[D.slot]+(isRare(k)?'・稀有':'')+'］'+(st?'（'+st+'）':'')+(D.desc?'　'+D.desc:''); }
 function hasAcc(k){ return !!(body.accs||[]).find(a=>a.key===k); }
 function giveAcc(k){ body.accs=body.accs||[]; body.acc=body.acc||{}; if(hasAcc(k)){ say('info','你已經有'+ACCS[k].n+'了。'); return; } body.accs.push({key:k}); const s=ACCS[k].slot; const auto=!body.acc[s]; if(auto) body.acc[s]=k; if(ACCS[k].heat) body.regionFlags.heatArmor=1; if(ACCS[k].cold) body.regionFlags.furCoat=1; say('gain','獲得'+(isRare(k)?'稀有裝備':'裝備')+'：'+accName(k)+(auto?'　已經戴上。':'　到「裝備與道具」可以換上。')); }
-function dropRare(){ const pool=RARE_ACC.filter(k=>!hasAcc(k)); if(!pool.length) return; say('narr','魔物的殘骸裡有東西在發光。'); giveAcc(rnd(pool)); }
+/* 掉落率（v2.13）：
+   隨機寶物只剩兩枚沒有別的來源的戒指（幸運戒指、雷之戒）。三階以上魔物每隻 1/5000。
+     第 4 層自動狩獵（2 秒一場）：拿到其中一枚 90% 約 12.5 小時，指定那一枚約 25 小時。
+   魔物戰利品（獨眼巨人的斧和甲、食人魔之手、骷髏兵的項鍊……）不再是第一隻必掉，每隻 1/1000。
+     例：第 5 層食人魔約 6 小時、第 3 層吸血蝙蝠約 9 小時、第 6 層獨眼巨人約 22 小時（90%）。
+   地區魔物（野狼、白狼、沙蟲）只在探索途中遇得到，不能掛機，每隻 1/10，打二十來隻有九成。
+   火龍是頭目，第一次打倒必掉。掉寶加成（武器、職業、吃哥布林）照舊乘上去。 */
+const RAND_ACC=['luckring','thunderring'], RAND_P=1/5000, TROPHY_P=1/1000, REGION_TROPHY_P=1/10;
+function trophyRoll(m){ if(m.key==='firelizard') return true; return chance((m.region?REGION_TROPHY_P:TROPHY_P)*lootMul()); }
+function dropRare(){ const pool=RAND_ACC.filter(k=>!hasAcc(k)); if(!pool.length) return; say('narr','魔物的殘骸裡有東西在發光。'); giveAcc(rnd(pool)); }
 function lootUp(){ return !!(wDef(eqW()).loot||job().loot||accHas('loot')); }
 /* 環境：進得去，但沒有免疫就一直掉血。抗性減傷；有系統的人可以用別的方式付錢通過。 */
 const ENV={fire:{n:'火',rate:.15},ice:{n:'冰',rate:.12},poison:{n:'毒',rate:.10},lightning:{n:'雷',rate:.20}};
@@ -2215,7 +2224,7 @@ async function win(){
   const luckBonus=sysIs('panel')?body.pts.luck*NUM.killGold(1):0; const gold=Math.round(killGoldLv(m)*luckMul*(1+accSum('gold')+.25*eatF('dock')))+luckBonus; body.gold+=gold; say('gain','金幣 +'+gold+(luckBonus?'（幸運 +'+luckBonus+'）':''));
   let nDrop=(ssr('loot')||chance(Math.min(1,m.drop*lootMul())))?1:0; if(isKing(m))nDrop+=2; if(sysIs('luck')) nDrop+=Math.floor(soul.luck/10);
   const got=addRes('cores',nDrop); if(got) say('gain','獲得了裂谷核 ×'+got+'！');
-  if(!isKing(m)){ if(chance(.25*lootMul())){ const k=rnd(['hpot','hpot','smoke','bomb','whet','bandage','bandage','coredust','trap','ration']); if(addItem(k,1)>0) say('gain','你在牠身邊撿到一個'+ITEMS[k].n+'。'); } if(m.tier>=3&&chance(.03*lootMul())) dropRare(); } else { addItem('hpot',2); say('gain','魔王的殘骸裡有兩瓶藥水。'); if(!hasW('fang')){ say('narr','魔王的牙還在發燙。'); giveWeapon('fang'); } if(!hasA('scale')){ giveArmor('scale'); } if(!hasAcc('kingring')){ say('narr','魔王的指骨上套著一枚戒指。'); giveAcc('kingring'); } }
+  if(!isKing(m)){ if(chance(.25*lootMul())){ const k=rnd(['hpot','hpot','smoke','bomb','whet','bandage','bandage','coredust','trap','ration']); if(addItem(k,1)>0) say('gain','你在牠身邊撿到一個'+ITEMS[k].n+'。'); } if(m.tier>=3&&chance(RAND_P*lootMul())) dropRare(); } else { addItem('hpot',2); say('gain','魔王的殘骸裡有兩瓶藥水。'); if(!hasW('fang')){ say('narr','魔王的牙還在發燙。'); giveWeapon('fang'); } if(!hasA('scale')){ giveArmor('scale'); } if(!hasAcc('kingring')){ say('narr','魔王的指骨上套著一枚戒指。'); giveAcc('kingring'); } }
   let xp=killXp(m); if(sysIs('infinite')&&m.hpMax>body.hpMax) xp*=3; gainXp(xp);
   if(sysIs('devour')){ if(m.fm&&DEVOUR[m.fm]&&(body.eaten[m.fm]|0)<m.tier){ const st0=evoStage(); const first=!body.eaten[m.fm]; body.eaten[m.fm]=m.tier; say('gain','捕食：'+devText(m.fm,m.tier)+'。'+(first?'（'+eatN()+'/'+Object.keys(DEVOUR).length+' 種）':'吃到更高階的了，效果升級。')); const st=evoStage(); if(st>st0){ body.evolved=true; say('title',EVO[st][1]); say('gain','攻擊與 HP 上限 ×'+EVO[st][2]+'。'); } } soul.eats++; if(soul.eats%10===0) say('gain','血肉累積：HP 上限 +'+soul.eats+'。'); }
   if(sysIs('shadow')){ soul.shadows++; body.flags.dailyKills=(body.flags.dailyKills||0)+1; say('gain','影子抽取成功。影子軍團：'+soul.shadows+'。'); grow('shadow','影之鍛：攻擊力永久 +1',()=>{ soul.permAtk++; }); }
@@ -2229,9 +2238,9 @@ async function win(){
   if(sysIs('idle')) grow('idle','肌肉記憶：攻擊力永久 +1',()=>{ soul.permAtk++; });
   body.flags.killed=body.flags.killed||{}; body.flags.killed[m.key]=1;
   if(body.bounty&&!body.bounty.done&&body.bounty.key===m.key&&body.bounty.n<body.bounty.need){ body.bounty.n++; say('info','公會委託：'+m.n+' '+body.bounty.n+'/'+body.bounty.need+(body.bounty.n>=body.bounty.need?'。回公會領錢。':'')); }
-  { const first={gatekeeper:'giantaxe',firelizard:'dragonlance',shadowdog:'shadowblade'}[m.key]; if(first&&!hasW(first)){ say('narr',({gatekeeper:'獨眼巨人倒下的時候，手裡的斧頭砸出一個坑。',firelizard:'火龍的角斷了一根，還在發燙。',shadowdog:'地獄犬的影子沒有跟著牠消失。它凝成了一把刀。'})[m.key]); giveWeapon(first); } }
-  { const fa={gatekeeper:'giantplate',firelizard:'dragonscale',leech:'shadowleather'}[m.key]; if(fa&&!hasA(fa)){ say('narr',({gatekeeper:'巨人的胸甲上有一道你砍出來的口子。除此之外完好。',firelizard:'火龍的鱗一片一片剝下來，還是燙的。',leech:'吸血蝙蝠的翼膜薄得透光，卻割不破。'})[m.key]); giveArmor(fa); } }
-  { const fc={beast:'ogregauntlet',wolf:'windboots',worm:'dragonboots',snowwolf:'fangneck',bonespider:'lifeneck',crab:'ironring'}[m.key]; if(fc&&!hasAcc(fc)){ say('narr',({beast:'食人魔的手掌比你的頭還大。手骨是空心的。',wolf:'野狼死了，腳還在抽。你把牠四隻腳上的皮剝下來。',worm:'沙蟲的內壁又硬又滑，燒不起來。',snowwolf:'白狼的牙齒是白的，比雪白。',bonespider:'骷髏兵的胸腔裡掛著一條項鍊，還帶著體溫。它的體溫。',crab:'岩石魔像碎開，中間是一圈鐵。'})[m.key]); giveAcc(fc); } }
+  { const first={gatekeeper:'giantaxe',firelizard:'dragonlance',shadowdog:'shadowblade'}[m.key]; if(first&&!hasW(first)&&trophyRoll(m)){ say('narr',({gatekeeper:'獨眼巨人倒下的時候，手裡的斧頭砸出一個坑。',firelizard:'火龍的角斷了一根，還在發燙。',shadowdog:'地獄犬的影子沒有跟著牠消失。它凝成了一把刀。'})[m.key]); giveWeapon(first); } }
+  { const fa={gatekeeper:'giantplate',firelizard:'dragonscale',leech:'shadowleather'}[m.key]; if(fa&&!hasA(fa)&&trophyRoll(m)){ say('narr',({gatekeeper:'巨人的胸甲上有一道你砍出來的口子。除此之外完好。',firelizard:'火龍的鱗一片一片剝下來，還是燙的。',leech:'吸血蝙蝠的翼膜薄得透光，卻割不破。'})[m.key]); giveArmor(fa); } }
+  { const fc={beast:'ogregauntlet',wolf:'windboots',worm:'dragonboots',snowwolf:'fangneck',bonespider:'lifeneck',crab:'ironring'}[m.key]; if(fc&&!hasAcc(fc)&&trophyRoll(m)){ say('narr',({beast:'食人魔的手掌比你的頭還大。手骨是空心的。',wolf:'野狼死了，腳還在抽。你把牠四隻腳上的皮剝下來。',worm:'沙蟲的內壁又硬又滑，燒不起來。',snowwolf:'白狼的牙齒是白的，比雪白。',bonespider:'骷髏兵的胸腔裡掛著一條項鍊，還帶著體溫。它的體溫。',crab:'岩石魔像碎開，中間是一圈鐵。'})[m.key]); giveAcc(fc); } }
   if(body.flags.quest===1){ body.quest++; if(!body.questDone) say('info','討伐進度 '+Math.min(body.quest,10)+'/10'); if(body.quest>=10&&!body.questDone){ body.questDone=true; const r=NUM.killGold()*20; body.gold+=r; body.rep.crown+=30; say('gain','義務完成。王庫獎勵 '+r+' 金。稱號「裂谷討伐者」。'); addLuck(10,'完成任務'); } }
   if(soul.system.weak==='erode') growOld(1,true);
   body.flags.lastKillDay=body.day; addKill(); movePrice(-0.01);
