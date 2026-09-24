@@ -169,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.8.4';
+const VERSION='2.9.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -770,6 +770,26 @@ const capN=(a,b)=>Math.min(a==null?1e9:a,b);
 function buyQ(title,unit,price,back,f,limit){ qtyMenu({title, unit, max:capN(limit,Math.floor(body.gold/price)), cost:n=>fmt(price*n)+' 金', f:n=>{ body.gold-=price*n; f(n); }, back}); }
 function sellQ(title,unit,have,price,back,f,note){ qtyMenu({title, unit, max:have, cost:n=>'+'+fmt(price*n)+' 金', note, f:n=>{ body.gold+=price*n; f(n); }, back}); }
 function payQ(title,unit,res,each,back,f,limit){ qtyMenu({title, unit, max:capN(limit,Math.floor(body[res]/each)), cost:n=>RES[res]+' −'+fmt(each*n), f:n=>{ body[res]-=each*n; f(n); }, back}); }
+/* 磨刀：鋒利度 n → n+1 的價格 = 30 × 1.15^n，沒有總上限。
+   但每個鐵匠的手藝有頂：王都武器店 +10、東方礦坑老鐵匠 +25、港市商會南方刀匠 +45、裂谷第七層熔淵古爐無上限（每次另燒一枚裂谷核）。 */
+const SHARP={
+  wshop:{cap:10, who:'年輕鐵匠', next:'「再磨下去刃會崩。」年輕鐵匠把刀還給你。「東邊礦坑口有個老鐵匠，逢三開爐，第三天、第六天、第九天。他的火比我的熱。」', hint:'東方礦坑口的老鐵匠逢三開爐'},
+  mine:{cap:25, who:'老鐵匠', next:'「我的爐子只到這裡。」老鐵匠用拇指試了試刃口。「南方港市的商會養著一個南方刀匠，他磨的是南方的鋼。你進得了商會，就找得到他。」', hint:'南方港市商會裡的南方刀匠'},
+  port:{cap:45, who:'南方刀匠', next:'「我的石頭磨不動它了。」南方刀匠把刀還給你。「你們北邊的裂谷，第七層，熔淵。三十年前有人在那裡打過劍，爐子還在。那種火沒有頂——前提是你站得住。」', hint:'裂谷第七層熔淵的古爐'},
+  forge:{cap:Infinity, who:'古爐', core:1},
+};
+function sharpCost(n){ return Math.round(30*Math.pow(1.15,n)); }
+function sharpSum(n,k){ let t=0; for(let i=0;i<k;i++) t+=sharpCost(n+i); return t; }
+function sharpMax(tier){ const T=SHARP[tier]; const n=eqW().sharp||0; let g=body.gold, k=0; while(n+k<T.cap&&k<1000){ const c=sharpCost(n+k); if(c>g||(T.core&&k+1>body.cores)) break; g-=c; k++; } return k; }
+function sharpDone(tier){ const T=SHARP[tier]; if(tier==='wshop') body.facts['sched_mine']=1; say('npc',T.next); }
+function sharpQ(tier){ const T=SHARP[tier]; const w=eqW(); const n=w.sharp||0;
+  return {title:'磨'+wDef(w).n+'（現在 +'+n+'）', unit:'次', max:sharpMax(tier), cost:k=>fmt(sharpSum(n,k))+' 金'+(T.core?'、裂谷核 '+k:'')+'，到 +'+(n+k),
+    note:'每磨一次，下一次貴一成五。'+(T.cap<Infinity?T.who+'最多磨到 +'+T.cap+'。':'古爐沒有頂，每次燒一枚裂谷核。'),
+    f:k=>{ body.gold-=sharpSum(n,k); if(T.core) body.cores-=k; w.sharp=n+k; say('gain',wDef(w).n+'鋒利 +'+k+'（現在 +'+w.sharp+'）'); if(w.sharp>=T.cap) sharpDone(tier); }}; }
+function sharpLabel(tier,verb){ const T=SHARP[tier]; const n=eqW().sharp||0; if(n>=T.cap) return '（'+verb+'：'+wDef(eqW()).n+'已經 +'+n+'，'+T.who+'磨不動了。去找'+T.hint+'）'; return verb+'（下一次 '+fmt(sharpCost(n))+' 金'+(T.core?'、裂谷核 1':'')+'，'+wDef(eqW()).n+' 現在 +'+n+(T.cap<Infinity?'，'+T.who+'最多磨到 +'+T.cap:'')+'）'; }
+function sharpOpt(tier,back,verb){ const T=SHARP[tier]; const n=eqW().sharp||0;
+  if(n>=T.cap) return {t:sharpLabel(tier,verb), f:()=>{ sharpDone(tier); back(); }};
+  return {t:sharpLabel(tier,verb), dis:sharpMax(tier)<1, f:()=>qtyMenu(Object.assign(sharpQ(tier),{back}))}; }
 function defGainPct(){ const k=repAtk(body.floor); const D=defNow(); const ehp=d=>(k+d)/k; return ((ehp(D+1)/ehp(D)-1)*100).toFixed(1); }
 function showFormula(){ const D=defNow(); const r=k=>Math.round(100*D/(k+D)); say('info','數值說明\n攻擊 =（8 + 等級×2 + 武器 + 永久加成 + 屬性點 + 飾品）× 1.15^(等級−5) × 肉身係數　現在：'+atkBase()+' × '+levelMul(lv()).toFixed(2)+' × '+(sysIs('ancestor')?1:ageFactor(body.age)).toFixed(2)+' = '+atkNow()+'\n你打魔物 = 攻擊 × 0.85～1.15 − 魔物防禦（穿刺無視防禦、弱點 ×2 無視防禦）\n魔物打你 = 魔物攻擊² ÷（魔物攻擊力 + 防禦）　防禦 '+D+' 對第一層的犬減傷 '+r(7)+'%、蛛 '+r(10)+'%、巨獸 '+r(16)+'%、魔王 '+r(24)+'%；魔物越深越強，防禦要跟著長\n環境 = HP 上限 × 環境係數（火 15%、冰 12%、毒 10%、雷 20%）×（1 − 抗性），每一步一次，戰鬥中每次被攻擊再 0.3 次\n防禦 = 防具 + 加固 + 屬性點 + 等級 + 永久加成 + 職業 + 飾品；防具與飾品的「再減」在防禦之後另外乘，合計最多六成\nHP =（40 + 等級×4 + 永久加成 + 屬性點×3 + 飾品）× 1.15^(0.8×(等級−5))\n魔物 = Lv1 基礎值 × 成長率^(等級−1)，每種魔物成長率不同（HP 約 1.18、攻擊約 1.15、防禦約 1.18）；裂谷 1～9 層魔物等級 1～4、4～8、8～12、12～17、17～22、22～28、28～34、34～40、40～46，魔王固定 Lv 50、火龍固定 Lv 46\n經驗值 = 4 × 1.25^(魔物等級−1) × 1.5^(階級−3)（三階為準，一階 0.44 倍、五階 2.25 倍）；升級需要 = 同級三階魔物一隻的經驗 × 隻數 x(L)（Lv 5 起 12 隻、每級 ×1.7，Lv 10 起 900 隻、每級 ×1.06）\n每個地點都有一到五階各一種魔物，階級越高越少見（出現權重 5：3.5：2：1：0.4）\n擊殺金幣 = 5 × 1.2^(魔物等級−1) ×（1 + 0.25×(階級−1)），系統與飾品加成另外乘上去\n年齡：20 歲前 ×0.85，40 歲起每歲 −2%，60 歲起每歲 −1%（最低 0.4）'); }
 function showStatus(){ say('info','<b>'+esc(soul.name)+'</b>　Lv '+body.level+'（經驗值 '+fmt(body.xp)+'/'+fmt(xpNeed(body.level))+'）｜攻擊力 '+atkNow()+'｜防禦力 '+defNow()+'｜HP '+body.hp+'/'+body.hpMax+'\n'+body.age+' 歲｜第 '+body.day+' 天\n金幣 '+body.gold+'｜裂谷核 '+body.cores+'｜背包 '+load()+'/'+body.coreCap+'\n武器：'+wText(eqW())+'\n道具：'+itemsText()+'\n資源：'+(Object.keys(RES).filter(k=>k!=='gold'&&k!=='cores'&&body[k]>0).map(k=>RES[k]+' '+body[k]).join('、')||'無')+'\n聲望：騎士團 '+body.rep.knight+'、神殿 '+body.rep.temple+'、王室 '+body.rep.crown+'、民心 '+body.rep.people+(body.flags.quest?'｜義務 '+Math.min(body.quest,10)+'/10':'')); }
@@ -1400,8 +1420,8 @@ const REGIONS={
       {t:'礦工們在罷工。工頭想僱你談判。', o:[
         {t:'替礦工說話', f:()=>{ body.rep.people+=10; body.regionFlags.sidedMiners=1; say('gain','民心 +10。礦工們記住了你。'); }},
         {t:'替工頭壓下去（80 金酬勞）', f:()=>{ body.gold+=80; body.rep.people-=10; body.regionFlags.sidedBoss=1; say('gain','金幣 +80，民心 −10'); }}]},
-      {t:'鐵匠在坑口設了爐，爐邊擺著他打過的東西：一把戰斧、一台礦車、一件發黑的甲、幾塊力量之藥，還有兩瓶塞著布的火油。「礦石五塊，我把你手上的武器打亮一點。別的也能打，看你帶了什麼來。」', o:[
-        {t:'打（每次礦石 5，手上的武器鋒利 +2）', req:()=>body.ore>=5, q:()=>({unit:'次', max:Math.floor(body.ore/5), cost:n=>'礦石 −'+5*n+'，鋒利 +'+2*n, f:n=>{ body.ore-=5*n; eqW().sharp=(eqW().sharp||0)+2*n; say('gain',wDef(eqW()).n+'鋒利 +'+2*n+'（現在 +'+eqW().sharp+'）'); }})},
+      {t:'鐵匠在坑口設了爐，爐邊擺著他打過的東西：一把戰斧、一台礦車、一件發黑的甲、幾塊力量之藥，還有兩瓶塞著布的火油。「刀拿來，王都那小子磨不動的，我磨得動。別的也能打，看你帶了什麼來。」', o:[
+        {t:()=>sharpLabel('mine','請老鐵匠磨刀'), req:()=>(eqW().sharp||0)>=SHARP.mine.cap||sharpMax('mine')>0, q:()=>(eqW().sharp||0)>=SHARP.mine.cap?null:sharpQ('mine'), f:()=>sharpDone('mine')},
         {t:'打一把石斧（礦石 5）', req:()=>body.ore>=5&&!hasW('stoneaxe'), f:()=>{ body.ore-=5; giveWeapon('stoneaxe'); }},
         {t:'打一支鐵槍（礦石 6）', req:()=>body.ore>=6&&!hasW('ironspear'), f:()=>{ body.ore-=6; giveWeapon('ironspear'); }},
         {t:'打一把戰斧（礦石 8，攻擊力 +12、攻速慢 0.5 秒）', req:()=>body.ore>=8&&!hasW('axe'), f:()=>{ body.ore-=8; giveWeapon('axe'); }},
@@ -1447,7 +1467,7 @@ N.region=(r)=>{ lastNode=()=>N.region(r);
     const due=craftToday(r).map(k=>CRAFT[k]); const forced=R.events.find(e=>due.some(c=>c.match(e)));
     const ev=forced||rnd(R.events.filter(e=>!e.fight&&!Object.values(CRAFT).some(c=>c.match(e))));
     say('narr',ev.dyn?ev.dyn():ev.t);
-    setOptions(ev.o.map(op=>({t:op.t, dis:op.req&&!op.req(), f:()=>{ if(op.q){ qtyMenu(Object.assign({title:op.t.replace(/（.*$/,''), back:()=>N.region(r)},op.q())); return; } op.f(); status(); N.region(r); }})));
+    setOptions(ev.o.map(op=>{ const t=typeof op.t==='function'?op.t():op.t; return {t, dis:op.req&&!op.req(), f:()=>{ const q=op.q&&op.q(); if(q){ qtyMenu(Object.assign({title:t.replace(/（.*$/,''), back:()=>N.region(r)},q)); return; } op.f(); status(); N.region(r); }}; }));
   }});
   { const streak=body.regionFlags['g_'+r]||0; o.push({t:'在這一帶採集（一天）'+(streak>=3?'　這裡採過很多次了':''), dis:space()<=0, f:()=>{ spendDay('採集'); if(envTick()) return;
     const yieldN=Math.max(1,Math.round((R.res==='gold'?30*d:d)*Math.pow(0.7,streak))); const bonus=(R.res==='ore'&&(aDef(eqA()).ore||chance(eatF('cave')))?1:0)+((job().gather||aDef(eqA()).gather||chance(eatF('forestwolf')))?1:0);
@@ -1464,6 +1484,7 @@ N.region=(r)=>{ lastNode=()=>N.region(r);
   if(r==='port'&&qActive('sq_cousin')){ if(!body.flags.cousinAsked&&d>=2) o.push({t:'替漁夫問商會長：「他胖了沒有？」', f:()=>{ talk(TXT.sq_cousin_ask); body.flags.cousinAsked=1; N.region(r); }}); else if(body.flags.cousinAsked&&!body.flags.cousinDone) o.push({t:'把商會長的信交給漁夫', f:()=>{ story(TXT.sq_cousin_done); body.flags.cousinDone=1; body.gold+=500; say('gain','金幣 +500'); say('npc','袋子底下還有一件疊好的衣服。「他說你要是進商會，穿這個沒人攔。」'); giveArmor('uniform'); say('npc','漁夫又從船底下抽出一支三叉戟。「四十年了。給你。」'); giveWeapon('trident'); status(); N.region(r); }}); }
   if(r==='port'&&!hasW('hook')&&(body.talked['走私販']||0)>=1) o.push({t:'跟走私販買他的彎鉤（2 件遺物）', dis:body.relics<2, f:()=>{ body.relics-=2; say('npc','「這個勾過的東西比你這輩子見過的多。」'); giveWeapon('hook'); status(); N.region(r); }});
   if(r==='port'&&hasW('hook')&&!hasW('assassin')&&(body.talked['走私販']||0)>=2) o.push({t:'跟走私販買刺客之刃（4 件遺物）', dis:body.relics<4, f:()=>{ body.relics-=4; say('npc','「這把沒有來歷。有來歷的東西我不賣。」'); giveWeapon('assassin'); status(); N.region(r); }});
+  if(r==='port'&&d>=2) o.push(sharpOpt('port',()=>N.region(r),'請商會的南方刀匠磨刀'));
   if(r==='port'&&(body.talked['走私販']||0)>=2){
     if(!hasA('sagerobe')) o.push({t:'跟走私販買賢者法衣（12 件遺物）', dis:body.relics<12, f:()=>{ body.relics-=12; say('npc','「神殿的貨。穿的人已經不需要了。」'); giveArmor('sagerobe'); status(); N.region(r); }});
     if(!hasAcc('thiefgloves')) o.push({t:'跟走私販買盜賊手套（2 件遺物）', dis:body.relics<2, f:()=>{ body.relics-=2; say('npc','「戴上這個，你摸東西的時候手不會抖。」'); giveAcc('thiefgloves'); status(); N.region(r); }});
@@ -1626,7 +1647,7 @@ N.wshop=()=>{ lastNode=N.wshop; place('王城市集 · 武器店');
   [['iron',150],['steel',600],['knife',40],['club',40],['woodspear',45],['woodstaff',40]].forEach(([k,p])=>{ o.push({t:'買'+WEAPONS[k].n+'（'+p+' 金，［'+WTYPE[WEAPONS[k].type]+'］攻擊力 +'+WEAPONS[k].atk+'）'+(hasW(k)?'（已有）':canUse({key:k})?'':'（'+job().n+'不能用）'), dis:body.gold<p||hasW(k), f:()=>{ body.gold-=p; giveWeapon(k); status(); N.wshop(); }}); });
   [['cloth1',30],['chain',250],['ironplate',300]].forEach(([k,p])=>{ o.push({t:'買'+ARMORS[k].n+'（'+p+' 金，［'+ATYPE[ARMORS[k].type]+'］防禦力 +'+ARMORS[k].def+'）'+(hasA(k)?'（已有）':canWear({key:k})?'':'（'+job().n+'不能穿）'), dis:body.gold<p||hasA(k), f:()=>{ body.gold-=p; giveArmor(k); status(); N.wshop(); }}); });
   [['strawshoes',25],['clothgloves',25]].forEach(([k,p])=>{ o.push({t:'買'+ACCS[k].n+'（'+p+' 金，［'+ASLOT[ACCS[k].slot]+'］'+accStat(k)+'）'+(hasAcc(k)?'（已有）':''), dis:body.gold<p||hasAcc(k), f:()=>{ body.gold-=p; giveAcc(k); status(); N.wshop(); }}); });
-  o.push({t:'磨刀（每次 30 金，手上的武器鋒利 +1）', dis:body.gold<30, f:()=>buyQ('磨刀','次',30,N.wshop,n=>{ eqW().sharp=(eqW().sharp||0)+n; say('gain',wDef(eqW()).n+'鋒利 +'+n+'（現在 +'+eqW().sharp+'）'); })});
+  o.push(sharpOpt('wshop',N.wshop,'磨刀'));
   if(!hasA('core')) o.push({t:'鍛造魔核鎧（8 枚裂谷核，［鎖甲］防禦力 +9）', dis:body.cores<8, f:()=>{ body.cores-=8; say('narr','鐵匠把裂谷核一枚一枚熔進甲片，紅光在鐵裡慢慢暗下去。'); giveArmor('core'); status(); N.wshop(); }});
   else o.push({t:'加固護甲（每次 6 枚裂谷核，防禦力 +2）', dis:body.cores<6, f:()=>payQ('加固護甲','次','cores',6,N.wshop,n=>{ body.armorPlus=(body.armorPlus||0)+2*n; body.flags.armorBought=(body.flags.armorBought||0)+n; say('gain','鐵匠把核熔進你身上的甲。防禦力 +'+2*n+'（現在 '+defNow()+'）。'); })});
   o.push({t:'裝備與道具', f:gearMenu});
@@ -1874,6 +1895,7 @@ N.rift=()=>{ lastNode=N.rift;
   const o=[];
   if(body.floor<TOP_FLOOR) o.push({t:'在這一層狩獵（攻速 '+pInterval().toFixed(1)+' 秒）', f:()=>{ if(envTick()) return; if(!canChain()) body.autoHunt=false; encounter(); }}); else o.push({t:'挑戰裂谷魔王', f:()=>{ if(envTick()) return; body.autoHunt=false; encounter(KING); }});
   envOptions(o,N.rift);
+  if(body.floor===7&&!riftClosed()) o.push(sharpOpt('forge',N.rift,'在熔淵古爐磨刀'));
   o.push({t:'安全線 '+Math.round(body.stopHp*100)+'%（切換）', f:()=>{ body.stopHp=({0.5:0.3,0.3:0.1,0.1:0.5})[body.stopHp]||0.3; say('info','安全線設為 '+Math.round(body.stopHp*100)+'%。'+(sysIs('idle')?'離線狩獵也用這條線。':'')); N.rift(); }});
   if(canChain()) o.push({t:(body.autoHunt?'● ':'○ ')+'連續狩獵（'+(sysIs('idle')||sysIs('omni')||sysIs('shadow')?'你的能力':'影子軍團替你找下一隻')+'：打完自動下一隻）', ab:1, f:()=>{ body.autoHunt=!body.autoHunt; save(); N.rift(); }});
   o.push({t:(body.autoAct?'● ':'○ ')+'自動戰鬥（輪到你時重複上一次行動）', f:()=>{ body.autoAct=!body.autoAct; save(); N.rift(); }});
