@@ -169,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.19.1';
+const VERSION='2.19.2';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -884,7 +884,7 @@ function sharpOpt(tier,back,verb){ const T=SHARP[tier]; const n=eqW().sharp||0;
   if(n>=T.cap) return {t:sharpLabel(tier,verb), f:()=>{ sharpDone(tier); back(); }};
   return {t:sharpLabel(tier,verb), dis:sharpMax(tier)<1, f:()=>qtyMenu(Object.assign(sharpQ(tier),{back}))}; }
 function defGainPct(){ const k=repAtk(body.floor); const D=defNow(); const ehp=d=>(k+d)/k; return ((ehp(D+1)/ehp(D)-1)*100).toFixed(1); }
-function showFormula(){ const D=defNow(); const r=k=>Math.round(100*D/(k+D)); const st=stats(); say('info','數值說明\n基本能力：力量 '+st.str+'、體力 '+st.vit+'、敏捷 '+st.agi+'（只有升級會長；'+job().n+'的成長'+growText()+'）\n攻擊 =（力量 + 武器與攻擊加成）× 1.1386^((力量 − 18) ÷ 2) × 肉身係數　現在：（'+st.str+' + '+atkFlat()+'）× '+strMul(st.str).toFixed(2)+' × '+(sysIs('ancestor')?1:ageFactor(body.age)).toFixed(2)+' = '+fmt(atkNow())+'；力量每 +2，攻擊 ×1.14\n你打魔物 = 攻擊 × 0.85～1.15 − 魔物防禦（穿刺無視防禦、弱點 ×2 無視防禦）\n魔物打你 = 魔物攻擊² ÷（魔物攻擊力 + 防禦）　防禦 '+D+' 對第一層的犬減傷 '+r(7)+'%、蛛 '+r(10)+'%、巨獸 '+r(16)+'%、魔王 '+r(24)+'%；魔物越深越強，防禦要跟著長\n環境 = HP 上限 × 環境係數（火 15%、冰 12%、毒 10%、雷 20%）×（1 − 抗性），每一步一次，戰鬥中每次被攻擊再 0.3 次\n防禦 = 防具 + 加固 + 體力換算（現在 +'+vitDef(st.vit)+'）+ 永久加成 + 職業 + 飾品；防具與飾品的「再減」在防禦之後另外乘，合計最多六成\nHP =（24 + 體力 × 2 + HP 加成）× 1.15^(0.8 × (體力 − 18) ÷ 2)　現在：（24 + '+st.vit*2+' + '+hpFlat()+'）× '+vitMul(st.vit).toFixed(2)+'\n攻擊間隔 =（2 秒 + 武器防具職業飾品的加減）÷ 速度係數，最快 0.25 秒；速度係數 = 1.01^(敏捷 − 20)　現在 ×'+spNow().toFixed(2)+'，攻擊間隔 '+pInterval().toFixed(2)+' 秒\n魔物 = Lv1 基礎值 × 成長率^(等級−1)，每種魔物成長率不同（HP 約 1.18、攻擊約 1.15、防禦約 1.18）；裂谷 1～9 層魔物等級 1～4、4～8、8～12、12～17、17～22、22～28、28～34、34～40、40～46，魔王固定 Lv 50、火龍固定 Lv 46\n經驗值 = 4 × 1.25^(魔物等級−1) × 1.5^(階級−3)（三階為準，一階 0.44 倍、五階 2.25 倍）；升級需要 = 同級三階魔物一隻的經驗 × 隻數 x(L)（Lv 5 起 12 隻、每級 ×1.7，Lv 10 起 900 隻、每級 ×1.06）\n每個地點都有一到五階各一種魔物，階級越高越少見（出現權重 5：3.5：2：1：0.4）\n擊殺金幣 = 5 × 1.2^(魔物等級−1) ×（1 + 0.25×(階級−1)），系統與飾品加成另外乘上去\n年齡：20 歲前 ×0.85，40 歲起每歲 −2%，60 歲起每歲 −1%（最低 0.4）\n背包 = 100 格 + 容器（布袋 30、皮囊 30、背架 60、礦車 130、皮革背包每號 30 最多五號，容器全拿 500；空間背包每個 50 最多十個，系統商城再多 500；每種容器只能有一個。博聞、行商等加成另外疊上去）。裝備和金幣不佔格子\n裝備也佔格子（穿戴中的不算）：短劍 2、杖 3、劍 4、槍 5、斧鎚 6，布衣 3、皮甲 5、鎖甲 8、板甲 12，飾品 1\n每個佔 1 格：裂谷核、灰葉草、魚乾、墨、稀有素材（星鐵 3）、多數道具｜2 格：獸皮、遺物、糧食、鹽、炭、炸彈、捕獸夾｜3 格：礦石、大炸彈｜4 格：木材、帳篷｜5 格：巨型炸彈、爆裂彈\n戰鬥中用道具要花時間：開始用之後等使用時間過完才生效，這段時間魔物照打；使用時間 ÷ 速度係數（藥水 1.5 秒、炸彈 2 秒、巨型炸彈 3 秒……）'); }
+function showFormula(){ const D=defNow(); const r=k=>Math.round(100*D/(k+D)); const st=stats(); say('info','數值說明\n基本能力：力量 '+st.str+'、體力 '+st.vit+'、敏捷 '+st.agi+'（只有升級會長；'+job().n+'的成長'+growText()+'）\n攻擊 =（力量 + 武器與攻擊加成）× 1.1386^((力量 − 18) ÷ 2) × 肉身係數　現在：（'+st.str+' + '+atkFlat()+'）× '+strMul(st.str).toFixed(2)+' × '+(sysIs('ancestor')?1:ageFactor(body.age)).toFixed(2)+' = '+fmt(atkNow())+'；力量每 +2，攻擊 ×1.14\n你打魔物 = 攻擊 × 0.85～1.15 − 魔物防禦（穿刺無視防禦、弱點 ×2 無視防禦）\n魔物打你 = 魔物攻擊² ÷（魔物攻擊力 + 防禦）　防禦 '+D+' 對第一層的犬減傷 '+r(7)+'%、蛛 '+r(10)+'%、巨獸 '+r(16)+'%、魔王 '+r(24)+'%；魔物越深越強，防禦要跟著長\n環境 = HP 上限 × 環境係數（火 15%、冰 12%、毒 10%、雷 20%）×（1 − 抗性），每一步一次，戰鬥中每次被攻擊再 0.3 次\n防禦 = 防具 + 加固 + 體力換算（現在 +'+vitDef(st.vit)+'）+ 永久加成 + 職業 + 飾品；防具與飾品的「再減」在防禦之後另外乘，合計最多六成\nHP =（24 + 體力 × 2 + HP 加成）× 1.15^(0.8 × (體力 − 18) ÷ 2)　現在：（24 + '+st.vit*2+' + '+hpFlat()+'）× '+vitMul(st.vit).toFixed(2)+'\n攻擊間隔 =（2 秒 + 武器防具職業飾品的加減）÷ 速度係數，最快 0.25 秒；速度係數 = 1.01^(敏捷 − 20)　現在 ×'+spNow().toFixed(2)+'，攻擊間隔 '+pInterval().toFixed(2)+' 秒\n魔物 = Lv1 基礎值 × 成長率^(等級−1)，每種魔物成長率不同（HP 約 1.18、攻擊約 1.15、防禦約 1.18）；裂谷 1～9 層魔物等級 1～4、4～8、8～12、12～17、17～22、22～28、28～34、34～40、40～46，魔王固定 Lv 50、火龍固定 Lv 46\n經驗值 = 4 × 1.25^(魔物等級−1) × 1.5^(階級−3)（三階為準，一階 0.44 倍、五階 2.25 倍）；升級需要 = 同級三階魔物一隻的經驗 × 隻數 x(L)（Lv 5 起 12 隻、每級 ×1.7，Lv 10 起 900 隻、每級 ×1.06）\n每個地點都有一到五階各一種魔物，階級越高越少見（出現權重 5：3.5：2：1：0.4）\n擊殺金幣 = 5 × 1.2^(魔物等級−1) ×（1 + 0.25×(階級−1)），系統與飾品加成另外乘上去\n年齡：20 歲前 ×0.85，40 歲起每歲 −2%，60 歲起每歲 −1%（最低 0.4）\n背包 = 100 格 + 容器（布袋 30、皮囊 30、背架 60、礦車 130、皮革背包每號 30 最多五號，容器全拿 500；空間背包每個 50 最多十個，系統商城再多 500；每種容器只能有一個。博聞、行商等加成另外疊上去）。裝備和金幣不佔格子\n裝備也佔格子（穿戴中的不算）：短劍 2、杖 3、劍 4、槍 5、斧鎚 6，布衣 3、皮甲 5、鎖甲 8、板甲 12，飾品 1\n每個佔 1 格：裂谷核、灰葉草、魚乾、墨、稀有素材（星鐵 3）、多數道具｜2 格：獸皮、遺物、糧食、鹽、炭、炸彈、捕獸夾｜3 格：礦石、大炸彈｜4 格：木材、帳篷｜5 格：巨型炸彈、爆裂彈\n戰鬥中用道具：按下去立刻生效，接著讀秒，使用時間過完才能再行動，這段時間魔物照打；使用時間 ÷ 速度係數（藥水 1.5 秒、炸彈 2 秒、巨型炸彈 3 秒……）'); }
 function showStatus(){ say('info','<b>'+esc(soul.name)+'</b>　Lv '+body.level+'（經驗值 '+fmt(body.xp)+'/'+fmt(xpNeed(body.level))+'）｜力量 '+stats().str+'｜體力 '+stats().vit+'｜敏捷 '+stats().agi+'｜攻擊力 '+atkNow()+'｜防禦力 '+defNow()+'｜HP '+body.hp+'/'+body.hpMax+'\n'+body.age+' 歲｜第 '+body.day+' 天\n金幣 '+body.gold+'｜裂谷核 '+body.cores+'｜背包 '+load()+'/'+capOf()+' 格（'+bagText()+'）\n武器：'+wText(eqW())+'\n道具：'+itemsText()+'\n資源：'+(Object.keys(RES).filter(k=>k!=='gold'&&k!=='cores'&&body[k]>0).map(k=>RES[k]+' '+body[k]).join('、')||'無')+'\n聲望：騎士團 '+body.rep.knight+'、神殿 '+body.rep.temple+'、王室 '+body.rep.crown+'、民心 '+body.rep.people+(body.flags.quest?'｜義務 '+Math.min(body.quest,10)+'/10':'')); }
 function status(){
   if(!body){document.getElementById('status').innerHTML='';renderSystem();renderChar();renderQuests();renderAchs();return;}
@@ -2185,13 +2185,13 @@ function mInterval(m){ return m.iv||2; }
 function canChain(){ return sysIs('idle')||sysIs('omni')||sysIs('shadow')||(soul.shadows|0)>0; }
 function modeList(){ const l=['attack']; if(sysIs('omni')) l.push('weak'); if(sysIs('reflect')) l.push('burst'); l.push('guard','flee'); return l; }
 let pending=null, ready=false;
-/* 戰鬥中用道具要花時間（不是冷卻）：開始用之後要等使用時間過完，道具才生效，這段時間魔物照打。用完馬上可以下一個行動。
-   使用時間 ÷ 敏捷係數。沒輪到你時按下去，會排成下一次行動。 */
+/* 戰鬥中用道具：按下去道具立刻生效，然後讀秒——使用時間（÷ 速度係數）過完才能再行動，這段時間魔物照打。
+   就跟攻擊一樣：先出手，再等間隔。沒輪到你時按下去，會排成下一次行動。 */
 let casting=null;
 const ITEM_T={hpot:1.5,bandage:1.5,whet:1.0,armoroil:1.0,coredust:1.5,trap:2.0,smoke:1.0,bomb:2.0,bigbomb:2.5,hugebomb:3.0,blastbomb:3.0};
 function itemT(k){ return (ITEM_T[k]||1.5)/spNow(); }
-function startCast(k){ casting=k; pT+=itemT(k); say('info','你開始用'+ITEMS[k].n+'……（'+itemT(k).toFixed(1)+' 秒後生效）'); }
-function fightItem(k){ if(!inCombat||itemN(k)<=0) return; if(ready){ ready=false; pending=null; lastTick=Date.now(); pT=0; startCast(k); renderCombat(); } else { pending='item:'+k; say('info','下一次行動：用'+ITEMS[k].n+'（要 '+itemT(k).toFixed(1)+' 秒）'); renderCombat(); } }
+function startCast(k){ const t=itemT(k); useItem(k); if(!inCombat) return; casting=k; pT+=t; say('info','（用'+ITEMS[k].n+'花了 '+t.toFixed(1)+' 秒，讀秒中）'); }
+function fightItem(k){ if(!inCombat||itemN(k)<=0) return; if(ready){ ready=false; pending=null; lastTick=Date.now(); pT=0; startCast(k); if(inCombat) renderCombat(); } else { pending='item:'+k; say('info','下一次行動：用'+ITEMS[k].n+'（要 '+itemT(k).toFixed(1)+' 秒）'); renderCombat(); } }
 function chooseAct(k){ body.mode=k; if(ready){ ready=false; pending=null; playerAct(k); if(inCombat){ pT=pInterval(); renderCombat(); } } else { pending=k; say('info','下一次行動：'+MODES[k]); renderCombat(); } save(); }
 
 N.rift=()=>{ lastNode=N.rift;
@@ -2257,7 +2257,7 @@ function encounter(force,lv,ret){
   lastTick=Date.now(); clearInterval(cTimer); cTimer=setInterval(tick,100);
   renderCombat();
 }
-function combatHint(){ return mon.n+' HP '+Math.max(0,mon.hp)+'/'+mon.hpMax+'　你 '+body.hp+'/'+body.hpMax+(sysIs('reflect')?'　怒氣 '+body.rage+'/5':'')+(body.flags.whet?'　磨刀 ×1.5':'')+'　｜'+(ready?'時間停止 · 選一個行動':(casting?'使用'+ITEMS[casting].n+'中 ':'你 ')+Math.max(0,pT).toFixed(1)+'s')+'　它 '+Math.max(0,mT).toFixed(1)+'s'; }
+function combatHint(){ return mon.n+' HP '+Math.max(0,mon.hp)+'/'+mon.hpMax+'　你 '+body.hp+'/'+body.hpMax+(sysIs('reflect')?'　怒氣 '+body.rage+'/5':'')+(body.flags.whet?'　磨刀 ×1.5':'')+'　｜'+(ready?'時間停止 · 選一個行動':(casting?'用完'+ITEMS[casting].n+'，讀秒 ':'你 ')+Math.max(0,pT).toFixed(1)+'s')+'　它 '+Math.max(0,mT).toFixed(1)+'s'; }
 function renderCombat(){
   if(!inCombat||!mon) return;
   const hint=combatHint();
@@ -2273,8 +2273,8 @@ function tick(){
   const now=Date.now(); const dt=Math.min(1,(now-lastTick)/1000); lastTick=now;
   if(ready) return;   // 等玩家出手：時間凍結，敵人也不動
   pT-=dt; mT-=dt;
-  if(pT<=0&&!ready&&casting){ const k=casting; casting=null; if(itemN(k)>0){ useItem(k); if(!inCombat) return; } }
-  if(pT<=0&&!ready){ if(pending&&pending.startsWith('item:')){ const k=pending.slice(5); pending=null; if(itemN(k)>0){ startCast(k); renderCombat(); } else { playerAct(body.mode); if(!inCombat) return; pT+=pInterval(); } } else if(pending){ const k=pending; pending=null; playerAct(k); if(!inCombat) return; pT+=pInterval(); } else if(body.autoAct){ playerAct(body.mode); if(!inCombat) return; pT+=pInterval(); } else { ready=true; pT=0; renderCombat(); say('info','輪到你了！'); } }
+  if(pT<=0&&!ready&&casting) casting=null;
+  if(pT<=0&&!ready){ if(pending&&pending.startsWith('item:')){ const k=pending.slice(5); pending=null; if(itemN(k)>0){ startCast(k); if(!inCombat) return; renderCombat(); } else { playerAct(body.mode); if(!inCombat) return; pT+=pInterval(); } } else if(pending){ const k=pending; pending=null; playerAct(k); if(!inCombat) return; pT+=pInterval(); } else if(body.autoAct){ playerAct(body.mode); if(!inCombat) return; pT+=pInterval(); } else { ready=true; pT=0; renderCombat(); say('info','輪到你了！'); } }
   if(mT<=0){ monsterAttack(); if(!inCombat) return; mT+=mInterval(mon); }
   if(body.hp<body.hpMax*.3 && !body.flags.warned){ body.flags.warned=1; sys('lowhp'); }
   const h=opts.querySelector('.hint'); if(h) h.textContent=combatHint();
