@@ -169,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.19.2';
+const VERSION='2.20.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -409,7 +409,7 @@ function ageFactor(a){ if(a<20)return .85; if(a<40)return 1; if(a<60)return 1-(a
    1.1386 = 1.15 ÷ 1.01：攻速隨敏捷變快，攻擊的指數稍微放慢，攻擊 × 攻速正好等於舊版。
    標準成長（起始值不加減）下，攻擊 × 攻速、HP、防禦和舊版等級公式完全一樣。 */
 const STAT_BASE={str:8,vit:8,agi:15};
-const JOB_RATE={swordsman:{str:2.06,vit:1.93,agi:1.0},knight:{str:1.94,vit:2.07,agi:1.0,off:{str:1}},thief:{str:1.98,vit:1.97,agi:1.3},priest:{str:1.97,vit:2.03,agi:1.1,off:{str:1}},hunter:{str:2.03,vit:1.95,agi:1.1}};
+const JOB_RATE={swordsman:{str:2.06,vit:1.93,agi:1.0},knight:{str:1.94,vit:2.07,agi:1.0,off:{str:1}},thief:{str:1.98,vit:1.9,agi:1.3},priest:{str:1.97,vit:2.03,agi:1.1,off:{str:1}},hunter:{str:2.03,vit:1.95,agi:1.1}};
 const STAT_N={str:'力量',vit:'體力',agi:'敏捷'};
 const STR_E=1.15/1.01;
 function strMul(S){ return Math.pow(STR_E,Math.max(0,S-18)/2); }
@@ -425,6 +425,10 @@ function ptsFix(){ if(!body) return {str:0,vit:0,agi:0,luck:0}; let p=body.pts||
 function statsAt(L){ const r=jobRate(); const p=ptsFix(); const add=(body&&body.statAdd)||{}; const o=r.off||{}; const g=(k)=>Math.floor(STAT_BASE[k]+(o[k]|0)+r[k]*L+1e-9); return {str:g('str')+(p.str|0)+(add.str|0), vit:g('vit')+(p.vit|0)+(add.vit|0), agi:g('agi')+2*(p.agi|0)+(add.agi|0)}; }
 function stats(){ return statsAt(lv()); }
 function spNow(){ return SP(stats().agi); }
+/* 閃避：敏捷比魔物的敏捷高，每高 1 點閃避 1%，最多 40%；魔王只算一半。
+   魔物敏捷 = 15 + 魔物等級（和標準成長同一條線），所以標準成長打同級魔物是 0%，敏捷型職業、面板點敏捷、打低等魔物才閃得開。 */
+function monAgi(m){ return 15+(m&&m.lv||1); }
+function dodgeP(m){ if(!body||!m) return 0; let p=Math.min(0.4,Math.max(0,(stats().agi-monAgi(m))*0.01)); if(isKing(m)) p*=0.5; return p; }
 function growText(){ const L=lv(); const a=statsAt(L); const rows=[]; for(let i=1;i<=5;i++){ const n=statsAt(L+i), m=statsAt(L+i-1); rows.push('Lv'+(L+i)+' 力+'+(n.str-m.str)+' 體+'+(n.vit-m.vit)+' 敏+'+(n.agi-m.agi)); } return '接下來：'+rows.join('、'); }
 function atkFlat(){ return (body?wAtk():2)+(soul.permAtk||0)+medAtk()+forgeAtk()+eatAtk()+(body?(job().atk||0)+accSum('atk'):0); }
 function atkBase(){ const S=stats().str; return (S+atkFlat())*strMul(S); }
@@ -884,7 +888,7 @@ function sharpOpt(tier,back,verb){ const T=SHARP[tier]; const n=eqW().sharp||0;
   if(n>=T.cap) return {t:sharpLabel(tier,verb), f:()=>{ sharpDone(tier); back(); }};
   return {t:sharpLabel(tier,verb), dis:sharpMax(tier)<1, f:()=>qtyMenu(Object.assign(sharpQ(tier),{back}))}; }
 function defGainPct(){ const k=repAtk(body.floor); const D=defNow(); const ehp=d=>(k+d)/k; return ((ehp(D+1)/ehp(D)-1)*100).toFixed(1); }
-function showFormula(){ const D=defNow(); const r=k=>Math.round(100*D/(k+D)); const st=stats(); say('info','數值說明\n基本能力：力量 '+st.str+'、體力 '+st.vit+'、敏捷 '+st.agi+'（只有升級會長；'+job().n+'的成長'+growText()+'）\n攻擊 =（力量 + 武器與攻擊加成）× 1.1386^((力量 − 18) ÷ 2) × 肉身係數　現在：（'+st.str+' + '+atkFlat()+'）× '+strMul(st.str).toFixed(2)+' × '+(sysIs('ancestor')?1:ageFactor(body.age)).toFixed(2)+' = '+fmt(atkNow())+'；力量每 +2，攻擊 ×1.14\n你打魔物 = 攻擊 × 0.85～1.15 − 魔物防禦（穿刺無視防禦、弱點 ×2 無視防禦）\n魔物打你 = 魔物攻擊² ÷（魔物攻擊力 + 防禦）　防禦 '+D+' 對第一層的犬減傷 '+r(7)+'%、蛛 '+r(10)+'%、巨獸 '+r(16)+'%、魔王 '+r(24)+'%；魔物越深越強，防禦要跟著長\n環境 = HP 上限 × 環境係數（火 15%、冰 12%、毒 10%、雷 20%）×（1 − 抗性），每一步一次，戰鬥中每次被攻擊再 0.3 次\n防禦 = 防具 + 加固 + 體力換算（現在 +'+vitDef(st.vit)+'）+ 永久加成 + 職業 + 飾品；防具與飾品的「再減」在防禦之後另外乘，合計最多六成\nHP =（24 + 體力 × 2 + HP 加成）× 1.15^(0.8 × (體力 − 18) ÷ 2)　現在：（24 + '+st.vit*2+' + '+hpFlat()+'）× '+vitMul(st.vit).toFixed(2)+'\n攻擊間隔 =（2 秒 + 武器防具職業飾品的加減）÷ 速度係數，最快 0.25 秒；速度係數 = 1.01^(敏捷 − 20)　現在 ×'+spNow().toFixed(2)+'，攻擊間隔 '+pInterval().toFixed(2)+' 秒\n魔物 = Lv1 基礎值 × 成長率^(等級−1)，每種魔物成長率不同（HP 約 1.18、攻擊約 1.15、防禦約 1.18）；裂谷 1～9 層魔物等級 1～4、4～8、8～12、12～17、17～22、22～28、28～34、34～40、40～46，魔王固定 Lv 50、火龍固定 Lv 46\n經驗值 = 4 × 1.25^(魔物等級−1) × 1.5^(階級−3)（三階為準，一階 0.44 倍、五階 2.25 倍）；升級需要 = 同級三階魔物一隻的經驗 × 隻數 x(L)（Lv 5 起 12 隻、每級 ×1.7，Lv 10 起 900 隻、每級 ×1.06）\n每個地點都有一到五階各一種魔物，階級越高越少見（出現權重 5：3.5：2：1：0.4）\n擊殺金幣 = 5 × 1.2^(魔物等級−1) ×（1 + 0.25×(階級−1)），系統與飾品加成另外乘上去\n年齡：20 歲前 ×0.85，40 歲起每歲 −2%，60 歲起每歲 −1%（最低 0.4）\n背包 = 100 格 + 容器（布袋 30、皮囊 30、背架 60、礦車 130、皮革背包每號 30 最多五號，容器全拿 500；空間背包每個 50 最多十個，系統商城再多 500；每種容器只能有一個。博聞、行商等加成另外疊上去）。裝備和金幣不佔格子\n裝備也佔格子（穿戴中的不算）：短劍 2、杖 3、劍 4、槍 5、斧鎚 6，布衣 3、皮甲 5、鎖甲 8、板甲 12，飾品 1\n每個佔 1 格：裂谷核、灰葉草、魚乾、墨、稀有素材（星鐵 3）、多數道具｜2 格：獸皮、遺物、糧食、鹽、炭、炸彈、捕獸夾｜3 格：礦石、大炸彈｜4 格：木材、帳篷｜5 格：巨型炸彈、爆裂彈\n戰鬥中用道具：按下去立刻生效，接著讀秒，使用時間過完才能再行動，這段時間魔物照打；使用時間 ÷ 速度係數（藥水 1.5 秒、炸彈 2 秒、巨型炸彈 3 秒……）'); }
+function showFormula(){ const D=defNow(); const r=k=>Math.round(100*D/(k+D)); const st=stats(); say('info','數值說明\n基本能力：力量 '+st.str+'、體力 '+st.vit+'、敏捷 '+st.agi+'（只有升級會長；'+job().n+'的成長'+growText()+'）\n攻擊 =（力量 + 武器與攻擊加成）× 1.1386^((力量 − 18) ÷ 2) × 肉身係數　現在：（'+st.str+' + '+atkFlat()+'）× '+strMul(st.str).toFixed(2)+' × '+(sysIs('ancestor')?1:ageFactor(body.age)).toFixed(2)+' = '+fmt(atkNow())+'；力量每 +2，攻擊 ×1.14\n你打魔物 = 攻擊 × 0.85～1.15 − 魔物防禦（穿刺無視防禦、弱點 ×2 無視防禦）\n魔物打你 = 魔物攻擊² ÷（魔物攻擊力 + 防禦）　防禦 '+D+' 對第一層的犬減傷 '+r(7)+'%、蛛 '+r(10)+'%、巨獸 '+r(16)+'%、魔王 '+r(24)+'%；魔物越深越強，防禦要跟著長\n環境 = HP 上限 × 環境係數（火 15%、冰 12%、毒 10%、雷 20%）×（1 − 抗性），每一步一次，戰鬥中每次被攻擊再 0.3 次\n防禦 = 防具 + 加固 + 體力換算（現在 +'+vitDef(st.vit)+'）+ 永久加成 + 職業 + 飾品；防具與飾品的「再減」在防禦之後另外乘，合計最多六成\nHP =（24 + 體力 × 2 + HP 加成）× 1.15^(0.8 × (體力 − 18) ÷ 2)　現在：（24 + '+st.vit*2+' + '+hpFlat()+'）× '+vitMul(st.vit).toFixed(2)+'\n閃避 =（敏捷 −（15 + 魔物等級））× 1%，最多 40%，魔王減半；敏捷 '+st.agi+' 對同級魔物 '+Math.round(Math.min(.4,Math.max(0,(st.agi-15-lv())*.01))*100)+'%\n攻擊間隔 =（2 秒 + 武器防具職業飾品的加減）÷ 速度係數，最快 0.25 秒；速度係數 = 1.01^(敏捷 − 20)　現在 ×'+spNow().toFixed(2)+'，攻擊間隔 '+pInterval().toFixed(2)+' 秒\n魔物 = Lv1 基礎值 × 成長率^(等級−1)，每種魔物成長率不同（HP 約 1.18、攻擊約 1.15、防禦約 1.18）；裂谷 1～9 層魔物等級 1～4、4～8、8～12、12～17、17～22、22～28、28～34、34～40、40～46，魔王固定 Lv 50、火龍固定 Lv 46\n經驗值 = 4 × 1.25^(魔物等級−1) × 1.5^(階級−3)（三階為準，一階 0.44 倍、五階 2.25 倍）；升級需要 = 同級三階魔物一隻的經驗 × 隻數 x(L)（Lv 5 起 12 隻、每級 ×1.7，Lv 10 起 900 隻、每級 ×1.06）\n每個地點都有一到五階各一種魔物，階級越高越少見（出現權重 5：3.5：2：1：0.4）\n擊殺金幣 = 5 × 1.2^(魔物等級−1) ×（1 + 0.25×(階級−1)），系統與飾品加成另外乘上去\n年齡：20 歲前 ×0.85，40 歲起每歲 −2%，60 歲起每歲 −1%（最低 0.4）\n背包 = 100 格 + 容器（布袋 30、皮囊 30、背架 60、礦車 130、皮革背包每號 30 最多五號，容器全拿 500；空間背包每個 50 最多十個，系統商城再多 500；每種容器只能有一個。博聞、行商等加成另外疊上去）。裝備和金幣不佔格子\n裝備也佔格子（穿戴中的不算）：短劍 2、杖 3、劍 4、槍 5、斧鎚 6，布衣 3、皮甲 5、鎖甲 8、板甲 12，飾品 1\n每個佔 1 格：裂谷核、灰葉草、魚乾、墨、稀有素材（星鐵 3）、多數道具｜2 格：獸皮、遺物、糧食、鹽、炭、炸彈、捕獸夾｜3 格：礦石、大炸彈｜4 格：木材、帳篷｜5 格：巨型炸彈、爆裂彈\n戰鬥中用道具：按下去立刻生效，接著讀秒，使用時間過完才能再行動，這段時間魔物照打；使用時間 ÷ 速度係數（藥水 1.5 秒、炸彈 2 秒、巨型炸彈 3 秒……）'); }
 function showStatus(){ say('info','<b>'+esc(soul.name)+'</b>　Lv '+body.level+'（經驗值 '+fmt(body.xp)+'/'+fmt(xpNeed(body.level))+'）｜力量 '+stats().str+'｜體力 '+stats().vit+'｜敏捷 '+stats().agi+'｜攻擊力 '+atkNow()+'｜防禦力 '+defNow()+'｜HP '+body.hp+'/'+body.hpMax+'\n'+body.age+' 歲｜第 '+body.day+' 天\n金幣 '+body.gold+'｜裂谷核 '+body.cores+'｜背包 '+load()+'/'+capOf()+' 格（'+bagText()+'）\n武器：'+wText(eqW())+'\n道具：'+itemsText()+'\n資源：'+(Object.keys(RES).filter(k=>k!=='gold'&&k!=='cores'&&body[k]>0).map(k=>RES[k]+' '+body[k]).join('、')||'無')+'\n聲望：騎士團 '+body.rep.knight+'、神殿 '+body.rep.temple+'、王室 '+body.rep.crown+'、民心 '+body.rep.people+(body.flags.quest?'｜義務 '+Math.min(body.quest,10)+'/10':'')); }
 function status(){
   if(!body){document.getElementById('status').innerHTML='';renderSystem();renderChar();renderQuests();renderAchs();return;}
@@ -904,7 +908,7 @@ function renderChar(){
   const resMain=['herbs','pelts','relics','ore'].map(k=>[RES[k]+' '+body[k],body[k]>0]);
   const resOther=['grain','salt','timber','fish','ink','coal','worldleaf','frostcrystal','pearl','starmetal'].filter(k=>body[k]>0).map(k=>[RES[k]+' '+body[k],true]);
   c.innerHTML='<h2>'+esc(soul.name)+'　<span style="font-weight:400;font-size:.85rem;color:var(--paper-dim)">'+job().n+' Lv '+body.level+'</span></h2>'+
-    slot('狀態', kv('經驗值',fmt(body.xp)+' / '+fmt(xpNeed(body.level)))+(()=>{ const st=stats(); return kv('力量',st.str)+kv('體力',st.vit)+kv('敏捷',st.agi); })()+kv('攻擊力',fmt(atkNow()))+kv('防禦力',fmt(defNow())+'（減傷 '+defPct()+'%）')+kv('HP',fmt(body.hp)+' / '+fmt(body.hpMax))+kv('攻速',pInterval().toFixed(1)+' 秒')+kv('年齡',body.age+' 歲'+(sysIs('ancestor')?'（壽元無盡）':'（肉身 ×'+ageFactor(body.age).toFixed(2)+'）'))+kv('日子','第 '+body.day+' 天')+(soul.shadows>0?kv('影子軍團',shadowN()+' 個'+(sysIs('shadow')?'':'（前世帶來）')):''))+
+    slot('狀態', kv('經驗值',fmt(body.xp)+' / '+fmt(xpNeed(body.level)))+(()=>{ const st=stats(); return kv('力量',st.str)+kv('體力',st.vit)+kv('敏捷',st.agi+'（同級閃避 '+Math.round(Math.min(.4,Math.max(0,(st.agi-15-lv())*.01))*100)+'%）'); })()+kv('攻擊力',fmt(atkNow()))+kv('防禦力',fmt(defNow())+'（減傷 '+defPct()+'%）')+kv('HP',fmt(body.hp)+' / '+fmt(body.hpMax))+kv('攻速',pInterval().toFixed(1)+' 秒')+kv('年齡',body.age+' 歲'+(sysIs('ancestor')?'（壽元無盡）':'（肉身 ×'+ageFactor(body.age).toFixed(2)+'）'))+kv('日子','第 '+body.day+' 天')+(soul.shadows>0?kv('影子軍團',shadowN()+' 個'+(sysIs('shadow')?'':'（前世帶來）')):''))+
     slot('職業　'+job().n, '<span class="line">'+job().desc+(allWeapons()?'（系統：全武器可用）':'')+'</span>')+
     slot('抗性', '<div class="cols">'+Object.keys(ENV).map(k=>kv(ENV[k].n,resist(k)>=1?'免疫':Math.round(resist(k)*100)+'%',resist(k)<=0)).join('')+'</div>'+(body.flags.blessed?'<span class="line">已受祝福：下一場再減傷兩成</span>':''))+
     slot('裝備', kv('武器',wDef(eqW()).n)+kv('防具',aDef(eqA()).n+(body.armorPlus?'（加固 +'+body.armorPlus+'）':''))+kv('鞋',accOf('boots'),accOf('boots')==='—')+kv('手套',accOf('gloves'),accOf('gloves')==='—')+kv('項鍊',accOf('neck'),accOf('neck')==='—')+kv('戒指',accOf('ring'),accOf('ring')==='—')+(spare>0?'<span class="line">背包裡另有 '+spare+' 件裝備</span>':'')+(body.flags.seal?'<span class="line">裂谷之印：所受傷害減少</span>':'')+(body.revive?'<span class="line">鳳凰之尾 ×'+body.revive+'</span>':''))+
@@ -2257,7 +2261,7 @@ function encounter(force,lv,ret){
   lastTick=Date.now(); clearInterval(cTimer); cTimer=setInterval(tick,100);
   renderCombat();
 }
-function combatHint(){ return mon.n+' HP '+Math.max(0,mon.hp)+'/'+mon.hpMax+'　你 '+body.hp+'/'+body.hpMax+(sysIs('reflect')?'　怒氣 '+body.rage+'/5':'')+(body.flags.whet?'　磨刀 ×1.5':'')+'　｜'+(ready?'時間停止 · 選一個行動':(casting?'用完'+ITEMS[casting].n+'，讀秒 ':'你 ')+Math.max(0,pT).toFixed(1)+'s')+'　它 '+Math.max(0,mT).toFixed(1)+'s'; }
+function combatHint(){ return mon.n+' HP '+Math.max(0,mon.hp)+'/'+mon.hpMax+'　你 '+body.hp+'/'+body.hpMax+(sysIs('reflect')?'　怒氣 '+body.rage+'/5':'')+(body.flags.whet?'　磨刀 ×1.5':'')+'　｜'+(ready?'時間停止 · 選一個行動':(casting?'用完'+ITEMS[casting].n+'，讀秒 ':'你 ')+Math.max(0,pT).toFixed(1)+'s')+'　它 '+Math.max(0,mT).toFixed(1)+'s'+(dodgeP(mon)>0?'　閃避 '+Math.round(dodgeP(mon)*100)+'%':''); }
 function renderCombat(){
   if(!inCombat||!mon) return;
   const hint=combatHint();
@@ -2305,6 +2309,7 @@ function defPct(){ const M=repAtk(body.floor); const Dm=defNow(); return Math.ro
 function monsterAttack(){
   if(monSkip){ monSkip=false; say('info',mon.n+'的這一擊落空了。'); return; }
   if(monSkipN>0){ monSkipN--; say('info',mon.n+'被陷阱絆住，這一擊落空了。'); return; }
+  if(chance(dodgeP(mon))){ soul.dodges=(soul.dodges||0)+1; say('info','你閃開了'+mon.n+'的攻擊。'); return; }
   let d=monDamage(mon.atk*(0.85+Math.random()*.3),defNow());
   { const wd=Math.min(.6,(wDef(eqW()).ward||0)+(aDef(eqA()).ward||0)+accSum('ward')+(body.blessFight?.2:0)+.1*eatF('frozen')); if(wd>0) d*=1-wd; }
   if(soul.system.weak==='hated') d+=NUM.hated(); if(body.flags.seal) d*=.8; if(guard){d*=.5;guard=false;}
@@ -2395,7 +2400,7 @@ function offlineHunt(saved){
     const m=makeMon(pickMon(body.floor), RIFT_LV[body.floor]||[1,4]); fights++;
     const pdps=Math.max(1,atkNow()*(body.mode==='weak'?2:1)-(body.mode==='weak'?0:m.def))/pInterval();
     let mdmg=monDamage(m.atk,defNow()); if(soul.system.weak==='hated') mdmg+=NUM.hated(); if(body.flags.seal) mdmg*=.8; if(body.mode==='guard') mdmg*=.5;
-    const mdps=mdmg/mInterval(m); const dur=m.hp/pdps; const taken=Math.round(mdps*dur);
+    const mdps=mdmg*(1-dodgeP(m))/mInterval(m); const dur=m.hp/pdps; const taken=Math.round(mdps*dur);
     if(body.hp-taken<=stop){ // 撐不到打完：先逃一次再停
       const partial=Math.max(0,body.hp-stop); body.hp=Math.max(1,body.hp-Math.min(taken,partial+Math.round(mdmg)));
       if(body.hp<=1&&!fled){ died=true; break; }
