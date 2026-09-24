@@ -169,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.11.5';
+const VERSION='2.12.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -773,6 +773,15 @@ function qtyMenu(q){
 }
 const capN=(a,b)=>Math.min(a==null?1e9:a,b);
 function buyQ(title,unit,price,back,f,limit){ qtyMenu({title, unit, max:capN(limit,Math.floor(body.gold/price)), cost:n=>fmt(price*n)+' 金', f:n=>{ body.gold-=price*n; f(n); }, back}); }
+/* 賣東西：資源賣給市集的收購商，道具半價賣回道具店。價錢都比在別處買進低，不能買低賣高。稀有素材收購商不收，去拍賣所委託。 */
+const SELL={herbs:15,pelts:25,relics:60,ore:12,grain:4,salt:6,timber:6,fish:4,ink:15,coal:6};
+function itemSell(k){ if(k==='flare') return 0; if(k==='elixir') return 25; return Math.floor((ITEMS[k].price||0)/2); }
+function sellMenu(kind,back){ const o=[];
+  if(kind==='res') Object.keys(SELL).filter(k=>body[k]>0).forEach(k=>o.push({t:'賣'+RES[k]+'（每個 '+SELL[k]+' 金，佔 '+WT[k]+' 格，持有 '+fmt(body[k])+'）', f:()=>sellQ('賣'+RES[k],'個',body[k],SELL[k],()=>sellMenu(kind,back),n=>{ body[k]-=n; say('gain',RES[k]+' −'+n+'，金幣 +'+fmt(SELL[k]*n)+'，騰出 '+n*WT[k]+' 格'); })}));
+  else Object.keys(ITEMS).filter(k=>itemSell(k)>0&&itemN(k)>0).forEach(k=>o.push({t:'賣'+ITEMS[k].n+'（每個 '+fmt(itemSell(k))+' 金，佔 '+iW(k)+' 格，持有 '+itemN(k)+'）', f:()=>sellQ('賣'+ITEMS[k].n,'個',itemN(k),itemSell(k),()=>sellMenu(kind,back),n=>{ body.items[k]-=n; say('gain',ITEMS[k].n+' −'+n+'，金幣 +'+fmt(itemSell(k)*n)+'，騰出 '+n*iW(k)+' 格'); })}));
+  if(!o.length) o.push({t:'（沒有可以賣的東西）', dis:true, f:()=>{}});
+  o.push({t:'返回', f:back});
+  setOptions(o,(kind==='res'?'收購商　稀有素材他不敢收，要賣去拍賣所委託。':'道具店老闆娘　「用過的不收。沒拆的，半價。」')+'｜背包 '+load()+' / '+capOf()+' 格｜金幣 '+fmt(body.gold),true); }
 function sellQ(title,unit,have,price,back,f,note){ qtyMenu({title, unit, max:have, cost:n=>'+'+fmt(price*n)+' 金', note, f:n=>{ body.gold+=price*n; f(n); }, back}); }
 function payQ(title,unit,res,each,back,f,limit){ qtyMenu({title, unit, max:capN(limit,Math.floor(body[res]/each)), cost:n=>RES[res]+' −'+fmt(each*n), f:n=>{ body[res]-=each*n; f(n); }, back}); }
 /* 磨刀：鋒利度 n → n+1 的價格 = 30 × 1.15^n，沒有總上限。
@@ -1791,8 +1800,7 @@ N.market=()=>{ lastNode=N.market; if(pendingEvent(N.market)) return;
   if(!canSeeWorld()&&worldLog.length&&chance(.35)&&body.flags.lastRumor!==worldLog[worldLog.length-1].ts){ body.flags.lastRumor=worldLog[worldLog.length-1].ts; const e=worldLog[worldLog.length-1].t; const vague=e.replace(/^\S+ /,'有人').replace(/\d[\d,]* ?枚/g,'一大批').replace(/\d[\d,]* ?金/g,'一大筆錢').replace(/市價跌至 \d+/,'把市價砸下去').replace(/\d[\d,]*/g,'很多'); say('npc','商人壓低聲音：「'+vague+'。別問我是誰。」'); }
   const o=[];
   if(body.cores>0) o.push({t:'賣裂谷核（每枚 '+world.price+' 金，持有 '+body.cores+'）', f:()=>{ const p=world.price; sellQ('賣裂谷核','枚',body.cores,p,N.market,n=>{ body.cores-=n; say('gain','賣出 '+n+' 枚，金幣 +'+fmt(p*n)); movePrice(-0.02*n); if(n>=10) worldEvent(soul.name+' 一口氣賣出 '+n+' 枚裂谷核，市價跌至 '+world.price); },'賣得越多，市價跌得越多。'); }});
-  if(body.pelts>0) o.push({t:'賣獸皮（每張 25 金，持有 '+body.pelts+'）', f:()=>sellQ('賣獸皮','張',body.pelts,25,N.market,n=>{ body.pelts-=n; say('gain','獸皮 −'+n+'，金幣 +'+fmt(25*n)); })});
-  if(body.herbs>0) o.push({t:'賣灰葉草（每株 15 金，持有 '+body.herbs+'）', f:()=>sellQ('賣灰葉草','株',body.herbs,15,N.market,n=>{ body.herbs-=n; say('gain','灰葉草 −'+n+'，金幣 +'+fmt(15*n)); })});
+  if(Object.keys(SELL).some(k=>body[k]>0)) o.push({t:'把資源賣給收購商（背包 '+load()+' / '+capOf()+'）', f:()=>sellMenu('res',N.market)});
   if(body.relics>0) o.push({t:'把遺物交給王室（每件王室聲望 +5、民心 +3，持有 '+body.relics+'）', f:()=>qtyMenu({title:'把遺物交給王室', unit:'件', max:body.relics, cost:n=>'王室聲望 +'+5*n+'、民心 +'+3*n, f:n=>{ body.relics-=n; body.rep.crown+=5*n; body.rep.people+=3*n; say('gain','遺物 −'+n+'，王室聲望 +'+5*n+'，民心 +'+3*n); }, back:N.market})});
   if(caravanIn()) chiefOptions(o,N.market);
   o.push({t:'冒險者公會', f:N.guild}); o.push({t:'拍賣所', f:N.auction}); o.push({t:'酒館（休息、傳聞）', f:N.tavern}); o.push({t:'教堂（治療、祝福、轉生）', f:N.chapel}); o.push({t:'武器店（武器、防具、飾品）', f:N.wshop}); o.push({t:'道具店', f:stallMenu});
@@ -1813,6 +1821,7 @@ function stallMenu(){ lastNode=stallMenu; place('王城市集 · 道具店');
   { const bought=body.flags.bagBought||0; const LAD=[120,500,2000,8000,30000]; const bagAt=i=>LAD[Math.min(i,4)]; const seq=n=>{ let t=0; for(let i=0;i<n;i++) t+=bagAt(bought+i); return t; };
     const lv=bagN('leather'); if(lv<5) o.push({t:(lv?'把皮革背包換大一號':'買皮革背包')+'（'+fmt(bagAt(lv))+' 金，背包 +30，第 '+(lv+1)+' / 5 號）', dis:body.gold<bagAt(lv), f:()=>qtyMenu({title:'換皮革背包', unit:'號', max:ladderMax(n=>{ let t=0; for(let i=0;i<n;i++) t+=bagAt(lv+i); return t; },5-lv), cost:n=>{ let t=0; for(let i=0;i<n;i++) t+=bagAt(lv+i); return fmt(t)+' 金，背包 +'+30*n; }, note:'人只背得了一個背包。老闆娘說最大做到五號，再大就背不動了。', f:n=>{ let t=0; for(let i=0;i<n;i++) t+=bagAt(lv+i); body.gold-=t; body.flags.bagBought=lv+n; say('info','金幣 −'+fmt(t)); giveBag('leather',n); }, back:stallMenu})}); }
   if(body.maxFloor>=4&&!body.flags.antidote) o.push({t:'買毒消草（3000 金，毒免疫；難民營的藥婆用草就能配）', dis:body.gold<3000, f:()=>{ body.gold-=3000; body.flags.antidote=1; say('gain','毒消草：毒霧對你無效。'); status(); stallMenu(); }});
+  if(Object.keys(ITEMS).some(k=>itemSell(k)>0&&itemN(k)>0)) o.push({t:'把道具賣回給老闆娘（半價，背包 '+load()+' / '+capOf()+'）', f:()=>sellMenu('items',stallMenu)});
   o.push({t:'不買了', f:N.market});
   setOptions(o,'道具店　持有金幣 '+body.gold);
 }
