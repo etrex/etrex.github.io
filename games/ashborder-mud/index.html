@@ -169,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.19.0';
+const VERSION='2.19.1';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -409,7 +409,7 @@ function ageFactor(a){ if(a<20)return .85; if(a<40)return 1; if(a<60)return 1-(a
    1.1386 = 1.15 ÷ 1.01：攻速隨敏捷變快，攻擊的指數稍微放慢，攻擊 × 攻速正好等於舊版。
    標準成長（起始值不加減）下，攻擊 × 攻速、HP、防禦和舊版等級公式完全一樣。 */
 const STAT_BASE={str:8,vit:8,agi:15};
-const JOB_RATE={swordsman:{str:2.06,vit:1.93,agi:1.0},knight:{str:1.94,vit:2.07,agi:1.0},thief:{str:1.98,vit:1.97,agi:1.3},priest:{str:1.97,vit:2.03,agi:1.1},hunter:{str:2.03,vit:1.95,agi:1.1}};
+const JOB_RATE={swordsman:{str:2.06,vit:1.93,agi:1.0},knight:{str:1.94,vit:2.07,agi:1.0,off:{str:1}},thief:{str:1.98,vit:1.97,agi:1.3},priest:{str:1.97,vit:2.03,agi:1.1,off:{str:1}},hunter:{str:2.03,vit:1.95,agi:1.1}};
 const STAT_N={str:'力量',vit:'體力',agi:'敏捷'};
 const STR_E=1.15/1.01;
 function strMul(S){ return Math.pow(STR_E,Math.max(0,S-18)/2); }
@@ -422,7 +422,7 @@ function ptsFix(){ if(!body) return {str:0,vit:0,agi:0,luck:0}; let p=body.pts||
   if(p.atk!==undefined){ p=body.pts={str:p.atk|0, vit:(p.hp|0)+(p.def|0), agi:0, luck:p.luck|0}; }
   if(body.ptsV!==3){ body.ptsV=3; ['str','vit','agi','luck'].forEach(k=>p[k]=Math.round((p[k]|0)/12)); body.freePts=Math.round((body.freePts|0)/12); }
   return p; }
-function statsAt(L){ const r=jobRate(); const p=ptsFix(); const add=(body&&body.statAdd)||{}; const g=(b,x)=>Math.floor(b+x*L+1e-9); return {str:g(STAT_BASE.str,r.str)+(p.str|0)+(add.str|0), vit:g(STAT_BASE.vit,r.vit)+(p.vit|0)+(add.vit|0), agi:g(STAT_BASE.agi,r.agi)+2*(p.agi|0)+(add.agi|0)}; }
+function statsAt(L){ const r=jobRate(); const p=ptsFix(); const add=(body&&body.statAdd)||{}; const o=r.off||{}; const g=(k)=>Math.floor(STAT_BASE[k]+(o[k]|0)+r[k]*L+1e-9); return {str:g('str')+(p.str|0)+(add.str|0), vit:g('vit')+(p.vit|0)+(add.vit|0), agi:g('agi')+2*(p.agi|0)+(add.agi|0)}; }
 function stats(){ return statsAt(lv()); }
 function spNow(){ return SP(stats().agi); }
 function growText(){ const L=lv(); const a=statsAt(L); const rows=[]; for(let i=1;i<=5;i++){ const n=statsAt(L+i), m=statsAt(L+i-1); rows.push('Lv'+(L+i)+' 力+'+(n.str-m.str)+' 體+'+(n.vit-m.vit)+' 敏+'+(n.agi-m.agi)); } return '接下來：'+rows.join('、'); }
