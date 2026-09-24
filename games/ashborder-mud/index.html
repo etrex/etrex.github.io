@@ -169,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.24.0';
+const VERSION='2.25.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -690,23 +690,33 @@ function useItem(k){
   status(); if(inCombat) renderCombat(); else save();
 }
 function gearMenu(){
-  const back=lastNode||N.market; const o=[];
+  const back=lastNode||N.market; const o=[]; const atHome=!!(body.home&&lastNode===N.home); const H=body.home;
   (body.weapons||[]).forEach((w,i)=>o.push({t:(i===body.wpn?'● ':'○ ')+wText(w)+(canUse(w)?'':'（'+job().n+'不能用）'), dis:i===body.wpn||!canUse(w), f:()=>{ body.wpn=i; say('info','你握起'+wDef(w).n+'。攻擊 '+atkNow()+'，攻速 '+pInterval().toFixed(1)+' 秒。'); status(); gearMenu(); }}));
   (body.armors||[]).forEach((a,i)=>o.push({t:(i===body.arm?'● ':'○ ')+aText(a)+(canWear(a)?'':'（'+job().n+'不能穿）'), dis:i===body.arm||!canWear(a), f:()=>{ body.arm=i; say('info','你換上'+aDef(a).n+'。防禦 '+defNow()+'，攻速 '+pInterval().toFixed(1)+' 秒。'); status(); gearMenu(); }}));
   [...new Set((body.accs||[]).map(a=>a.key))].forEach(k=>{ const D=ACCS[k]; if(!D) return; const on=accWorn(k); const cnt=eqCount('C',k); const tail=cnt>1?' ×'+cnt:'';
     if(D.slot==='ring'){ const r=ringsOn(); const w=on; const tag='（戴著 '+w+' / 持有 '+cnt+'，手指 '+r.length+' / '+RING_MAX+'）';
       if(w<cnt) o.push({t:'＋ 戴上一枚'+accName(k)+tag, f:()=>{ if(r.length>=RING_MAX){ say('info','十根手指都戴滿了。先摘下一枚。'); } else { r.push(k); say('info','你戴上'+D.n+'（戴著 '+(w+1)+' 枚）。攻擊 '+atkNow()+'，防禦 '+defNow()+'。'); } status(); gearMenu(); }});
       if(w>0) o.push({t:'－ 摘下一枚'+D.n+tag, f:()=>{ r.splice(r.indexOf(k),1); say('info','你把一枚'+D.n+'摘下來。'); status(); gearMenu(); }});
+      if(w>0&&atHome) o.push({t:'－ 摘下一枚'+D.n+'，直接收進倉庫', f:()=>{ if(homeLoad()+1>H.cap){ say('info','倉庫滿了。'); gearMenu(); return; } r.splice(r.indexOf(k),1); body.accs.splice(body.accs.findIndex(x=>x.key===k),1); H.eq.push({t:'C',k,sharp:0}); say('info','你把一枚'+D.n+'摘下來，收進地窖。'); status(); gearMenu(); }});
       return; }
     const a={key:k}; o.push({t:(on?'● ':'○ ')+accName(a.key)+tail, dis:on, f:()=>{ body.acc=body.acc||{}; body.acc[D.slot]=a.key; say('info','你戴上'+D.n+'。攻擊 '+atkNow()+'，防禦 '+defNow()+'，攻速 '+pInterval().toFixed(1)+' 秒。'); status(); gearMenu(); }}); });
-  Object.keys(ASLOT).filter(sl=>sl!=='ring').forEach(sl=>{ if(body.acc&&body.acc[sl]&&ACCS[body.acc[sl]]) o.push({t:'卸下'+ASLOT[sl]+'：'+ACCS[body.acc[sl]].n, f:()=>{ const n=ACCS[body.acc[sl]].n; body.acc[sl]=null; say('info','你脫下'+n+'。'); status(); gearMenu(); }}); });
+  Object.keys(ASLOT).filter(sl=>sl!=='ring').forEach(sl=>{ if(body.acc&&body.acc[sl]&&ACCS[body.acc[sl]]){ o.push({t:'卸下'+ASLOT[sl]+'：'+ACCS[body.acc[sl]].n, f:()=>{ const n=ACCS[body.acc[sl]].n; body.acc[sl]=null; say('info','你脫下'+n+'。'); status(); gearMenu(); }});
+    if(atHome) o.push({t:'卸下'+ASLOT[sl]+'：'+ACCS[body.acc[sl]].n+'，直接收進倉庫', f:()=>{ const k=body.acc[sl]; if(homeLoad()+1>H.cap){ say('info','倉庫滿了。'); gearMenu(); return; } body.acc[sl]=null; body.accs.splice(body.accs.findIndex(x=>x.key===k),1); H.eq.push({t:'C',k,sharp:0}); say('info','你脫下'+ACCS[k].n+'，收進地窖。'); status(); gearMenu(); }}); } });
+  /* 在家的時候，倉庫裡的裝備可以直接穿上；換下來的那件直接收進倉庫，不經過背包 */
+  if(atHome&&H.eq.length){ const best={}; H.eq.forEach(e=>{ const g=e.t+':'+e.k; if(!best[g]||(e.sharp||0)>(best[g].sharp||0)) best[g]=e; });
+    Object.keys(best).forEach(g=>{ const e=best[g]; const cnt=H.eq.filter(x=>x.t===e.t&&x.k===e.k).length; const tail=cnt>1?' ×'+cnt:''; const take=()=>H.eq.splice(H.eq.indexOf(e),1);
+      if(e.t==='W'){ const w={key:e.k,sharp:e.sharp||0}; if(!WEAPONS[e.k]) return; o.push({t:'［倉庫］'+wText(w)+tail+(canUse(w)?'　直接換上':'（'+job().n+'不能用）'), dis:!canUse(w), f:()=>{ const cur=body.weapons[body.wpn]; if(homeLoad()-eqW8('W',e.k)+eqW8('W',cur.key)>H.cap){ say('info','倉庫放不下換下來的'+wDef(cur).n+'。'); gearMenu(); return; } take(); H.eq.push({t:'W',k:cur.key,sharp:cur.sharp||0}); body.weapons[body.wpn]={key:e.k,sharp:e.sharp||0}; say('info','你從地窖拿起'+wDef(w).n+'，'+wDef(cur).n+'收進地窖。攻擊 '+atkNow()+'，攻速 '+pInterval().toFixed(1)+' 秒。'); status(); gearMenu(); }}); }
+      else if(e.t==='A'){ const a={key:e.k}; if(!ARMORS[e.k]) return; o.push({t:'［倉庫］'+aText(a)+tail+(canWear(a)?'　直接換上':'（'+job().n+'不能穿）'), dis:!canWear(a), f:()=>{ const cur=body.armors[body.arm]; if(homeLoad()-eqW8('A',e.k)+eqW8('A',cur.key)>H.cap){ say('info','倉庫放不下換下來的'+aDef(cur).n+'。'); gearMenu(); return; } take(); H.eq.push({t:'A',k:cur.key,sharp:0}); body.armors[body.arm]={key:e.k}; say('info','你換上地窖裡的'+aDef(a).n+'，'+aDef(cur).n+'收進地窖。防禦 '+defNow()+'。'); status(); gearMenu(); }}); }
+      else { const D=ACCS[e.k]; if(!D) return;
+        if(D.slot==='ring') o.push({t:'［倉庫］戴上一枚'+accName(e.k)+tail+'（手指 '+ringsOn().length+' / '+RING_MAX+'）', f:()=>{ const r=ringsOn(); if(r.length>=RING_MAX){ say('info','十根手指都戴滿了。先摘下一枚。'); gearMenu(); return; } take(); body.accs.push({key:e.k}); r.push(e.k); say('info','你從地窖拿出'+D.n+'戴上。'); status(); gearMenu(); }});
+        else o.push({t:'［倉庫］'+accName(e.k)+tail+'　直接戴上', f:()=>{ body.acc=body.acc||{}; const cur=body.acc[D.slot]; take(); if(cur){ body.accs.splice(body.accs.findIndex(x=>x.key===cur),1); H.eq.push({t:'C',k:cur,sharp:0}); } body.accs.push({key:e.k}); body.acc[D.slot]=e.k; say('info','你戴上地窖裡的'+D.n+(cur?'，'+ACCS[cur].n+'收進地窖':'')+'。'); status(); gearMenu(); }}); } }); }
   const held=Object.keys(ITEMS).filter(k=>itemN(k)>0);
   held.forEach(k=>{ const it=ITEMS[k]; o.push({t:it.n+' ×'+itemN(k)+'：'+it.d+(it.out?'':'（戰鬥中才能用）'), dis:!it.out, f:()=>{ useItem(k); gearMenu(); }}); });
   if(!held.length) o.push({t:'（道具袋是空的）', dis:true, f:()=>{}});
   o.push({t:'整理背包（'+load()+' / '+capOf()+' 格，丟掉用不到的東西）', f:()=>packMenu(gearMenu)});
   o.push({t:'返回', f:back});
   o.wok=1;
-  setOptions(o,(load()>capOf()?'【超重 '+load()+' / '+capOf()+'：離開前要把重量降下來】\n':'')+'裝備與道具　手上：'+wDef(eqW()).n+'｜身上：'+aDef(eqA()).n+(accEq().length?'｜'+accEq().map(D=>D.n).join('、'):'')+'｜攻擊力 '+atkNow()+'｜防禦力 '+defNow()+'｜攻速 '+pInterval().toFixed(1)+' 秒'+(body.flags.whet?'｜已磨刀 ×1.5':'')+(body.flags.oiled?'｜已上油':''),true);
+  setOptions(o,(load()>capOf()?'【超重 '+load()+' / '+capOf()+'：離開前要把重量降下來】\n':'')+'裝備與道具　手上：'+wDef(eqW()).n+'｜身上：'+aDef(eqA()).n+(accEq().length?'｜'+accEq().map(D=>D.n).join('、'):'')+'｜攻擊力 '+atkNow()+'｜防禦力 '+defNow()+'｜攻速 '+pInterval().toFixed(1)+' 秒'+(body.flags.whet?'｜已磨刀 ×1.5':'')+(body.flags.oiled?'｜已上油':'')+(atHome?'\n在家：［倉庫］的裝備可以直接穿上，換下來的直接收進地窖（倉庫 '+homeLoad()+' / '+H.cap+' 格）':''),true);
 }
 function leaveFight(){ body.autoHunt=false; endCombat(); status(); if(body.tripFight&&body.trip){ body.tripFight=0; say('narr','你甩掉了牠。路還沒走完。'); tripNext(); return; } if(body.raidFight){ body.raidFight=0; raidIgnored(); status(); N.market(); return; } if(body.flags.routeFight){ body.flags.routeFight=0; say('narr','你退了回來。商隊頭子看了你一眼，沒說話。'); N.south(); return; } if(body.fightRet==='north'){ body.fightRet=null; N.north(true); return; } if(body.regionFight){ const r=body.regionFight; body.regionFight=null; N.region(r); } else N.rift(); }
 function hpFlat(){ return (soul.permHp||0)+eatHp()+accSum('hp'); }
