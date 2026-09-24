@@ -169,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.9.1';
+const VERSION='2.9.2';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -475,6 +475,8 @@ const ARMORS={
   // 鎖甲
   chain:{n:'鎖子甲', type:'mail', def:6, desc:'雜貨攤買得到的鐵環衣。'},
   heat:{n:'耐熱鎧', type:'mail', def:6, heat:1, res:{fire:1}, desc:'火免疫。焦土心和熔心都走得過。'},
+  leafleather:{n:'焦葉皮甲', type:'leather', def:7, heat:1, res:{fire:1}, desc:'世界樹葉縫在夾層裡的皮甲。燒了三次都沒燒死的葉子，現在替你擋火。火免疫。'},
+  starmail:{n:'星鐵鎖甲', type:'mail', def:10, res:{lightning:1}, desc:'星鐵打成的環，一環扣一環。雷打在上面，順著環走進地裡。雷免疫。'},
   core:{n:'魔核鎧', type:'mail', def:9, desc:'鐵匠把裂谷核熔進甲片。'},
   scalemail:{n:'鱗甲', type:'mail', def:11, desc:'一片一片鉚上去的鐵鱗。'},
   dragonscale:{n:'龍鱗鎧', type:'mail', def:15, heat:1, res:{fire:1}, desc:'火龍的鱗。火免疫。'},
@@ -1304,7 +1306,7 @@ function gateOptions(back,onPass,depth,r){
   }
   if(r==='mine'&&depth===3){
     P('走進去（火：'+(resist('fire')>=1?'你免疫':'抗性 '+Math.round(resist('fire')*100)+'%，每一步約 −'+Math.round(body.hpMax*ENV.fire.rate*(1-resist('fire')))+' HP')+'）', true, ()=>onPass('門後是紅的。你走進去了。'));
-    if(resist('fire')<1) o.push({t:'（坑口鐵匠：礦石 40、灰葉草 15、裂谷核 10，打一件耐熱鎧）', dis:true, f:()=>{}});
+    if(resist('fire')<1) o.push({t:canWear({key:'heat'})?'（坑口鐵匠：礦石 40、灰葉草 15、裂谷核 10，打一件耐熱鎧）':'（'+job().n+'穿不了鎖甲。林緣的獵人能用世界樹葉 3、獸皮 20、灰葉草 10 縫一件焦葉皮甲）', dis:true, f:()=>{}});
   }
   o.push({t:'算了，先回去', f:back});
   return o;
@@ -1345,6 +1347,7 @@ const REGIONS={
       {t:'一個獵人蹲在陷阱旁邊，看你的劍。他身邊堆著幾張硝好的皮，帽簷上插著針線——毛皮斗篷、皮囊、皮甲，看來都做。腰上掛著一把短劍，還有一把骨之刃。', o:[
         {t:'幫他修陷阱（一天）', f:()=>{ spendDay('修陷阱'); addRes('pelts',2); body.rep.people+=3; body.regionFlags.trap=1; say('gain','獸皮 +2，民心 +3。他記住你了。'); }},
         {t:'請他做毛皮斗篷（30 張獸皮、裂谷核 5）', req:()=>body.pelts>=30&&body.cores>=5&&!hasA('fur'), f:()=>{ body.pelts-=30; body.cores-=5; say('npc','「三十張皮，一層一層縫。核磨成粉塞在夾層裡，冰碰不到你。」'); giveArmor('fur'); }},
+        {t:'請他用世界樹葉縫一件焦葉皮甲（世界樹葉 3、獸皮 20、灰葉草 10，皮甲，火免疫）', req:()=>body.worldleaf>=3&&body.pelts>=20&&body.herbs>=10&&!hasA('leafleather'), f:()=>{ body.worldleaf-=3; body.pelts-=20; body.herbs-=10; say('npc','獵人把葉子對著光看了很久。「燒了三次都沒死的東西。」他把葉子一片一片縫進皮子的夾層，縫了一整夜。「火會繞開它，也就會繞開你。」'); giveArmor('leafleather'); }},
         {t:'買他的陷阱（2 張獸皮）', req:()=>body.pelts>=2, f:()=>{ body.pelts-=2; addItem('trap',1); say('gain','捕獸夾 +1'); }},
         {t:'請他縫皮襯（每層 3 張獸皮，防禦力 +1）', req:()=>body.pelts>=3, q:()=>({unit:'層', max:Math.floor(body.pelts/3), cost:n=>'獸皮 −'+3*n+'，防禦力 +'+n, f:n=>{ body.pelts-=3*n; body.armorPlus=(body.armorPlus||0)+n; say('gain','皮襯：防禦力 +'+n+'（現在 '+defNow()+'）'); }})},
         {t:'請他縫皮囊（每個 8 張獸皮，背包 +15）', req:()=>body.pelts>=8, q:()=>({unit:'個', max:Math.floor(body.pelts/8), cost:n=>'獸皮 −'+8*n+'，背包 +'+15*n, f:n=>{ body.pelts-=8*n; body.coreCap+=15*n; say('gain','皮囊：背包 +'+15*n+' 格（現在 '+body.coreCap+'）'); }})},
@@ -1437,6 +1440,7 @@ const REGIONS={
         {t:'替布蘭德打一副新護膝（礦石 5）', req:()=>qActive('sq_knee')&&!body.flags.newKnee&&body.ore>=5, f:()=>{ body.ore-=5; body.flags.newKnee=1; story(TXT.sq_knee_made); }},
         {t:'灌火油（每 3 塊炭灌兩瓶）', req:()=>body.coal>=3, q:()=>({unit:'份', max:Math.floor(body.coal/3), cost:n=>'炭 −'+3*n+'，炸彈 +'+2*n, f:n=>{ body.coal-=3*n; addItem('bomb',2*n); say('gain','炸彈 +'+2*n); }})},
         {t:'打一件耐熱鎧（礦石 40、灰葉草 15、裂谷核 10，火免疫）', req:()=>body.ore>=40&&body.herbs>=15&&body.cores>=10&&!hasA('heat'), f:()=>{ body.ore-=40; body.herbs-=15; body.cores-=10; say('npc','「四十塊礦打薄，草汁淬，核熔進去。穿著它走火裡，像走水裡。」'); giveArmor('heat'); }},
+        {t:'用星鐵打一件星鐵鎖甲（星鐵 3、礦石 30、裂谷核 10，鎖甲，雷免疫）', req:()=>body.starmetal>=3&&body.ore>=30&&body.cores>=10&&!hasA('starmail'), f:()=>{ body.starmetal-=3; body.ore-=30; body.cores-=10; say('npc','「天上掉下來的鐵，落地前被雷打過一次。」鐵匠把星鐵拉成絲，一環扣一環，打了三天。「被雷打過的東西，就不怕第二次。」'); giveArmor('starmail'); }},
         {t:'打一把核鑰（礦石 30、裂谷核 15，開裂谷第三層的門）', req:()=>body.ore>=30&&body.cores>=15&&!body.flags.corekey, f:()=>{ body.ore-=30; body.cores-=15; body.flags.corekey=1; say('gain','核鑰：十五枚核嵌在一塊鐵上。裂谷第三層那道門認得它。'); }},
         {t:'磨破甲粉（每包裂谷核 1）', req:()=>body.cores>=1, q:()=>({unit:'包', max:body.cores, cost:n=>'裂谷核 −'+n, f:n=>{ body.cores-=n; addItem('coredust',n); say('gain','破甲粉 +'+n); }})},
         {t:'加鐵片（每片礦石 4，防禦力 +1）', req:()=>body.ore>=4, q:()=>({unit:'片', max:Math.floor(body.ore/4), cost:n=>'礦石 −'+4*n+'，防禦力 +'+n, f:n=>{ body.ore-=4*n; body.armorPlus=(body.armorPlus||0)+n; say('gain','鐵匠把鐵片釘進你的甲。防禦力 +'+n+'（現在 '+defNow()+'）'); }})},
@@ -1878,7 +1882,7 @@ const GATES={
   4:{name:'毒霧', text:TXT.gate[4], check:()=>{ if(resist('poison')>=1) return {ok:true,why:aDef(eqA()).sealed?'法袍把霧擋在外面。奧文沒有騙你。':'霧碰不到你。'}; return {ok:true,why:'霧鑽進來了。你每走一步都在掉血——回頭是來得及的。'}; }, hint:'藥婆說她見過人從毒霧裡走出來——身體不一樣的人，或者喝了她的藥的人。'},
   5:{name:'斷橋', text:TXT.gate[5], check:()=>{ if(hasAcc('windboots')||hasAcc('dragonboots')||hasAcc('sysboots')) return {ok:true,why:'你退了十步，跑起來。落地的時候腳下是對岸的石墩。'}; if(body.rep.knight>=40) return {ok:true,why:'布蘭德派來的工兵在你身後架起了一座新橋。「騎士團欠你的。」'}; if(sysIs('shadow')&&(soul.shadows||0)>=20) return {ok:true,why:'影子軍團在溝上排成一列，你踩著它們的背走過去。'}; if(sysIs('omni')) return {ok:true,why:'你看見了溝底——它沒有你以為的那麼深。你沿著岩壁的凸起爬了過去。'}; return {ok:false,why:'二十步。你跳不過去，也沒有人替你搭橋。'}; }, hint:'跳得過去的靴子、騎士團的工兵（聲望 40）、影子軍團二十個，或者全知的眼睛。'},
   6:{name:'無光迴廊', text:TXT.gate[6], check:()=>{ if(hasA('cloak')) return {ok:true,why:'你把隱身斗篷拉到頭頂。腳步聲從你身邊走過去，沒有停。'}; if(hasA('bishoprobe')) return {ok:true,why:'大主教法衣在黑暗裡發出一點光。腳步聲退開了。'}; if(body.rep.temple>=40) return {ok:true,why:'奧文給你的聖印在胸口發熱。你循著那點熱走到了盡頭。'}; if(sysIs('omni')) return {ok:true,why:'你不需要光。你知道路。'}; if(sysIs('rezero')&&(soul.returns||0)>=3) return {ok:true,why:'你死過三次，記得每一步。'}; return {ok:false,why:'你走了不知道多久，摸到的還是同一面牆。腳步聲一直在你身後。'}; }, hint:'隱身斗篷、大主教法衣、神殿的聖印（聲望 40）、全知，或者死過三次的記憶。'},
-  7:{name:'雷門', text:TXT.gate[7], check:()=>{ const r=resist('lightning'); if(r>=1) return {ok:true,why:'雷免疫。電光爬到你身上，連一根頭髮都沒有豎起來。你走過拱門。'}; if(r>=.6) return {ok:true,why:'電光爬到你身上，繞了一圈，找不到地方進去。你走過拱門。'}; if(sysIs('reflect')) return {ok:true,why:'電打在你身上，又彈回拱門。石頭裂了。'}; if(sysIs('ancestor')) return {ok:true,why:'你的血認得這種電。它繞開了。'}; return {ok:false,why:'電光彎過來，你退了回去。左手有一陣子不聽使喚。'}; }, hint:'雷抗性六成以上或雷免疫（絕緣手套、雷之戒、系統接地環、吃過雷霆家族），或者反傷、遠古血脈。'},
+  7:{name:'雷門', text:TXT.gate[7], check:()=>{ const r=resist('lightning'); if(r>=1) return {ok:true,why:'雷免疫。電光爬到你身上，連一根頭髮都沒有豎起來。你走過拱門。'}; if(r>=.6) return {ok:true,why:'電光爬到你身上，繞了一圈，找不到地方進去。你走過拱門。'}; if(sysIs('reflect')) return {ok:true,why:'電打在你身上，又彈回拱門。石頭裂了。'}; if(sysIs('ancestor')) return {ok:true,why:'你的血認得這種電。它繞開了。'}; return {ok:false,why:'電光彎過來，你退了回去。左手有一陣子不聽使喚。'}; }, hint:'雷抗性六成以上或雷免疫（絕緣手套、雷之戒、星鐵鎖甲、系統接地環、吃過雷霆家族），或者反傷、遠古血脈。'},
   8:{name:'六勇者之門', text:TXT.gate[8], check:()=>{ if(hasW('oldsword')) return {ok:true,why:'你舉起勇者之劍。六具鎧甲一起低下頭，讓開了。'}; if(hasA('bishoprobe')) return {ok:true,why:'牠們看見法衣上的印記。奧文的印記。牠們讓開了。'}; if(body.rep.people>=50) return {ok:true,why:'牠們看你的手，看了很久。然後其中一具說：「他們記得你。」牠們讓開了。'}; if(sysIs('omni')) return {ok:true,why:'你叫出了牠們每一個的名字。牠們讓開了。'}; return {ok:false,why:'牠們看你的手。你的手裡沒有牠們要的東西。'}; }, hint:'第六勇者的劍、大主教法衣、民心 50，或者知道牠們名字的眼睛。'},
   9:{name:'王座之門', text:TXT.gate[9], check:()=>{ if(!fact('truth')) return {ok:false,why:'你不知道它的名字。'}; if(!canFirst()&&defNow()<20){ if(sysIs('rezero')){ body.flags.kingDeaths=(body.flags.kingDeaths||0)+1; if(body.flags.kingDeaths>=3) return {ok:true,why:'第三次。你在它出手前就喊完了名字。'}; return {ok:false,lethal:true,why:'魔王一擊。（死亡回歸：'+body.flags.kingDeaths+'/3）'}; } return {ok:false,lethal:true,why:'魔王一擊。你連名字都沒喊完。'}; } return {ok:true,why:'你喊出了那個名字。門開了。'}; }, hint:'知其名者入。名字之外，還得活過它的第一擊。'},
 };
