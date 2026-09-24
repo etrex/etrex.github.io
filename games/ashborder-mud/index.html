@@ -169,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.26.0';
+const VERSION='2.27.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -924,6 +924,29 @@ function sharpQ(tier){ const T=SHARP[tier]; const w=eqW(); const n=w.sharp||0;
     note:'每磨一次，下一次貴一成五。'+(T.cap<Infinity?T.who+'最多磨到 +'+T.cap+'。':'古爐沒有頂，每次燒一枚裂谷核。'),
     f:k=>{ body.gold-=sharpSum(n,k); if(T.core) body.cores-=k; w.sharp=n+k; say('gain',wDef(w).n+'鋒利 +'+k+'（現在 +'+w.sharp+'）'); if(w.sharp>=T.cap) sharpDone(tier); }}; }
 function sharpLabel(tier,verb){ const T=SHARP[tier]; const n=eqW().sharp||0; if(n>=T.cap) return '（'+verb+'：'+wDef(eqW()).n+'已經 +'+n+'，'+T.who+'磨不動了。去找'+T.hint+'）'; return verb+'（下一次 '+fmt(sharpCost(n))+' 金'+(T.core?'、裂谷核 1':'')+'，'+wDef(eqW()).n+' 現在 +'+n+(T.cap<Infinity?'，'+T.who+'最多磨到 +'+T.cap:'')+'）'; }
+/* 強化護甲（跟磨刀一樣）：強化 n → n+1 的材料 = 基本量 × 1.15^n，每個師傅有上限，到頂了會指路。
+   獵人（獸皮）到 +6 → 王都武器店（裂谷核）到 +15 → 東方礦坑老鐵匠（礦石）到 +30 → 裂谷第七層熔淵古爐（金幣＋每次一枚核）無上限。
+   強化加在防禦的基礎值上，會再乘體力倍率。 */
+const REINF={
+  hunter:{cap:6, who:'獵人', res:'pelts', unit:'張獸皮', base:3, next:'「皮子只能墊到這裡，再墊你就動不了了。」獵人拍拍你的甲。「王都武器店的鐵匠會把裂谷核熔進甲裡。」', hint:'王都武器店的鐵匠'},
+  wshop:{cap:15, who:'年輕鐵匠', res:'cores', unit:'枚裂谷核', base:3, next:'「核熔不進去了，甲會脆。」年輕鐵匠搖頭。「東邊礦坑口的老鐵匠會打鐵片，逢三開爐——第三天、第六天、第九天。」', hint:'東方礦坑口的老鐵匠（逢三開爐）'},
+  mine:{cap:30, who:'老鐵匠', res:'ore', unit:'塊礦石', base:4, next:'「鐵片疊不上去了。」老鐵匠用指節敲了敲你的甲。「裂谷第七層熔淵有座古爐，那裡的火能把整件甲再熔一次。」', hint:'裂谷第七層熔淵的古爐'},
+  forge:{cap:Infinity, who:'古爐', res:'gold', unit:'金', base:200, core:1}};
+function reinfCost(tier,n){ return Math.ceil(REINF[tier].base*Math.pow(1.15,n)); }
+function reinfSum(tier,n,k){ let t=0; for(let i=0;i<k;i++) t+=reinfCost(tier,n+i); return t; }
+function reinfHave(T){ return T.res==='gold'?body.gold:(body[T.res]||0); }
+function reinfMax(tier){ const T=REINF[tier]; const n=body.armorPlus||0; let g=reinfHave(T), k=0; while(n+k<T.cap&&k<1000){ const c=reinfCost(tier,n+k); if(c>g||(T.core&&k+1>body.cores)) break; g-=c; k++; } return k; }
+function reinfDone(tier){ const T=REINF[tier]; if(tier==='wshop') body.facts['sched_mine']=1; if(T.next) say('npc',T.next); }
+function reinfQ(tier){ const T=REINF[tier]; const n=body.armorPlus||0;
+  return {title:'強化護甲（現在 +'+n+'）', unit:'次', max:reinfMax(tier), cost:k=>fmt(reinfSum(tier,n,k))+' '+T.unit+(T.core?'、裂谷核 '+k:'')+'，到 +'+(n+k),
+    note:'每強化一次，下一次貴一成五。'+(T.cap<Infinity?T.who+'最多做到 +'+T.cap+'。':'古爐沒有頂，每次燒一枚裂谷核。'),
+    f:k=>{ const c=reinfSum(tier,n,k); if(T.res==='gold') body.gold-=c; else body[T.res]-=c; if(T.core) body.cores-=k; body.armorPlus=n+k; say('gain','護甲強化 +'+k+'（現在 +'+body.armorPlus+'，防禦 '+fmt(defNow())+'）'); if(body.armorPlus>=T.cap) reinfDone(tier); }}; }
+function reinfLabel(tier,verb){ const T=REINF[tier]; const n=body.armorPlus||0; if(n>=T.cap) return '（'+verb+'：護甲已經 +'+n+'，'+T.who+'做不上去了。去找'+T.hint+'）'; return verb+'（下一次 '+fmt(reinfCost(tier,n))+' '+T.unit+(T.core?'、裂谷核 1':'')+'，現在 +'+n+(T.cap<Infinity?'，'+T.who+'最多做到 +'+T.cap:'')+'，每 +1 防禦 +'+fmt(vitMul(stats().vit))+'）'; }
+function reinfOpt(tier,back,verb){ const T=REINF[tier]; const n=body.armorPlus||0;
+  if(n>=T.cap) return {t:reinfLabel(tier,verb), f:()=>{ reinfDone(tier); back(); }};
+  return {t:reinfLabel(tier,verb), f:()=>qtyMenu(Object.assign({back},reinfQ(tier)))}; }
+/* 事件選項版本（獵人、老鐵匠）：沒到頂就開數量選單，到頂了就指路 */
+function reinfEvOp(tier,verb){ return {t:()=>reinfLabel(tier,verb), q:()=>(body.armorPlus||0)<REINF[tier].cap?reinfQ(tier):null, f:()=>reinfDone(tier)}; }
 function sharpOpt(tier,back,verb){ const T=SHARP[tier]; const n=eqW().sharp||0;
   if(n>=T.cap) return {t:sharpLabel(tier,verb), f:()=>{ sharpDone(tier); back(); }};
   return {t:sharpLabel(tier,verb), dis:sharpMax(tier)<1, f:()=>qtyMenu(Object.assign(sharpQ(tier),{back}))}; }
@@ -951,7 +974,7 @@ function renderChar(){
     slot('狀態', kv('經驗值',fmt(body.xp)+' / '+fmt(xpNeed(body.level)))+(()=>{ const st=stats(); return kv('力量',st.str)+kv('體力',st.vit)+kv('智力',st.int)+kv('魔力',fmt(magNow()))+kv('敏捷',st.agi+'（同級閃避 '+Math.round(Math.min(.4,Math.max(0,(st.agi-15-lv())*.01))*100)+'%）'); })()+kv('攻擊力',fmt(atkNow()))+kv('防禦力',fmt(defNow())+'（減傷 '+defPct()+'%）')+kv('HP',fmt(body.hp)+' / '+fmt(body.hpMax))+kv('攻速',pInterval().toFixed(1)+' 秒')+kv('年齡',body.age+' 歲'+(sysIs('ancestor')?'（壽元無盡）':'（肉身 ×'+ageFactor(body.age).toFixed(2)+'）'))+kv('日子','第 '+body.day+' 天')+(soul.shadows>0?kv('影子軍團',shadowN()+' 個'+(sysIs('shadow')?'':'（前世帶來）')):''))+
     slot('職業　'+job().n, '<span class="line">'+job().desc+(allWeapons()?'（系統：全武器可用）':'')+'</span>')+
     slot('抗性', '<div class="cols">'+Object.keys(ENV).map(k=>kv(ENV[k].n,resist(k)>=1?'免疫':Math.round(resist(k)*100)+'%',resist(k)<=0)).join('')+'</div>'+(body.flags.blessed?'<span class="line">已受祝福：下一場再減傷兩成</span>':''))+
-    slot('裝備', kv('武器',wDef(eqW()).n)+kv('防具',aDef(eqA()).n+(body.armorPlus?'（加固 +'+body.armorPlus+'）':''))+kv('鞋',accOf('boots'),accOf('boots')==='—')+kv('手套',accOf('gloves'),accOf('gloves')==='—')+kv('項鍊',accOf('neck'),accOf('neck')==='—')+kv('戒指',accOf('ring'),accOf('ring')==='—')+(spare>0?'<span class="line">背包裡另有 '+spare+' 件裝備</span>':'')+(body.flags.seal?'<span class="line">裂谷之印：所受傷害減少</span>':'')+(body.revive?'<span class="line">鳳凰之尾 ×'+body.revive+'</span>':''))+
+    slot('裝備', kv('武器',wDef(eqW()).n)+kv('防具',aDef(eqA()).n+(body.armorPlus?'（強化 +'+body.armorPlus+'）':''))+kv('鞋',accOf('boots'),accOf('boots')==='—')+kv('手套',accOf('gloves'),accOf('gloves')==='—')+kv('項鍊',accOf('neck'),accOf('neck')==='—')+kv('戒指',accOf('ring'),accOf('ring')==='—')+(spare>0?'<span class="line">背包裡另有 '+spare+' 件裝備</span>':'')+(body.flags.seal?'<span class="line">裂谷之印：所受傷害減少</span>':'')+(body.revive?'<span class="line">鳳凰之尾 ×'+body.revive+'</span>':''))+
     slot('持有', kv('金幣',fmt(body.gold))+kv('裂谷核',body.cores)+kv('背包',load()+' / '+capOf())+(sysIs('shop')?kv('積分',soul.points):'')+(sysIs('luck')?kv('氣運',soul.luck):'')+chips(resMain.concat(resOther))+'<span class="line">道具：'+itemsText()+'</span>')+
     (sysIs('panel')?slot('屬性點', '<div class="cols">'+kv('力',ptsFix().str)+kv('體',ptsFix().vit)+kv('敏',ptsFix().agi)+kv('智',ptsFix().int|0)+kv('運',ptsFix().luck)+'</div>'+kv('未分配',body.freePts)):'')+
     slot('聲望', '<div class="cols">'+kv('騎士團',body.rep.knight)+kv('神殿',body.rep.temple)+kv('王室',body.rep.crown)+kv('民心',body.rep.people)+'</div>')+
@@ -1530,7 +1553,7 @@ const REGIONS={
         {t:'請他做毛皮斗篷（30 張獸皮、裂谷核 5）', req:()=>body.pelts>=30&&body.cores>=5, f:()=>{ body.pelts-=30; body.cores-=5; say('npc','「三十張皮，一層一層縫。核磨成粉塞在夾層裡，冰碰不到你。」'); giveArmor('fur'); }},
         {t:'請他用世界樹葉縫一件焦葉皮甲（世界樹葉 3、獸皮 20、灰葉草 10，皮甲，火免疫）', req:()=>body.worldleaf>=3&&body.pelts>=20&&body.herbs>=10, f:()=>{ body.worldleaf-=3; body.pelts-=20; body.herbs-=10; say('npc','獵人把葉子對著光看了很久。「燒了三次都沒死的東西。」他把葉子一片一片縫進皮子的夾層，縫了一整夜。「火會繞開它，也就會繞開你。」'); giveArmor('leafleather'); }},
         {t:'買他的陷阱（2 張獸皮）', req:()=>body.pelts>=2, f:()=>{ body.pelts-=2; addItem('trap',1); say('gain','捕獸夾 +1'); }},
-        {t:'請他縫皮襯（每層 3 張獸皮，防禦力 +1）', req:()=>body.pelts>=3, q:()=>({unit:'層', max:Math.floor(body.pelts/3), cost:n=>'獸皮 −'+3*n+'，防禦力 +'+n, f:n=>{ body.pelts-=3*n; body.armorPlus=(body.armorPlus||0)+n; say('gain','皮襯：防禦力 +'+n+'（現在 '+defNow()+'）'); }})},
+        reinfEvOp('hunter','請他縫皮襯強化護甲'),
         {t:'請他縫一個皮囊（8 張獸皮，背包 +30）', hide:()=>bagN('pouch')>0, req:()=>body.pelts>=8, f:()=>{ body.pelts-=8; say('npc','「一個就夠了。兩個掛在腰上，你跑不動。」'); giveBag('pouch'); }},
         {t:'請他做硬皮鎧（5 張獸皮，防禦力 +5）', req:()=>body.pelts>=5, f:()=>{ body.pelts-=5; giveArmor('hunter'); }},
         {t:'請他做獵人皮鎧（8 張獸皮，防禦力 +8、採集多一份）', req:()=>body.pelts>=8, f:()=>{ body.pelts-=8; giveArmor('hunterplate'); }},
@@ -1624,7 +1647,7 @@ const REGIONS={
         {t:'用星鐵打一件星鐵鎖甲（星鐵 3、礦石 30、裂谷核 10，鎖甲，雷免疫）', req:()=>body.starmetal>=3&&body.ore>=30&&body.cores>=10, f:()=>{ body.starmetal-=3; body.ore-=30; body.cores-=10; say('npc','「天上掉下來的鐵，落地前被雷打過一次。」鐵匠把星鐵拉成絲，一環扣一環，打了三天。「被雷打過的東西，就不怕第二次。」'); giveArmor('starmail'); }},
         {t:'打一把核鑰（礦石 30、裂谷核 15，開裂谷第三層的門）', req:()=>body.ore>=30&&body.cores>=15&&!body.flags.corekey, f:()=>{ body.ore-=30; body.cores-=15; body.flags.corekey=1; say('gain','核鑰：十五枚核嵌在一塊鐵上。裂谷第三層那道門認得它。'); }},
         {t:'磨破甲粉（每包裂谷核 1）', req:()=>body.cores>=1, q:()=>({unit:'包', max:body.cores, cost:n=>'裂谷核 −'+n, f:n=>{ body.cores-=n; addItem('coredust',n); say('gain','破甲粉 +'+n); }})},
-        {t:'加鐵片（每片礦石 4，防禦力 +1）', req:()=>body.ore>=4, q:()=>({unit:'片', max:Math.floor(body.ore/4), cost:n=>'礦石 −'+4*n+'，防禦力 +'+n, f:n=>{ body.ore-=4*n; body.armorPlus=(body.armorPlus||0)+n; say('gain','鐵匠把鐵片釘進你的甲。防禦力 +'+n+'（現在 '+defNow()+'）'); }})},
+        reinfEvOp('mine','請他加鐵片強化護甲'),
         {t:'熬守護之藥（每罐礦石 2）', req:()=>body.ore>=2, q:()=>({unit:'罐', max:Math.floor(body.ore/2), cost:n=>'礦石 −'+2*n, f:n=>{ body.ore-=2*n; addItem('armoroil',n); say('gain','守護之藥 +'+n); }})},
         {t:'打一台礦車（礦石 10，背包 +130，推著走）', hide:()=>bagN('cart')>0, req:()=>body.ore>=10, f:()=>{ body.ore-=10; say('npc','「一台。兩台你推不動，也沒有兩雙手。」'); giveBag('cart'); }},
         {t:'不了', f:()=>{}}]},
@@ -1966,7 +1989,7 @@ N.wshop=()=>{ lastNode=N.wshop; place('王城市集 · 武器店');
   [['strawshoes',25],['clothgloves',25]].forEach(([k,p])=>{ o.push({t:'買'+ACCS[k].n+'（'+p+' 金，［'+ASLOT[ACCS[k].slot]+'］'+accStat(k)+'）'+(hasAcc(k)?'（持有 '+eqCount('C',k)+'）':''), dis:body.gold<p, f:()=>{ body.gold-=p; giveAcc(k); status(); N.wshop(); }}); });
   o.push(sharpOpt('wshop',N.wshop,'磨刀'));
   if(!hasA('core')) o.push({t:'鍛造魔核鎧（8 枚裂谷核，［鎖甲］防禦力 +9）', dis:body.cores<8, f:()=>{ body.cores-=8; say('narr','鐵匠把裂谷核一枚一枚熔進甲片，紅光在鐵裡慢慢暗下去。'); giveArmor('core'); status(); N.wshop(); }});
-  else o.push({t:'加固護甲（每次 6 枚裂谷核，防禦力 +2）', dis:body.cores<6, f:()=>payQ('加固護甲','次','cores',6,N.wshop,n=>{ body.armorPlus=(body.armorPlus||0)+2*n; body.flags.armorBought=(body.flags.armorBought||0)+n; say('gain','鐵匠把核熔進你身上的甲。防禦力 +'+2*n+'（現在 '+defNow()+'）。'); })});
+  o.push(reinfOpt('wshop',N.wshop,'用裂谷核加固護甲'));
   if(eqSellable().length) o.push({t:'把用不到的裝備賣給武器店（'+eqSellable().length+' 種）', f:()=>eqSellMenu(N.wshop)});
   o.push({t:'裝備與道具', f:gearMenu});
   o.push({t:'回市集', f:N.market});
@@ -2277,7 +2300,7 @@ N.rift=()=>{ lastNode=N.rift;
   const o=[];
   if(body.floor<TOP_FLOOR) o.push({t:'在這一層狩獵（攻速 '+pInterval().toFixed(1)+' 秒）', f:()=>{ if(envTick()) return; if(!canChain()) body.autoHunt=false; encounter(); }}); else o.push({t:'挑戰裂谷魔王', f:()=>{ if(envTick()) return; body.autoHunt=false; encounter(KING); }});
   envOptions(o,N.rift);
-  if(body.floor===7&&!riftClosed()) o.push(sharpOpt('forge',N.rift,'在熔淵古爐磨刀'));
+  if(body.floor===7&&!riftClosed()){ o.push(sharpOpt('forge',N.rift,'在熔淵古爐磨刀')); o.push(reinfOpt('forge',N.rift,'在熔淵古爐熔甲強化護甲')); }
   o.push({t:'安全線 '+Math.round(body.stopHp*100)+'%（切換）', f:()=>{ body.stopHp=({0.5:0.3,0.3:0.1,0.1:0.5})[body.stopHp]||0.3; say('info','安全線設為 '+Math.round(body.stopHp*100)+'%。'+(sysIs('idle')?'離線狩獵也用這條線。':'')); N.rift(); }});
   if(canChain()) o.push({t:(body.autoHunt?'● ':'○ ')+'連續狩獵（'+(sysIs('idle')||sysIs('omni')||sysIs('shadow')?'你的能力':'影子軍團替你找下一隻')+'：打完自動下一隻）', ab:1, f:()=>{ body.autoHunt=!body.autoHunt; save(); N.rift(); }});
   o.push({t:(body.autoAct?'● ':'○ ')+'自動戰鬥（輪到你時重複上一次行動）', f:()=>{ body.autoAct=!body.autoAct; save(); N.rift(); }});
