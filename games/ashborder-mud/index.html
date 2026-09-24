@@ -169,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.11.4';
+const VERSION='2.11.5';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -354,7 +354,7 @@ const SYSTEMS={
     {n:'行情', d:()=>'所有交換管道和每個地方的存量對你透明。別人只看得出「缺貨」「貨很多」，你看得到數字。'},
     {n:'抽成', d:()=>'每一筆交換，你多拿一半。訊息裡會標「抽成 +N」。'},
     {n:'點石', d:()=>'每 5 分鐘一次（測試用），把任何一種資源全部一比一換成另一種：三十塊炭就是三十件遺物。不需要管道，不看市價。'},
-    {n:'行商', d:()=>'每做成一筆交換，背包永久 +1、HP 上限永久 +1。每 18 秒一次，每日 100 次（'+growInfo('trader')+'）。'}]},
+    {n:'行商', d:()=>'每做成一筆交換，背包 +1、HP 上限永久 +1，沒有次數限制。一次換很多份也只算一筆。（已做成 '+(soul.trades||0)+' 筆）'}]},
   ancestor:{name:'老祖系統', skills:[
     {n:'壽元無盡', d:()=>'你不會老。年齡永遠停在 25。'},
     {n:'閉關', d:()=>'休息一天等於修煉：攻擊力永久 +1（目前 +'+medAtk()+'）。每 18 秒一次，每日 100 次（'+growInfo('ancestor')+'）。'},
@@ -1264,7 +1264,6 @@ function exchangeOptions(where,back){
         if(!toK.startsWith('rep_')&&toK!=='gold'&&space()+need*wOf(fromK)<get*wOf(toK)) return false;
         pool.pool--; body.flags.exCount=(body.flags.exCount||0)+1; body[fromK]-=need; const mf=stockOf(where,fromK); if(mf) mf.v+=need; const mt=stockOf(where,toK); if(mt) mt.v=Math.max(1,mt.v-base);
         if(toK.startsWith('rep_')) body.rep[toK.slice(4)]+=get; else if(toK==='gold') body.gold+=get; else addRes(toK,get);
-        if(sysIs('trader')) grow('trader','行商：背包 +1、HP 上限 +1',()=>{ body.capBonus=(body.capBonus|0)+1; soul.permHp+=1; },GROW_CD,GROW_CAP,silent);
         if(!silent) say('gain',RES[fromK]+' '+need+' → '+nameOf(toK)+' +'+get+(cut?'（抽成 +'+cut+'）':''));
         return true;
       };
@@ -1275,7 +1274,7 @@ function exchangeOptions(where,back){
       const pl=exPool(e.id); const ms=stockOf(where,fromK); const full=ms&&ms.v>((STOCK0[where]||{})[fromK]||0)*2;
       const had=()=>toK==='gold'?body.gold:toK.startsWith('rep_')?body.rep[toK.slice(4)]:body[toK];
       o.push({t:RES[fromK]+' '+need+' → '+nameOf(toK)+' +'+q+(sysIs('trader')?'（抽成）':'')+'　'+(full?(EX_WHO[e.id]||e.npc)+'的'+RES[fromK]+'堆到沒地方放，暫時不收':demandText(e))+info, dis:body[fromK]<need||pl.pool<=0||full, f:()=>{
-        qtyMenu({title:RES[fromK]+' '+need+' → '+nameOf(toK), unit:'次', max:Math.min(pl.pool,Math.floor(body[fromK]/need),200), cost:n=>RES[fromK]+' −'+need*n+'，約 '+nameOf(toK)+' +'+q*n, note:'價格會隨你的交易變動，換到他不收為止。', f:n=>{ let k=0; const g0=had(); while(k<n&&doOnce(true)) k++; const g1=had(); say('gain','換了 '+k+' 次：'+RES[fromK]+' −'+need*k+'，'+nameOf(toK)+' +'+(g1-g0)+'。'+(sysIs('trader')?'行商：背包 +'+k+'。':'')+'現在的價：'+quote()+'。'+(exPool(e.id).pool<=0?(EX_WHO[e.id]||e.npc)+'這一輪夠了，過幾天再來。':k<n?'他手上的貨堆滿了，只收到這裡。':'')); }, back:()=>{ back(); }}); }});
+        qtyMenu({title:RES[fromK]+' '+need+' → '+nameOf(toK), unit:'次', max:Math.min(pl.pool,Math.floor(body[fromK]/need),200), cost:n=>RES[fromK]+' −'+need*n+'，約 '+nameOf(toK)+' +'+q*n, note:'價格會隨你的交易變動，換到他不收為止。', f:n=>{ let k=0; const g0=had(); while(k<n&&doOnce(true)) k++; const g1=had(); const tg=sysIs('trader')&&k>0; if(tg){ body.capBonus=(body.capBonus|0)+1; soul.permHp+=1; soul.trades=(soul.trades||0)+1; } say('gain','換了 '+k+' 次：'+RES[fromK]+' −'+need*k+'，'+nameOf(toK)+' +'+(g1-g0)+'。'+(tg?'行商：背包 +1、HP 上限 +1（第 '+soul.trades+' 筆）。':'')+'現在的價：'+quote()+'。'+(exPool(e.id).pool<=0?(EX_WHO[e.id]||e.npc)+'這一輪夠了，過幾天再來。':k<n?'他手上的貨堆滿了，只收到這裡。':'')); }, back:()=>{ back(); }}); }});
     });
     o.push({t:'不換了', f:back}); setOptions(o,'交換　每個人隔幾天才需要一批貨；沒人送，需求會囤，最多囤三輪。價格看他手上有多少。'+(canSeeStock()?'你看得見存量。':'你只看得出大概。'));
   }};
