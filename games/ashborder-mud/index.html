@@ -169,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.15.0';
+const VERSION='2.15.1';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -644,7 +644,8 @@ function gearMenu(){
   if(!held.length) o.push({t:'（道具袋是空的）', dis:true, f:()=>{}});
   o.push({t:'整理背包（'+load()+' / '+capOf()+' 格，丟掉用不到的東西）', f:()=>packMenu(gearMenu)});
   o.push({t:'返回', f:back});
-  setOptions(o,'裝備與道具　手上：'+wDef(eqW()).n+'｜身上：'+aDef(eqA()).n+(accEq().length?'｜'+accEq().map(D=>D.n).join('、'):'')+'｜攻擊力 '+atkNow()+'｜防禦力 '+defNow()+'｜攻速 '+pInterval().toFixed(1)+' 秒'+(body.flags.whet?'｜已磨刀 ×1.5':'')+(body.flags.oiled?'｜已上油':''),true);
+  o.wok=1;
+  setOptions(o,(load()>capOf()?'【超重 '+load()+' / '+capOf()+'：離開前要把重量降下來】\n':'')+'裝備與道具　手上：'+wDef(eqW()).n+'｜身上：'+aDef(eqA()).n+(accEq().length?'｜'+accEq().map(D=>D.n).join('、'):'')+'｜攻擊力 '+atkNow()+'｜防禦力 '+defNow()+'｜攻速 '+pInterval().toFixed(1)+' 秒'+(body.flags.whet?'｜已磨刀 ×1.5':'')+(body.flags.oiled?'｜已上油':''),true);
 }
 function leaveFight(){ body.autoHunt=false; endCombat(); status(); if(body.tripFight&&body.trip){ body.tripFight=0; say('narr','你甩掉了牠。路還沒走完。'); tripNext(); return; } if(body.raidFight){ body.raidFight=0; raidIgnored(); status(); N.market(); return; } if(body.flags.routeFight){ body.flags.routeFight=0; say('narr','你退了回來。商隊頭子看了你一眼，沒說話。'); N.south(); return; } if(body.fightRet==='north'){ body.fightRet=null; N.north(true); return; } if(body.regionFight){ const r=body.regionFight; body.regionFight=null; N.region(r); } else N.rift(); }
 /* HP =（40 + 等級×4 + 永久加成 + 屬性點×3 + 血肉）× 1.15^(0.8×(等級−5)) */
@@ -766,6 +767,14 @@ function sys(ctx){ const p=PERSONA[soul.system.persona]; say('sys',rnd(p[ctx]));
 function sysText(t){ say('sys',t); }
 function setOptions(list,hint,noExtras){
   if(!inCombat&&(typing||tq.length)){ opts.innerHTML='<div class="hint wait">文字顯示中……點上方的箭頭列加速。</div>'; afterFns.push(()=>{ if(!inCombat) setOptions(list,hint,noExtras); }); return; }
+  /* 超重：換裝可以暫時超重，但回到其他畫面前一定要處理，否則什麼都做不了 */
+  if(body&&body.weapons&&!inCombat&&!list.wok&&load()>capOf()){ const L0=list, H0=hint, X0=noExtras; const ret=L0.rb||(!noExtras&&curBuild)||(()=>setOptions(L0,H0,X0));
+    const b=[{t:'整理背包（丟掉東西）', f:()=>packMenu(ret)},{t:'裝備與道具（換回來或脫下來）', f:gearMenu}];
+    if(body.home&&lastNode===N.home) b.push({t:'把東西存進倉庫', f:homeStore});
+    if(lastNode===N.wshop&&eqSellable().length) b.push({t:'把裝備賣給武器店', f:()=>eqSellMenu(ret)});
+    if(lastNode===N.market) b.push({t:'把資源賣給收購商', f:()=>sellMenu('res',ret)});
+    if(lastNode===stallMenu) b.push({t:'把道具賣回給老闆娘', f:()=>sellMenu('items',ret)});
+    b.wok=1; setOptions(b,'背包超重（'+load()+' / '+capOf()+'）。揹不動，什麼都做不了——先把重量降到 '+capOf()+' 以下。',true); return; }
   if(body&&!inCombat){ checkQuests(); checkAchs(); renderAchs(); }
   opts.innerHTML=hint?'<div class="hint">'+hint+'</div>':'';
   const hasOver=body&&!inCombat&&!packing&&!body.autoHunt&&overList().length>0;
@@ -788,6 +797,7 @@ function qtyMenu(q){
   if(max>=1) o.push({t:'全部 '+max+' '+unit+'（'+q.cost(max)+'）', f:()=>run(max)});
   o.push({input:1, unit, max, cost:q.cost, run});
   o.push({t:'算了', f:q.back}); o.rb=q.back;
+  o.wok=1;
   setOptions(o, q.title+'　最多 '+max+' '+unit+'。'+(q.note||''), true);
 }
 const capN=(a,b)=>Math.min(a==null?1e9:a,b);
@@ -800,6 +810,7 @@ function sellMenu(kind,back){ const o=[];
   else Object.keys(ITEMS).filter(k=>itemSell(k)>0&&itemN(k)>0).forEach(k=>o.push({t:'賣'+ITEMS[k].n+'（每個 '+fmt(itemSell(k))+' 金，佔 '+iW(k)+' 格，持有 '+itemN(k)+'）', f:()=>sellQ('賣'+ITEMS[k].n,'個',itemN(k),itemSell(k),()=>sellMenu(kind,back),n=>{ body.items[k]-=n; say('gain',ITEMS[k].n+' −'+n+'，金幣 +'+fmt(itemSell(k)*n)+'，騰出 '+n*iW(k)+' 格'); })}));
   if(!o.length) o.push({t:'（沒有可以賣的東西）', dis:true, f:()=>{}});
   o.push({t:'返回', f:back});
+  o.wok=1;
   setOptions(o,(kind==='res'?'收購商　稀有素材他不敢收，要賣去拍賣所委託。':'道具店老闆娘　「用過的不收。沒拆的，半價。」')+'｜背包 '+load()+' / '+capOf()+' 格｜金幣 '+fmt(body.gold),true); }
 /* 賣裝備：身上穿著、手上拿著的不能賣。
    材料做的、店裡買的：照材料或原價算一半；打怪、任務、神殿給的：照拍賣分級（精良 1,000、稀有 1 萬、傳說 10 萬）。 */
@@ -819,6 +830,7 @@ function eqRemove(t,k,n){ if(t==='C'){ for(let i=0;i<n;i++){ const j=body.accs.f
 function eqSellMenu(back){ const o=[]; const again=()=>{ if(eqSellable().length) eqSellMenu(back); else back(); };
   eqSellable().forEach(([t,k])=>{ const p=eqSellPrice(t,k), sp=eqSpare(t,k); o.push({t:'賣'+eqName(t,k)+'（每件 '+fmt(p)+' 金，可賣 '+sp+' 件'+(eqCount(t,k)>sp?'，身上的留著':'')+'）', f:()=>sellQ('賣'+eqName(t,k),'件',sp,p,again,n=>{ eqRemove(t,k,n); say('gain',eqName(t,k)+' −'+n+'，金幣 +'+fmt(p*n)); })}); });
   o.push({t:'返回', f:back});
+  o.wok=1;
   setOptions(o,'武器店　鐵匠翻看你攤在櫃檯上的東西。「穿在身上的我不收。其他的，開個價。」',true); }
 function sellQ(title,unit,have,price,back,f,note){ qtyMenu({title, unit, max:have, cost:n=>'+'+fmt(price*n)+' 金', note, f:n=>{ body.gold+=price*n; f(n); }, back}); }
 function payQ(title,unit,res,each,back,f,limit){ qtyMenu({title, unit, max:capN(limit,Math.floor(body[res]/each)), cost:n=>RES[res]+' −'+fmt(each*n), f:n=>{ body[res]-=each*n; f(n); }, back}); }
@@ -1227,6 +1239,7 @@ function packMenu(ret){ packing=true; const over=overList(); const ok=new Set(ov
   Object.keys(ITEMS).filter(k=>itemN(k)>0&&!ok.has('items'+k)).forEach(k=>o.push({t:'丟掉'+ITEMS[k].n+'（持有 '+itemN(k)+'，每個佔 '+iW(k)+' 格）', f:()=>qtyMenu({title:'丟掉'+ITEMS[k].n, unit:'個', max:itemN(k), cost:n=>'騰出 '+n*iW(k)+' 格', f:n=>{ body.items[k]-=n; say('info',ITEMS[k].n+' −'+n); }, back:again})}));
   eqSellable().forEach(([t,k])=>{ const sp=eqSpare(t,k), w=eqW8(t,k); o.push({t:'丟掉'+eqName(t,k)+'（可丟 '+sp+' 件，每件佔 '+w+' 格）', f:()=>qtyMenu({title:'丟掉'+eqName(t,k), unit:'件', max:sp, cost:n=>'騰出 '+n*w+' 格', f:n=>{ eqRemove(t,k,n); say('info',eqName(t,k)+' −'+n); }, back:again})}); });
   if(over.length) o.push({t:'不收了，留在原地', f:()=>{ overDrop(); done(); }}); else o.push({t:'整理好了', f:done});
+  o.wok=1;
   setOptions(o,'整理背包　'+load()+' / '+capOf()+' 格'+(over.length?'｜還沒裝下：'+overText()+'（共 '+over.reduce((a,x)=>a+x.n*x.w,0)+' 格）':'')+'｜容器：'+bagText(),true); }
 function addRes(k,n){ if(n>0&&RARE_RES&&Object.values(RARE_RES).includes(k)){ body.flags.rareFound=body.flags.rareFound||{}; body.flags.rareFound[k]=1; } if(n<=0){ body[k]+=n; return n; } const can=Math.min(n,fitR(k)); body[k]+=can; if(can>0) body.flags.fullSaid=0; if(can<n){ if(!body.autoHunt) say('info','背包滿了，'+RES[k]+'只裝得下 '+can+'，還有 '+(n-can)+' 放在腳邊。'); overAdd('res',k,n-can); } return can; }
 const RES={gold:'金幣',cores:'裂谷核',herbs:'灰葉草',pelts:'獸皮',relics:'遺物',ore:'礦石',grain:'糧食',salt:'鹽',timber:'木材',fish:'魚乾',ink:'墨',coal:'炭',worldleaf:'世界樹葉',frostcrystal:'霜晶',pearl:'深海珍珠',starmetal:'星鐵'};
@@ -1901,6 +1914,7 @@ function homeStore(){ const H=body.home; const o=[]; const back=homeStore;
   Object.keys(ITEMS).filter(k=>itemN(k)>0).forEach(k=>o.push({t:'存'+ITEMS[k].n+'（持有 '+itemN(k)+'，每個 '+iW(k)+' 格）', f:()=>qtyMenu({title:'存'+ITEMS[k].n, unit:'個', max:Math.min(itemN(k),Math.floor(homeSpace()/iW(k))), cost:n=>'倉庫 +'+n*iW(k)+' 格', f:n=>{ body.items[k]-=n; H.items[k]=(H.items[k]||0)+n; say('info',ITEMS[k].n+' '+n+' 存進倉庫'); }, back})}));
   eqSellable().forEach(([t,k])=>{ const sp=eqSpare(t,k), w=eqW8(t,k); o.push({t:'存'+eqName(t,k)+'（可存 '+sp+' 件，每件 '+w+' 格）', f:()=>qtyMenu({title:'存'+eqName(t,k), unit:'件', max:Math.min(sp,Math.floor(homeSpace()/w)), cost:n=>'倉庫 +'+n*w+' 格', f:n=>{ for(let i=0;i<n;i++){ let sharp=0; if(t==='W'){ const L=body.weapons; const j=L.map((x,i)=>i).filter(i=>L[i].key===k&&i!==body.wpn).sort((a,b)=>(L[b].sharp||0)-(L[a].sharp||0))[0]; sharp=L[j].sharp||0; L.splice(j,1); if(body.wpn>j) body.wpn--; } else eqRemove(t,k,1); H.eq.push({t,k,sharp}); } say('info',eqName(t,k)+' '+n+' 件存進倉庫'); }, back})}); });
   o.push({t:'存好了', f:N.home});
+  o.wok=1;
   setOptions(o,'存進倉庫　背包 '+load()+' / '+capOf()+'｜倉庫 '+homeLoad()+' / '+H.cap+' 格（身上穿戴的不能存）',true); }
 function homeTake(){ const H=body.home; const o=[]; const back=homeTake;
   Object.keys(H.res).filter(k=>H.res[k]>0).forEach(k=>o.push({t:'拿'+RES[k]+'（倉庫 '+fmt(H.res[k])+'，每個 '+WT[k]+' 格）', f:()=>qtyMenu({title:'拿'+RES[k], unit:'個', max:Math.min(H.res[k],fitR(k)), cost:n=>'背包 +'+n*WT[k]+' 格', f:n=>{ H.res[k]-=n; body[k]+=n; say('info','拿出 '+RES[k]+' '+n); }, back})}));
@@ -1909,6 +1923,7 @@ function homeTake(){ const H=body.home; const o=[]; const back=homeTake;
   Object.keys(groups).forEach(g=>{ const [t,k]=g.split(':'); const w=eqW8(t,k); o.push({t:'拿'+eqName(t,k)+'（倉庫 '+groups[g]+' 件，每件 '+w+' 格）', f:()=>qtyMenu({title:'拿'+eqName(t,k), unit:'件', max:Math.min(groups[g],Math.floor(space()/w)), cost:n=>'背包 +'+n*w+' 格', f:n=>{ for(let i=0;i<n;i++){ const j=H.eq.findIndex(e=>e.t===t&&e.k===k); const e=H.eq.splice(j,1)[0]; if(t==='W') body.weapons.push({key:k,sharp:e.sharp||0}); else if(t==='A') body.armors.push({key:k}); else body.accs.push({key:k}); } say('info','拿出 '+eqName(t,k)+' '+n+' 件。到「裝備與道具」可以換上。'); }, back})}); });
   if(o.length===0) o.push({t:'（倉庫是空的）', dis:true, f:()=>{}});
   o.push({t:'拿好了', f:N.home});
+  o.wok=1;
   setOptions(o,'從倉庫拿出來　背包 '+load()+' / '+capOf()+'｜倉庫 '+homeLoad()+' / '+H.cap+' 格',true); }
 /* 冒險者公會：委託與等級 */
 const GUILD_RANK=[['F',0],['E',3],['D',8],['C',15],['B',25],['A',40],['S',60]];
@@ -2314,7 +2329,7 @@ async function win(){
   if(body.fightRet==='north'){ body.fightRet=null; setOptions([{t:'回到村口', f:()=>N.north(true)}]); return; }
   if(body.tripFight&&body.trip){ body.tripFight=0; setOptions([{t:'繼續往前走', f:tripNext}],'探索　'+tripStepText()); return; }
   if(body.regionFight){ const r=body.regionFight; body.regionFight=null; setOptions([{t:'繼續探索', f:()=>N.region(r)},{t:'回王都（一天路程）', f:()=>{ spendDay('回王都'); N.market(); }}]); return; }
-  if(canChain()&&body.autoHunt&&!isKing(m)&&body.hp>=body.hpMax*body.stopHp){ setOptions([{t:'停止連續狩獵', keep:true, f:()=>{ body.autoHunt=false; clearTimeout(nextT); endCombat(); N.rift(); }}],'1 秒後下一隻…'); nextT=setTimeout(()=>{ if(body.autoHunt&&!inCombat) encounter(); },1000); return; }
+  if(canChain()&&body.autoHunt&&!isKing(m)&&load()<=capOf()&&body.hp>=body.hpMax*body.stopHp){ setOptions([{t:'停止連續狩獵', keep:true, f:()=>{ body.autoHunt=false; clearTimeout(nextT); endCombat(); N.rift(); }}],'1 秒後下一隻…'); nextT=setTimeout(()=>{ if(body.autoHunt&&!inCombat) encounter(); },1000); return; }
   if(body.autoHunt&&body.hp<body.hpMax*body.stopHp){ say('info','HP低於安全線，停止狩獵。'); body.autoHunt=false; }
   setOptions([{t:'繼續狩獵', f:()=>encounter(isKing(m)?KING:undefined)},{t:'返回王城', f:N.market}]);
 }
