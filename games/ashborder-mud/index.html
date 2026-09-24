@@ -169,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.9.2';
+const VERSION='2.9.3';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -1486,7 +1486,7 @@ N.region=(r)=>{ lastNode=()=>N.region(r);
     say('narr',ev.dyn?ev.dyn():ev.t);
     setOptions(ev.o.map(op=>{ const t=typeof op.t==='function'?op.t():op.t; return {t, dis:op.req&&!op.req(), f:()=>{ const q=op.q&&op.q(); if(q){ qtyMenu(Object.assign({title:t.replace(/（.*$/,''), back:()=>N.region(r)},q)); return; } evMark(ev,op); op.f(); status(); N.region(r); }}; }));
   }});
-  { const streak=body.regionFlags['g_'+r]||0; o.push({t:'在這一帶採集（一天）'+(streak>=3?'　這裡採過很多次了':''), dis:space()<=0, f:()=>{ spendDay('採集'); if(envTick()) return;
+  { const streak=body.regionFlags['g_'+r]||0; o.push({t:'在這一帶採集（一天，不會變老）'+(streak>=3?'　這裡採過很多次了':''), dis:space()<=0, f:()=>{ spendDay('採集',true); if(envTick()) return;
     const yieldN=Math.max(1,Math.round((R.res==='gold'?30*d:d)*Math.pow(0.7,streak))); const bonus=(R.res==='ore'&&(aDef(eqA()).ore||chance(eatF('cave')))?1:0)+((job().gather||aDef(eqA()).gather||chance(eatF('forestwolf')))?1:0);
     const got=addRes(R.res,yieldN+bonus); body.regionFlags['g_'+r]=streak+1; if(got) say('gain',R.resName+' +'+got+(streak>=3?'。你得換個地方，或者等它長回來。':''));
     if(R.res2&&chance(.35)){ const g2=addRes(R.res2,Math.max(1,Math.round(d*Math.pow(0.7,streak)))); if(g2) say('gain','順手撿到'+RES[R.res2]+' +'+g2); }
@@ -1514,7 +1514,8 @@ N.region=(r)=>{ lastNode=()=>N.region(r);
   omniOptions(o,r,()=>N.region(r),NPCS.filter(n=>n.where===r).map(n=>n.n).concat(r==='forest'&&d>=2?['守林人']:[])); townExtras(o,()=>N.region(r)); setOptions(o);
 };
 /* ===== 非戰鬥路線：神殿、難民營、北方空村、南方哨站 ===== */
-function spendDay(what){ body.day++; if(body.day%3===0) growOld(1,true); worldTick(); say('info','（'+what+'花了一天。第 '+body.day+' 天。）'); }
+/* noAge：這一天照樣過（世界照常推進），但不算進年紀——採集不耗壽命 */
+function spendDay(what,noAge){ body.day++; if(!noAge&&body.day%3===0) growOld(1,true); worldTick(); say('info','（'+what+'花了一天。第 '+body.day+' 天。'+(noAge?'採集不會讓你變老。':'')+'）'); }
 N.temple=()=>{ lastNode=N.temple; if(pendingEvent(N.temple)) return;
   place('神殿');
   if(!body.flags.temple){ body.flags.temple=1; story(TXT.temple1); }
