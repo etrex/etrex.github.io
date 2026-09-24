@@ -169,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.9.0';
+const VERSION='2.9.1';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -1358,8 +1358,8 @@ const REGIONS={
         {t:'買他的短劍（60 金，攻擊力 +3、攻速快 0.5 秒）', req:()=>body.gold>=60&&!hasW('dagger'), f:()=>{ body.gold-=60; giveWeapon('dagger'); }},
         {t:'請他做一把骨之刃（4 張獸皮，會心）', req:()=>body.pelts>=4&&!hasW('bone'), f:()=>{ body.pelts-=4; giveWeapon('bone'); }},
         {t:'走開', f:()=>{}}]},
-      {t:'林子裡有一座被燒塌的小屋，門框上刻著神殿的記號。', o:[
-        {t:'翻找', f:()=>{ if(chance(.5)){ addRes('relics',1); say('gain','遺物 +1：一枚燒黑的祭司徽章。'); if(!fact('witness')) learn('witness','神殿的人在森林裡也放過火。'); } else { const g=20+Math.floor(Math.random()*30); body.gold+=g; say('gain','金幣 +'+g); } }},
+      {t:'林子裡有一座被燒塌的小屋，門框上刻著神殿的記號。', stock:['hut',3], o:[
+        {t:'翻找', use:1, f:()=>{ if(chance(.5)){ addRes('relics',1); say('gain','遺物 +1：一枚燒黑的祭司徽章。'); if(!fact('witness')) learn('witness','神殿的人在森林裡也放過火。'); } else { const g=20+Math.floor(Math.random()*30); body.gold+=g; say('gain','金幣 +'+g); } }},
         {t:'不碰', f:()=>{}}]},
       {t:'你迷路了。每棵樹都長得一樣。', o:[
         {t:'憑感覺走（一天）', f:()=>{ spendDay('迷路'); if(sysIs('omni')||(sysIs('luck')&&soul.luck>=30)){ say('gain','你一下就走出來了，順手摘了草。'); addRes('herbs',2); } else say('info','你繞了一整天。'); }},
@@ -1372,22 +1372,22 @@ const REGIONS={
   snow:{name:'北方雪原', res:'relics', resName:'遺物', res2:'fish', depths:['廢村群','凍湖','舊祭壇'], threat:0.3,
     intro:TXT.region.snow,
     events:[
-      {t:'雪地裡有一具穿著騎士鎧甲的屍體，握著一封信。', o:[
-        {t:'讀信', f:()=>{ addRes('relics',1); say('gain','遺物 +1。信上寫：「奧文說魔物是神的考驗。我不信。」'); body.rep.knight+=5; say('gain','騎士團聲望 +5（你替他們帶回了名字）'); }},
-        {t:'埋了他', f:()=>{ spendDay('埋葬'); body.rep.people+=5; addLuck(5,'善行'); say('gain','民心 +5'); }}]},
-      {t:'一個倖存的老人躲在地窖裡，已經三天沒吃東西。', o:[
-        {t:'分他糧食（20 金）', req:()=>body.gold>=20, f:()=>{ body.gold-=20; body.rep.people+=8; say('gain','民心 +8。他告訴你舊祭壇在凍湖對岸。'); body.regionFlags.snowHint=1; }},
-        {t:'帶他回難民營（一天）', f:()=>{ spendDay('護送'); body.rep.people+=15; addLuck(5,'善行'); say('gain','民心 +15'); }},
+      {t:'雪地裡有一具穿著騎士鎧甲的屍體，握著一封信。', once:'knight', o:[
+        {t:'讀信', done:1, f:()=>{ addRes('relics',1); say('gain','遺物 +1。信上寫：「奧文說魔物是神的考驗。我不信。」'); body.rep.knight+=5; say('gain','騎士團聲望 +5（你替他們帶回了名字）'); }},
+        {t:'埋了他', done:1, f:()=>{ spendDay('埋葬'); body.rep.people+=5; addLuck(5,'善行'); say('gain','民心 +5'); }}]},
+      {t:'一個倖存的老人躲在地窖裡，已經三天沒吃東西。', once:'cellar', o:[
+        {t:'分他糧食（20 金）', done:1, req:()=>body.gold>=20, f:()=>{ body.gold-=20; body.rep.people+=8; say('gain','民心 +8。他告訴你舊祭壇在凍湖對岸。'); body.regionFlags.snowHint=1; }},
+        {t:'帶他回難民營（一天）', done:1, f:()=>{ spendDay('護送'); body.rep.people+=15; addLuck(5,'善行'); say('gain','民心 +15'); }},
         {t:'離開', f:()=>{}}]},
       {t:'雪暴來了。', o:[
         {t:'找地方躲（一天）', f:()=>{ spendDay('躲雪暴'); }},
         {t:'硬走', f:()=>{ const d=Math.round(body.hpMax*.3); body.hp=Math.max(1,body.hp-d); say('hurt','凍傷。HP −'+d); }}]},
-      {t:'一輛行商的馬車凍在冰裡，車轅朝天。車上的布蓋還在，底下鼓鼓的。', o:[
-        {t:'撬開來看', f:()=>{ if(chance(.6)){ const k=chance(.5)?'salt':'grain'; const n=k==='salt'?2:4; addRes(k,n); say('gain',RES[k]+' +'+n+'。凍了不知道多少年，還能用。'); } else { const d=Math.round(body.hpMax*.15); body.hp=Math.max(1,body.hp-d); say('hurt','冰裂了。你的腳陷進去，拔出來的時候靴子裡全是水。HP −'+d); } }},
+      {t:'一輛行商的馬車凍在冰裡，車轅朝天。車上的布蓋還在，底下鼓鼓的。', once:'wagon', o:[
+        {t:'撬開來看', done:1, f:()=>{ if(chance(.6)){ const k=chance(.5)?'salt':'grain'; const n=k==='salt'?2:4; addRes(k,n); say('gain',RES[k]+' +'+n+'。凍了不知道多少年，還能用。'); } else { const d=Math.round(body.hpMax*.15); body.hp=Math.max(1,body.hp-d); say('hurt','冰裂了。你的腳陷進去，拔出來的時候靴子裡全是水。HP −'+d); } }},
         {t:'不碰', f:()=>{}}]},
       {t:'廢村的一間屋子還有屋頂。灶是冷的，柴堆在牆角，沒有人動過。', o:[
         {t:'生火歇一會', f:()=>{ if(body.regionFlags.snowFireDay===body.day){ say('info','柴已經燒完了。'); return; } body.regionFlags.snowFireDay=body.day; const h=Math.round(body.hpMax*.3); body.hp=Math.min(body.hpMax,body.hp+h); say('gain','火升起來的時候屋子裡響了一聲，是冰在化。HP +'+h); }},
-        {t:'翻柴堆', f:()=>{ if(chance(.4)){ addRes('relics',1); say('gain','柴底下壓著一塊木牌，刻著神殿的記號。遺物 +1'); } else if(chance(.5)){ addRes('pelts',2); say('gain','兩張硝好的皮，硬得像板子。獸皮 +2'); } else say('info','只有柴。'); }},
+        {t:()=>(body.regionFlags.st_woodpile|0)>=EV_STOCK.woodpile?'（柴堆翻空了）':'翻柴堆', req:()=>(body.regionFlags.st_woodpile|0)<EV_STOCK.woodpile, use:'woodpile', f:()=>{ if(chance(.4)){ addRes('relics',1); say('gain','柴底下壓著一塊木牌，刻著神殿的記號。遺物 +1'); } else if(chance(.5)){ addRes('pelts',2); say('gain','兩張硝好的皮，硬得像板子。獸皮 +2'); } else say('info','只有柴。'); }},
         {t:'離開', f:()=>{}}]},
       {t:'一隻白狼躺在雪裡，後腿夾在獵人的鐵夾裡。牠看著你，沒有叫。', o:[
         {t:'打開鐵夾', f:()=>{ body.rep.people+=2; addLuck(5,'善行'); addItem('trap',1); say('gain','牠一瘸一瘸地走了，走幾步回頭看你一次。你把鐵夾收起來。捕獸夾 +1，民心 +2'); }},
@@ -1417,9 +1417,9 @@ const REGIONS={
       {t:'一段巷道塌了一半，礦石露在外面。', o:[
         {t:'挖（一天）', f:()=>{ spendDay('挖礦'); addRes('ore',3); say('gain','礦石 +3'); }},
         {t:'冒險快挖', f:()=>{ if(chance(.6)){ addRes('ore',3); say('gain','礦石 +3'); } else { const d=Math.round(body.hpMax*.25); body.hp=Math.max(1,body.hp-d); say('hurt','塌了。HP −'+d); } }}]},
-      {t:'礦工們在罷工。工頭想僱你談判。', o:[
-        {t:'替礦工說話', f:()=>{ body.rep.people+=10; body.regionFlags.sidedMiners=1; say('gain','民心 +10。礦工們記住了你。'); }},
-        {t:'替工頭壓下去（80 金酬勞）', f:()=>{ body.gold+=80; body.rep.people-=10; body.regionFlags.sidedBoss=1; say('gain','金幣 +80，民心 −10'); }}]},
+      {t:'礦工們在罷工。工頭想僱你談判。', once:'strike', o:[
+        {t:'替礦工說話', done:1, f:()=>{ body.rep.people+=10; body.regionFlags.sidedMiners=1; say('gain','民心 +10。礦工們記住了你。'); }},
+        {t:'替工頭壓下去（80 金酬勞）', done:1, f:()=>{ body.gold+=80; body.rep.people-=10; body.regionFlags.sidedBoss=1; say('gain','金幣 +80，民心 −10'); }}]},
       {t:'鐵匠在坑口設了爐，爐邊擺著他打過的東西：一把戰斧、一台礦車、一件發黑的甲、幾塊力量之藥，還有兩瓶塞著布的火油。「刀拿來，王都那小子磨不動的，我磨得動。別的也能打，看你帶了什麼來。」', o:[
         {t:()=>sharpLabel('mine','請老鐵匠磨刀'), req:()=>(eqW().sharp||0)>=SHARP.mine.cap||sharpMax('mine')>0, q:()=>(eqW().sharp||0)>=SHARP.mine.cap?null:sharpQ('mine'), f:()=>sharpDone('mine')},
         {t:'打一把石斧（礦石 5）', req:()=>body.ore>=5&&!hasW('stoneaxe'), f:()=>{ body.ore-=5; giveWeapon('stoneaxe'); }},
@@ -1454,6 +1454,17 @@ function regionReward(r,d){
 }
 function regionMon(r){ const d=regionDepthOf(r); const pool=MONSTERS.filter(m=>m.region===r&&m.depths.includes(d)); return pickFrom(pool.length?pool:MONSTERS.filter(m=>m.region===r)); }
 function regionDepthOf(r){ return body.depth[r]||1; }
+/* 一次性事件（once）處理過就不再出現；有存量的地點（stock）翻到見底就空了 */
+const EV_STOCK={woodpile:3};
+function evOpen(e){ const rf=body.regionFlags; if(e.once&&rf['ev_'+e.once]) return false; if(e.stock&&(rf['st_'+e.stock[0]]|0)>=e.stock[1]) return false; return true; }
+function evMark(e,op){ const rf=body.regionFlags;
+  if(op.done&&e.once) rf['ev_'+e.once]=1;
+  if(op.use===1&&e.stock){ rf['st_'+e.stock[0]]=(rf['st_'+e.stock[0]]|0)+1; if(rf['st_'+e.stock[0]]>=e.stock[1]) say('info','這裡翻空了。'); }
+  if(typeof op.use==='string'){ const k=op.use; rf['st_'+k]=(rf['st_'+k]|0)+1; } }
+/* 走過的深度：過一次門就記住，獎勵只給一次 */
+function reachMigrate(){ const rf=body.regionFlags; if(rf.reachMig) return; rf.reachMig=1;
+  ['forest','snow','port','mine'].forEach(r=>{ for(let d=2;d<=(body.depth[r]||1);d++) rf['reach_'+r+d]=1; });
+  if(rf.ticket) rf.reach_port3=1; if(hasW('altarstaff')) rf.reach_snow3=1; if(hasW('ember')) rf.reach_mine3=1; }
 N.region=(r)=>{ lastNode=()=>N.region(r);
   const R=REGIONS[r]; const d=regionDepthOf(r);
   place(R.name+' · '+R.depths[d-1]);
@@ -1465,9 +1476,11 @@ N.region=(r)=>{ lastNode=()=>N.region(r);
   o.push({t:'探索（可能遇到事件或敵人）', f:()=>{ if(envTick()) return; body.regionFlags['g_'+r]=Math.max(0,(body.regionFlags['g_'+r]||0)-1); body.regionFlags['g2_'+r]=Math.max(0,(body.regionFlags['g2_'+r]||0)-1);
     if(chance(R.threat)){ if(body.flags.torch){ body.flags.torch=0; say('narr','有東西在聖水灑過的地方停了一下，走了。'); } else if((((aDef(eqA()).quiet||job().quiet)&&chance(.3))||chance(.3*eatF('governor')))){ say('narr','有東西從你身邊走過去。牠沒有看見你。'); } else { say('narr','不對勁。'); body.regionFight=r; encounter(regionMon(r),REGION_LV[r][d-1]); return; } }
     const due=craftToday(r).map(k=>CRAFT[k]); const forced=R.events.find(e=>due.some(c=>c.match(e)));
-    const ev=forced||rnd(R.events.filter(e=>!e.fight&&!Object.values(CRAFT).some(c=>c.match(e))));
+    const pool=R.events.filter(e=>!e.fight&&evOpen(e)&&!Object.values(CRAFT).some(c=>c.match(e)));
+    if(!forced&&!pool.length){ say('narr','你走了一圈。這一帶你都熟了，沒有新的東西。'); N.region(r); return; }
+    const ev=forced||rnd(pool);
     say('narr',ev.dyn?ev.dyn():ev.t);
-    setOptions(ev.o.map(op=>{ const t=typeof op.t==='function'?op.t():op.t; return {t, dis:op.req&&!op.req(), f:()=>{ const q=op.q&&op.q(); if(q){ qtyMenu(Object.assign({title:t.replace(/（.*$/,''), back:()=>N.region(r)},q)); return; } op.f(); status(); N.region(r); }}; }));
+    setOptions(ev.o.map(op=>{ const t=typeof op.t==='function'?op.t():op.t; return {t, dis:op.req&&!op.req(), f:()=>{ const q=op.q&&op.q(); if(q){ qtyMenu(Object.assign({title:t.replace(/（.*$/,''), back:()=>N.region(r)},q)); return; } evMark(ev,op); op.f(); status(); N.region(r); }}; }));
   }});
   { const streak=body.regionFlags['g_'+r]||0; o.push({t:'在這一帶採集（一天）'+(streak>=3?'　這裡採過很多次了':''), dis:space()<=0, f:()=>{ spendDay('採集'); if(envTick()) return;
     const yieldN=Math.max(1,Math.round((R.res==='gold'?30*d:d)*Math.pow(0.7,streak))); const bonus=(R.res==='ore'&&(aDef(eqA()).ore||chance(eatF('cave')))?1:0)+((job().gather||aDef(eqA()).gather||chance(eatF('forestwolf')))?1:0);
@@ -1475,7 +1488,7 @@ N.region=(r)=>{ lastNode=()=>N.region(r);
     if(R.res2&&chance(.35)){ const g2=addRes(R.res2,Math.max(1,Math.round(d*Math.pow(0.7,streak)))); if(g2) say('gain','順手撿到'+RES[R.res2]+' +'+g2); }
     { const rk=RARE_RES[r]; const pr=(.02+.01*d)*((job().gather||aDef(eqA()).gather)?1.5:1)*(sysIs('luck')?1+soul.luck/100:1); if(rk&&chance(pr)&&space()>0){ say('narr',RARE_FOUND[rk]); addRes(rk,1); say('gain','稀有素材：'+RES[rk]+' +1'); } }
     status(); N.region(r); }}); }
-  if(d<3){ const g=REGION_GATES[r][d-1]; o.push({t:g.enter, f:()=>{ say('title',g.who); story(g.text); setOptions(gateOptions(()=>N.region(r),why=>{ say('npc',why); body.depth[r]=d+1; status(); regionReward(r,d+1); N.region(r); },d+1,r)); }}); }
+  if(d<3){ const g=REGION_GATES[r][d-1]; reachMigrate(); if(body.regionFlags['reach_'+r+(d+1)]) o.push({t:g.enter+'（已通過）', f:()=>{ say('narr','你走過已經走過的路。'); body.depth[r]=d+1; N.region(r); }}); else o.push({t:g.enter, f:()=>{ say('title',g.who); story(g.text); setOptions(gateOptions(()=>N.region(r),why=>{ say('npc',why); body.depth[r]=d+1; body.regionFlags['reach_'+r+(d+1)]=1; status(); regionReward(r,d+1); N.region(r); },d+1,r)); }}); }
   envOptions(o,()=>N.region(r));
   if(d>1) o.push({t:'退回'+R.depths[d-2], f:()=>{ body.depth[r]=d-1; N.region(r); }});
   o.push({t:'回王都（一天路程）', f:()=>{ spendDay('回王都'); N.market(); }});
@@ -1560,7 +1573,9 @@ N.north=(again)=>{ lastNode=N.north;
   const o=[];
   if(!body.flags.northHerb) o.push({t:'到井邊採灰葉草', f:()=>{ story(TXT.north_well); body.flags.northHerb=1; addRes('herbs',2); say('gain','北村的灰葉草 +2'); status(); N.north(true); }});
   if(!body.flags.northStone) o.push({t:'看村口那塊石頭', f:()=>{ story(TXT.north_stone); body.flags.northStone=1; learn('witness','村口的石頭上有燒過的痕跡和一枚神殿的徽章。魔物來之前，這裡先有火。'); status(); N.north(true); }});
-  o.push({t:'搜索屋子', f:()=>{ story(TXT.north_house); if(chance(.7)){ const g=30+Math.floor(Math.random()*40); body.gold+=g; say('gain','床墊底下有 '+g+' 金。'); } else { say('hurt','一隻魔狼從屋裡衝出來。'); encounter(MON('dog'),[2,4],'north'); return; } status(); N.north(true); }});
+  const NH=6, nh=body.flags.northSearch|0;
+  if(nh>=NH) o.push({t:'（每一間屋子都翻過了）', dis:true, f:()=>{}});
+  else o.push({t:'搜索屋子（還有 '+(NH-nh)+' 間沒進去過）', f:()=>{ body.flags.northSearch=nh+1; story(TXT.north_house); if(chance(.7)){ const g=30+Math.floor(Math.random()*40); body.gold+=g; say('gain','床墊底下有 '+g+' 金。'); } else { say('hurt','一隻魔狼從屋裡衝出來。'); encounter(MON('dog'),[2,4],'north'); return; } status(); N.north(true); }});
   omniOptions(o,'north',N.north,[]);
   o.push({t:'回難民營', f:N.camp});
   setOptions(o);
