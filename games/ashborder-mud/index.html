@@ -169,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.9.3';
+const VERSION='2.10.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -626,7 +626,7 @@ function gearMenu(){
   o.push({t:'返回', f:back});
   setOptions(o,'裝備與道具　手上：'+wDef(eqW()).n+'｜身上：'+aDef(eqA()).n+(accEq().length?'｜'+accEq().map(D=>D.n).join('、'):'')+'｜攻擊力 '+atkNow()+'｜防禦力 '+defNow()+'｜攻速 '+pInterval().toFixed(1)+' 秒'+(body.flags.whet?'｜已磨刀 ×1.5':'')+(body.flags.oiled?'｜已上油':''),true);
 }
-function leaveFight(){ body.autoHunt=false; endCombat(); status(); if(body.raidFight){ body.raidFight=0; raidIgnored(); status(); N.market(); return; } if(body.flags.routeFight){ body.flags.routeFight=0; say('narr','你退了回來。商隊頭子看了你一眼，沒說話。'); N.south(); return; } if(body.fightRet==='north'){ body.fightRet=null; N.north(true); return; } if(body.regionFight){ const r=body.regionFight; body.regionFight=null; N.region(r); } else N.rift(); }
+function leaveFight(){ body.autoHunt=false; endCombat(); status(); if(body.tripFight&&body.trip){ body.tripFight=0; say('narr','你沿著原路退了出去。'); tripEnd(); return; } if(body.raidFight){ body.raidFight=0; raidIgnored(); status(); N.market(); return; } if(body.flags.routeFight){ body.flags.routeFight=0; say('narr','你退了回來。商隊頭子看了你一眼，沒說話。'); N.south(); return; } if(body.fightRet==='north'){ body.fightRet=null; N.north(true); return; } if(body.regionFight){ const r=body.regionFight; body.regionFight=null; N.region(r); } else N.rift(); }
 /* HP =（40 + 等級×4 + 永久加成 + 屬性點×3 + 血肉）× 1.15^(0.8×(等級−5)) */
 function hpBase(){ return 40+lv()*4+(soul.permHp||0)+panelHp()*3+eatHp()+accSum('hp'); }
 function baseHp(){ return Math.round(hpBase()*Math.pow(levelMul(lv()),0.8)); }
@@ -1458,6 +1458,135 @@ function regionReward(r,d){
 }
 function regionMon(r){ const d=regionDepthOf(r); const pool=MONSTERS.filter(m=>m.region===r&&m.depths.includes(d)); return pickFrom(pool.length?pool:MONSTERS.filter(m=>m.region===r)); }
 function regionDepthOf(r){ return body.depth[r]||1; }
+/* ===== 採集之旅：一趟走 2+深度 步，每一步二選一或三選一 =====
+   每種地形的意義固定（走過一次就會標出它偏向什麼）；地圖每天不同、當天固定。
+   稀有素材只在「走過某種地形之後的下一步」才可能出現。 */
+const TRIP={
+ forest:{rare:'worldleaf', pre:'char', start:['creek', 'trail', 'log'], next:{'creek': ['creek', 'log', 'char'], 'log': ['log', 'trail', 'creek'], 'trail': ['trail', 'log', 'char'], 'char': ['char', 'log']}, hint:'獵人說過：黑土走到底，有時候會看見一棵燒剩的樹，樹心還是綠的。',
+  special:{n:['一棵燒剩的樹，樹心是綠的','焦黑的樹幹裂開一道縫，縫裡透出一點綠光','一截燒斷的樹樁，斷面上冒出一片新葉'],
+           out:['你用刀撬開焦黑的樹皮。裡面有一片葉子，不是灰的，脈絡在發光。','你把手伸進樹縫，摸到一片溫熱的葉子。拿出來的時候，它在你掌心亮了一下。','那片葉子長在焦炭上，綠得不真實。你小心地把它摘下來。']},
+  t:[{id:'creek', via:{'creek': ['沿著溪往下游走，水聲越來越大', '溪水變寬了，岸邊的石頭長滿青苔'], 'log': ['倒木另一邊傳來水聲', '翻過倒木，底下是一條小溪']}, tag:'灰葉草', give:{herbs:[1,2]},
+      n:['溪邊，水聲很近','一條小溪從石頭間流過','前面有水聲，地上的草比別處綠','溪水繞過一塊大石，石縫裡長滿了草'],
+      out:['溪邊的灰葉草長得密。','你沿著溪岸採了一路。','石縫裡的草根抓得很深，你拔得手痠。','溪水把草洗得很乾淨。']},
+     {id:'log', via:{'creek': ['一根倒木橫在溪上，像一座橋', '溪邊有幾棵被水沖倒的樹'], 'trail': ['獸徑被一棵倒下的樹擋住', '野獸繞過一截斷樹，樹幹還很完整'], 'char': ['一棵燒倒的樹橫在黑土上，裡面沒燒透', '焦土邊緣倒著幾根半焦的木頭'], 'log': ['倒木後面還有倒木，這一片都被風吹倒了']}, tag:'木材', give:{timber:[1,2]},
+      n:['一根倒木橫在路上','幾棵樹被風吹倒了，疊在一起','一截粗大的樹幹擋住去路','林子裡有一片被砍過的樹樁'],
+      out:['倒木還很結實，你劈了幾段帶走。','你挑了沒爛的那幾根。','樹幹裡面是乾的，好燒。','樵夫留下的木頭沒運走，你撿了一些。']},
+     {id:'trail', via:{'trail': ['獸徑往更深的地方延伸', '爪印越來越新，草上還有露水'], 'log': ['樹幹底下有野獸鑽過的痕跡', '倒木旁邊的泥地被踩得稀爛']}, tag:'獸皮，可能撞見野獸', give:{pelts:[1,2]}, fight:.35,
+      n:['一條獸徑，草被踩平了','泥地上有一串新的爪印','灌木被撞開一個缺口，上面掛著毛','空氣裡有一股野獸的臊味'],
+      out:['獸徑邊有一個被扯壞的陷阱，裡面留著一張皮。','爪印的盡頭躺著一隻死掉的狼。','你在灌木叢裡找到一張別人丟下的皮。','一隻受傷的鹿倒在路邊，沒撐過去。']},
+     {id:'char', via:{'creek': ['溪水轉進一片黑土，土是溫的', '溪水到這裡變成黑色，岸上的土還冒著煙'], 'trail': ['獸徑的盡頭是一片燒過的空地', '野獸的腳印到焦土邊緣就不見了'], 'char': ['焦土越來越深，腳下的灰是熱的', '四周的樹只剩下黑色的樁，連鳥都不叫了']}, tag:'東西少，會燙；再往前可能有別的', give:{herbs:[0,1]}, hurt:'fire',
+      n:['溪水轉進一片黑土，土是溫的','一片燒過的空地，地面還在冒煙','樹都是黑的，腳下的灰是熱的','焦土從這裡開始，連鳥都不叫了'],
+      out:['黑土是溫的，草長得稀。','你踩過還在悶燒的灰，靴底發燙。','灰裡埋著幾根沒燒完的草。','熱氣從地底下往上冒。']}]},
+ snow:{rare:'frostcrystal', pre:'crack', start:['house', 'drift', 'lake'], next:{'house': ['house', 'drift', 'lake'], 'drift': ['drift', 'house', 'lake'], 'lake': ['lake', 'crack', 'drift'], 'crack': ['crack', 'lake']}, hint:'渡船人說過：凍湖邊的冰縫往下看，冰層裡偶爾嵌著一塊不會化的東西。',
+  special:{n:['冰層裡嵌著一塊透明的東西','冰縫深處有一點光，不是水面的反光','一塊冰特別清，清得像沒有東西'],
+           out:['你鑿了半天，把它挖出來。它握在手裡不會化。','你趴在冰上，伸長手才搆到它。它比冰還冷，卻不會化。','你敲開那塊冰，裡面的東西完整地落進你手裡。']},
+  t:[{id:'house', via:{'house': ['隔壁還有一間，門半開著', '巷子底有一座小祠堂'], 'drift': ['雪堆後面露出一截屋頂', '腳印通往一間半塌的木屋']}, tag:'遺物，可能有東西躲著', give:{relics:[0,1]}, fight:.25,
+      n:['一間屋頂還在的廢屋','半塌的木屋，門板被雪壓彎了','一座小祠堂，神像的臉被鑿掉了','幾間連在一起的空屋，窗子都破了'],
+      out:['屋裡大多被翻過了，牆角還壓著一點東西。','你在灶台底下摸到一個布包。','祠堂的供桌上還擺著幾樣東西。','空屋裡什麼都沒留下，除了地板下的一個暗格。']},
+     {id:'lake', via:{'house': ['村子的盡頭就是湖岸，冰上有洞', '漁夫的小棚就在屋子後面'], 'drift': ['腳印一路通到湖邊', '雪堆的另一邊是結冰的湖'], 'lake': ['沿著湖岸往前，冰上插著幾根釣竿', '湖岸彎進去，冰上鑿了一排洞']}, tag:'魚乾', give:{fish:[1,3]},
+      n:['凍湖的岸邊，冰上有洞','湖面上插著幾根釣竿，人不見了','冰上有一排鑿好的洞','湖邊有一間漁夫的小棚'],
+      out:['冰洞邊凍著幾條魚。','釣竿還掛著魚，主人大概不會回來了。','你在冰洞裡撈了一陣。','棚子裡掛著一串風乾的魚。']},
+     {id:'drift', via:{'house': ['屋後的雪地上有一串腳印', '廢屋的窗下有拖行的痕跡'], 'drift': ['腳印往雪原深處去了', '雪越來越深，前面有東西在動'], 'lake': ['湖岸的雪上有野獸來喝水的痕跡']}, tag:'獸皮，可能撞見野獸', give:{pelts:[1,2]}, fight:.35,
+      n:['雪堆後面有一串腳印','雪地上有拖行的痕跡','遠處有白色的東西在動','一堆骨頭露在雪外面'],
+      out:['腳印的主人沒有回來，留下了一張皮。','拖痕的盡頭是一隻凍死的雪兔。','那是一隻白狼，已經死了。','骨頭旁邊的皮還能用。']},
+     {id:'crack', via:{'lake': ['離岸遠一點，冰面裂開一道縫', '湖心的冰是黑的，底下有水在流'], 'crack': ['冰縫越來越寬，往下看是深藍色', '腳下的冰在響，裂縫往四面散開']}, tag:'東西少，很冷；再往前可能有別的', give:{fish:[0,1]}, hurt:'ice',
+      n:['冰面裂開一道縫，往下看是藍的','湖心的冰是黑的，底下有水在流','冰上有一個大洞，邊緣很薄','腳下的冰在響'],
+      out:['冰縫裡吹上來的風冷得割臉。','你趴下來往下看，什麼都看不清。','洞邊的冰一碰就碎。','你不敢停，一步一步往前挪。']}]},
+ port:{rare:'pearl', pre:'reef', start:['dock', 'alley', 'salt'], next:{'dock': ['dock', 'reef', 'alley'], 'salt': ['salt', 'dock', 'reef'], 'alley': ['alley', 'dock'], 'reef': ['reef', 'salt']}, hint:'漁夫說過：礁石退潮的時候，石縫裡的貝有時候會藏著東西。',
+  special:{n:['石縫裡卡著一個比拳頭還大的貝','潮水退去的地方，有一個貝殼半開著','一隻螃蟹拖著一顆發光的東西'],
+           out:['你撬開貝殼。裡面有一顆珠子，在暗處也會發光。','貝殼裡躺著一顆珠子，圓得像被人磨過。','你把螃蟹趕開，撿起那顆珠子。']},
+  t:[{id:'dock', via:{'dock': ['沿著碼頭往前，又有一艘船靠岸', '碼頭另一頭是魚市，正在收攤'], 'salt': ['鹽田旁邊就是小碼頭，船在卸貨'], 'alley': ['巷子口通到碼頭，一股魚腥味']}, tag:'魚乾', give:{fish:[1,3]},
+      n:['碼頭邊堆著魚簍','一艘漁船剛靠岸','魚市收攤了，地上還有剩的','曬魚的架子排成一列'],
+      out:['魚簍的主人不在，你挑了幾條，留下幾枚銅板。','船家分了你幾條。','剩下的魚沒人要，你全收了。','架子上的魚乾曬得正好。']},
+     {id:'salt', via:{'salt': ['鹽田一格一格排到海邊', '鹽工在另一格收鹽'], 'reef': ['岩灘旁邊就是鹽田，白得刺眼']}, tag:'鹽', give:{salt:[1,2]},
+      n:['鹽田，白得刺眼','一排鹽工正在收鹽','海邊的淺灘結了一層白','倉庫後面有漏出來的鹽'],
+      out:['鹽田邊掃出一小堆鹽。','鹽工讓你幫忙，分了你一些。','你刮了一層鹽下來。','你用袋子裝了一些。']},
+     {id:'alley', via:{'dock': ['碼頭後面有一條窄巷，有人在暗處看你', '魚市後面是賭場的後門'], 'alley': ['巷子轉了個彎，更窄了', '巷子底有一扇門開著一條縫']}, tag:'金幣，可能被找麻煩', gold:[10,25], fight:.3,
+      n:['一條窄巷，有人在暗處看你','賭場後門，有人在吵架','一條死巷，地上有酒瓶','巷口站著兩個人，看見你就散開了'],
+      out:['巷子裡掉著一個錢袋。','吵架的人跑了，地上留下幾枚金幣。','酒瓶旁邊有一個錢包，裡面還有錢。','他們站過的地方掉了一些金幣。']},
+     {id:'reef', via:{'dock': ['碼頭盡頭的礁石露出水面，潮在退', '防波堤外面是一片亂石'], 'salt': ['鹽田外面就是岩灘，水窪裡有東西在動'], 'reef': ['礁石往海裡延伸，浪打過來又退回去', '更遠的礁石上長滿了黑色的貝']}, tag:'東西少，會滑；再往前可能有別的', give:{fish:[0,1]}, hurt:'slip',
+      n:['礁石露出水面，潮在退','一片黑色的礁岩，浪打過來又退回去','退潮後的岩灘，水窪裡有東西在動','防波堤外面的亂石'],
+      out:['礁石上長滿了青苔，很滑。','浪打在你腳邊，鹹水濺了一身。','水窪裡的小魚鑽進石縫。','亂石之間卡著漁網的碎片。']}]},
+ mine:{rare:'starmetal', pre:'hot', start:['vein', 'coal', 'shaft'], next:{'vein': ['vein', 'shaft', 'coal'], 'coal': ['coal', 'vein'], 'shaft': ['shaft', 'hot', 'vein'], 'hot': ['hot', 'shaft']}, hint:'礦工說過：燙得不能摸的岩壁裡，有時候嵌著一塊冷的黑鐵。天上掉下來的。',
+  special:{n:['岩壁裡有一塊是冷的，黑得發亮','熱氣裡突然有一陣涼，來自一塊黑色的石頭','岩縫裡嵌著一塊鐵，上面沒有鏽'],
+           out:['你用鎬敲了很久才把它敲下來。它比同樣大的礦石重三倍。','那塊石頭是冷的，在滾燙的岩壁裡冷得不合道理。你把它撬了出來。','你把那塊鐵挖出來，它在燈下泛著藍光。']},
+  t:[{id:'vein', via:{'vein': ['礦脈往深處延伸，顏色越來越深', '岩壁上又出現一道紅褐色的紋'], 'coal': ['煤層底下露出一條鐵色的礦脈'], 'shaft': ['廢巷道的牆上還看得到礦脈']}, tag:'礦石', give:{ore:[1,2]},
+      n:['一條礦脈，石頭是鐵色的','岩壁上有一道紅褐色的紋','礦工留下的鎬還插在牆上','一堆剛炸開的碎石'],
+      out:['礦脈很淺，敲幾下就掉。','你順著紋路敲下一塊塊礦石。','你借用了那把鎬。','碎石裡挑得出好礦。']},
+     {id:'coal', via:{'vein': ['礦脈旁邊是一層黑色的岩層', '礦工留下的礦車裡裝滿了炭'], 'coal': ['煤層越挖越厚，空氣都是灰的']}, tag:'炭', give:{coal:[1,2]},
+      n:['一層黑色的岩層，摸了手會黑','空氣裡有煤灰的味道','一輛翻倒的礦車，灑了一地黑','巷道的牆是黑的，一碰就掉渣'],
+      out:['煤層很鬆，一扒就是一堆。','你循著味道找到一堆炭。','你把灑出來的炭裝回袋子。','牆上的炭一碰就掉。']},
+     {id:'shaft', via:{'vein': ['礦脈的盡頭是一條封起來的巷道', '支架塌了一半的廢巷道就在旁邊'], 'shaft': ['廢巷道往下分岔，一邊沒有燈', '巷道深處有滴水聲，還有別的聲音']}, tag:'礦石，可能有東西住在裡面', give:{ore:[1,3]}, fight:.3,
+      n:['一條廢巷道，支架塌了一半','一個封起來的坑口，木板被推開了','巷道深處有滴水聲，還有別的聲音','一條沒有燈的岔路'],
+      out:['前人沒挖完的礦還堆在那裡。','坑口裡面還有好礦。','水窪邊的石頭都是礦。','黑暗裡摸到的石頭很沉，是好礦。']},
+     {id:'hot', via:{'shaft': ['廢巷道越往下越熱，盡頭是紅的', '地面開始冒熱氣，靴底發軟'], 'hot': ['岩壁燙得發亮，縫裡流著發光的東西', '熱氣一陣一陣從底下湧上來']}, tag:'東西少，會燙；再往前可能有別的', give:{ore:[0,1]}, hurt:'fire',
+      n:['岩壁發燙，越往裡越熱','地面在冒熱氣，靴底發軟','一條往下的巷道，盡頭是紅的','岩縫裡流著發光的東西'],
+      out:['岩壁燙得不能久待。','你加快腳步，汗一下就濕透了。','越往下越亮，也越熱。','你離那條發光的縫遠一點。']}]},
+};
+function seedRng(str){ let h=1779033703^str.length; for(let i=0;i<str.length;i++){ h=Math.imul(h^str.charCodeAt(i),3432918353); h=h<<13|h>>>19; } return ()=>{ h=Math.imul(h^h>>>16,2246822507); h=Math.imul(h^h>>>13,3266489909); h^=h>>>16; return (h>>>0)/4294967296; }; }
+function tripGatherer(){ return !!(job().gather||aDef(eqA()).gather); }
+function tripStepText(){ const T=body.trip; return '第 '+Math.min(T.step+1,T.max)+' / '+T.max+' 步　背包 '+load()+'/'+body.coreCap; }
+function tripStart(r){
+  const d=regionDepthOf(r); spendDay('探索',true);
+  body.trip={r, d, day:body.day, step:0, max:2+d, path:'', prev:null, rareUsed:false, loot:{}, met:{}};
+  if(!body.regionFlags['triphint_'+r]){ body.regionFlags['triphint_'+r]=1; say('npc',TRIP[r].hint); }
+  say('narr','你往'+REGIONS[r].depths[d-1]+'裡走。這一趟走 '+(2+d)+' 步。');
+  tripNode(); }
+function tripChoices(){ const T=body.trip; const D=TRIP[T.r]; const rng=seedRng(T.day+'|'+T.r+'|'+T.d+'|'+T.path);
+  /* 狀態機：現在站在哪種地形，下一步就只能走到相鄰的地形 */
+  const cur=T.prev==='_rare'?D.pre:T.prev; const ids=cur?D.next[cur]:D.start;
+  const pool=ids.map(id=>D.t.find(x=>x.id===id)); const n=Math.min(pool.length,rng()<.5?2:3); const out=[];
+  const pickV=a=>a[Math.floor(rng()*a.length)];
+  while(out.length<n&&pool.length){ const c=pool.splice(Math.floor(rng()*pool.length),1)[0]; out.push(Object.assign({},c,{n:pickV((cur&&c.via&&c.via[cur])||c.n)})); }
+  const p=(.15+.02*T.d)*(tripGatherer()?1.5:1)*(sysIs('luck')?1+soul.luck/100:1);
+  if(T.prev===D.pre&&!T.rareUsed&&rng()<p) out[Math.floor(rng()*out.length)]={id:'_rare', n:pickV(D.special.n), out:D.special.out, rare:D.rare};
+  return out; }
+function tripNode(){ const T=body.trip; if(!T) return;
+  if(envTick()) return;
+  const known=body.flags.terrain||{}; const side=['往左：','往前：','往右：'];
+  const ch=tripChoices();
+  const o=ch.map((c,i)=>({t:(ch.length===2?['往左：','往右：'][i]:side[i])+c.n+(c.id!=='_rare'&&known[T.r+c.id]?'（'+c.tag+'）':''), f:()=>tripPick(c,i)}));
+  o.push({t:'原路回去（這一趟到此為止）', f:()=>{ say('narr','你沿著原路走了回去。'); tripEnd(); }});
+  setOptions(o,'探索　'+tripStepText(),true); }
+function tripAdd(k,n){ const T=body.trip; if(n<=0) return; const got=k==='gold'?(body.gold+=n,n):addRes(k,n); if(got>0) T.loot[k]=(T.loot[k]||0)+got; }
+function tripPick(c,i){ const T=body.trip; const d=T.d; const R=REGIONS[T.r];
+  body.flags.terrain=body.flags.terrain||{}; if(c.id!=='_rare') body.flags.terrain[T.r+c.id]=1;
+  T.path+=i; T.prev=c.id; T.step++;
+  say('narr',rnd(c.out));
+  if(c.rare){ T.rareUsed=true; tripAdd(c.rare,1); body.flags.rareFound=body.flags.rareFound||{}; body.flags.rareFound[c.rare]=1; say('gain','稀有素材：'+RES[c.rare]+' +1'); }
+  if(c.give) Object.keys(c.give).forEach(k=>{ const [lo,hi]=c.give[k]; let n=lo+Math.floor(Math.random()*(hi-lo+1)); if(lo>0) n+=d-1;
+    if(n>0&&k===R.res&&tripGatherer()) n+=1; if(n>0&&k===R.res&&chance(eatF('forestwolf'))) n+=1; if(k==='ore'&&n>0&&(aDef(eqA()).ore||chance(eatF('cave')))) n+=1;
+    tripAdd(k,n); if(n>0) say('gain',RES[k]+' +'+n); });
+  if(c.gold){ const g=(c.gold[0]+Math.floor(Math.random()*(c.gold[1]-c.gold[0]+1)))*d; tripAdd('gold',g); say('gain','金幣 +'+g); }
+  if(c.hurt){ const k=c.hurt==='slip'?null:c.hurt; const r=k?resist(k):0; const dmg=Math.round(body.hpMax*(c.hurt==='slip'?.05:.08)*(1-Math.min(1,r)));
+    if(dmg>0){ body.hp-=dmg; say('hurt',(c.hurt==='slip'?'你滑了一跤。':k==='fire'?'熱氣燙著你的腳。':'寒氣鑽進骨頭。')+'−'+dmg+' HP（'+Math.max(0,body.hp)+'/'+body.hpMax+'）'); if(body.hp<=0){ body.hp=0; status(); die(true); return; } }
+    else if(k) say('narr',(k==='fire'?'熱氣':'寒氣')+'碰不到你。'); }
+  status();
+  if(chance(c.fight||R.threat*.4)){ if(body.flags.torch){ body.flags.torch=0; say('narr','有東西在聖水灑過的地方停了一下，走了。'); }
+    else if(((aDef(eqA()).quiet||job().quiet)&&chance(.3))||chance(.3*eatF('governor'))){ say('narr','有東西從你身邊走過去。牠沒有看見你。'); }
+    else { say('narr','不對勁。'); body.tripFight=1; encounter(regionMon(T.r),REGION_LV[T.r][d-1]); return; } }
+  tripEvent(); }
+/* 路上遇到的事：排班日的工匠一定遇得到；其他地區事件大約每三步一次 */
+function isCraftEv(e){ return Object.values(CRAFT).some(c=>c.match(e)); }
+function tripEvent(){ const T=body.trip; const r=T.r; const R=REGIONS[r];
+  const due=craftToday(r).map(k=>CRAFT[k]).filter(c=>!T.met[c.who]);
+  const forced=R.events.find(e=>due.some(c=>c.match(e)));
+  if(forced){ due.filter(c=>c.match(forced)).forEach(c=>T.met[c.who]=1); showEvent(r,forced,tripNext); return; }
+  if(chance(.3)){ const pool=R.events.filter(e=>!e.fight&&evOpen(e)&&!isCraftEv(e)); if(pool.length){ showEvent(r,rnd(pool),tripNext); return; } }
+  tripNext(); }
+/* 顯示一個地區事件。工匠可以連續辦好幾件事，選「走開、不了」才離開；其他事件選一次就繼續 */
+function showEvent(r,ev,after){ const craft=isCraftEv(ev);
+  say('narr',ev.dyn?ev.dyn():ev.t);
+  const render=()=>setOptions(ev.o.map(op=>{ const t=typeof op.t==='function'?op.t():op.t; const leave=/^(走開|不了|離開|不碰|不賣|不賭)$/.test(t);
+    return {t, dis:op.req&&!op.req(), f:()=>{ const back=()=>{ status(); if(craft&&!leave) render(); else after(); };
+      const q=op.q&&op.q(); if(q){ qtyMenu(Object.assign({title:t.replace(/（.*$/,''), back},q)); return; }
+      evMark(ev,op); op.f(); if(body.hp<=0||inCombat) return; back(); }}; }),'',true);
+  render(); }
+function tripNext(){ const T=body.trip; if(!T) return; if(T.step>=T.max){ say('narr','天色暗了。你帶著東西往回走。'); tripEnd(); } else tripNode(); }
+function tripEnd(){ const T=body.trip; if(!T) return; const r=T.r; body.trip=null; body.tripFight=0;
+  const parts=Object.keys(T.loot).map(k=>(k==='gold'?'金幣':RES[k])+' +'+T.loot[k]);
+  say('gain','這一趟：'+(parts.length?parts.join('、'):'空手而回')+'。');
+  status(); N.region(r); }
 /* 一次性事件（once）處理過就不再出現；有存量的地點（stock）翻到見底就空了 */
 const EV_STOCK={woodpile:3};
 function evOpen(e){ const rf=body.regionFlags; if(e.once&&rf['ev_'+e.once]) return false; if(e.stock&&(rf['st_'+e.stock[0]]|0)>=e.stock[1]) return false; return true; }
@@ -1469,7 +1598,7 @@ function evMark(e,op){ const rf=body.regionFlags;
 function reachMigrate(){ const rf=body.regionFlags; if(rf.reachMig) return; rf.reachMig=1;
   ['forest','snow','port','mine'].forEach(r=>{ for(let d=2;d<=(body.depth[r]||1);d++) rf['reach_'+r+d]=1; });
   if(rf.ticket) rf.reach_port3=1; if(hasW('altarstaff')) rf.reach_snow3=1; if(hasW('ember')) rf.reach_mine3=1; }
-N.region=(r)=>{ lastNode=()=>N.region(r);
+N.region=(r)=>{ lastNode=()=>N.region(r); if(body.trip&&!inCombat){ body.trip=null; body.tripFight=0; }
   const R=REGIONS[r]; const d=regionDepthOf(r);
   place(R.name+' · '+R.depths[d-1]);
   if(!body.regionFlags[r]){ body.regionFlags[r]=1; spendDay('走到'+R.name); story(R.intro); }
@@ -1477,21 +1606,7 @@ N.region=(r)=>{ lastNode=()=>N.region(r);
   curZone={r:r,d:d}; envShow();
   { const known=Object.keys(CRAFT).filter(k=>k.startsWith(r)&&body.facts['sched_'+k]); const today=known.filter(k=>CRAFT[k].on(body.day)); if(known.length) say('info','第 '+body.day+' 天。'+(today.length?'今天 '+today.map(k=>CRAFT[k].who).join('、')+'在這裡，探索就能找到。':'今天工匠都不在。'+known.map(k=>CRAFT[k].hint).join(' '))); }
   const o=[];
-  o.push({t:'探索（可能遇到事件或敵人）', f:()=>{ if(envTick()) return; body.regionFlags['g_'+r]=Math.max(0,(body.regionFlags['g_'+r]||0)-1); body.regionFlags['g2_'+r]=Math.max(0,(body.regionFlags['g2_'+r]||0)-1);
-    if(chance(R.threat)){ if(body.flags.torch){ body.flags.torch=0; say('narr','有東西在聖水灑過的地方停了一下，走了。'); } else if((((aDef(eqA()).quiet||job().quiet)&&chance(.3))||chance(.3*eatF('governor')))){ say('narr','有東西從你身邊走過去。牠沒有看見你。'); } else { say('narr','不對勁。'); body.regionFight=r; encounter(regionMon(r),REGION_LV[r][d-1]); return; } }
-    const due=craftToday(r).map(k=>CRAFT[k]); const forced=R.events.find(e=>due.some(c=>c.match(e)));
-    const pool=R.events.filter(e=>!e.fight&&evOpen(e)&&!Object.values(CRAFT).some(c=>c.match(e)));
-    if(!forced&&!pool.length){ say('narr','你走了一圈。這一帶你都熟了，沒有新的東西。'); N.region(r); return; }
-    const ev=forced||rnd(pool);
-    say('narr',ev.dyn?ev.dyn():ev.t);
-    setOptions(ev.o.map(op=>{ const t=typeof op.t==='function'?op.t():op.t; return {t, dis:op.req&&!op.req(), f:()=>{ const q=op.q&&op.q(); if(q){ qtyMenu(Object.assign({title:t.replace(/（.*$/,''), back:()=>N.region(r)},q)); return; } evMark(ev,op); op.f(); status(); N.region(r); }}; }));
-  }});
-  { const streak=body.regionFlags['g_'+r]||0; o.push({t:'在這一帶採集（一天，不會變老）'+(streak>=3?'　這裡採過很多次了':''), dis:space()<=0, f:()=>{ spendDay('採集',true); if(envTick()) return;
-    const yieldN=Math.max(1,Math.round((R.res==='gold'?30*d:d)*Math.pow(0.7,streak))); const bonus=(R.res==='ore'&&(aDef(eqA()).ore||chance(eatF('cave')))?1:0)+((job().gather||aDef(eqA()).gather||chance(eatF('forestwolf')))?1:0);
-    const got=addRes(R.res,yieldN+bonus); body.regionFlags['g_'+r]=streak+1; if(got) say('gain',R.resName+' +'+got+(streak>=3?'。你得換個地方，或者等它長回來。':''));
-    if(R.res2&&chance(.35)){ const g2=addRes(R.res2,Math.max(1,Math.round(d*Math.pow(0.7,streak)))); if(g2) say('gain','順手撿到'+RES[R.res2]+' +'+g2); }
-    { const rk=RARE_RES[r]; const pr=(.02+.01*d)*((job().gather||aDef(eqA()).gather)?1.5:1)*(sysIs('luck')?1+soul.luck/100:1); if(rk&&chance(pr)&&space()>0){ say('narr',RARE_FOUND[rk]); addRes(rk,1); say('gain','稀有素材：'+RES[rk]+' +1'); } }
-    status(); N.region(r); }}); }
+  o.push({t:'探索：走一趟（'+(2+d)+' 步，一天，不會變老）', f:()=>tripStart(r)});
   if(d<3){ const g=REGION_GATES[r][d-1]; reachMigrate(); if(body.regionFlags['reach_'+r+(d+1)]) o.push({t:g.enter+'（已通過）', f:()=>{ say('narr','你走過已經走過的路。'); body.depth[r]=d+1; N.region(r); }}); else o.push({t:g.enter, f:()=>{ say('title',g.who); story(g.text); setOptions(gateOptions(()=>N.region(r),why=>{ say('npc',why); body.depth[r]=d+1; body.regionFlags['reach_'+r+(d+1)]=1; status(); regionReward(r,d+1); N.region(r); },d+1,r)); }}); }
   envOptions(o,()=>N.region(r));
   if(d>1) o.push({t:'退回'+R.depths[d-2], f:()=>{ body.depth[r]=d-1; N.region(r); }});
@@ -1515,7 +1630,7 @@ N.region=(r)=>{ lastNode=()=>N.region(r);
 };
 /* ===== 非戰鬥路線：神殿、難民營、北方空村、南方哨站 ===== */
 /* noAge：這一天照樣過（世界照常推進），但不算進年紀——採集不耗壽命 */
-function spendDay(what,noAge){ body.day++; if(!noAge&&body.day%3===0) growOld(1,true); worldTick(); say('info','（'+what+'花了一天。第 '+body.day+' 天。'+(noAge?'採集不會讓你變老。':'')+'）'); }
+function spendDay(what,noAge){ body.day++; if(!noAge&&body.day%3===0) growOld(1,true); worldTick(); say('info','（'+what+'花了一天。第 '+body.day+' 天。'+(noAge?'這一趟不會讓你變老。':'')+'）'); }
 N.temple=()=>{ lastNode=N.temple; if(pendingEvent(N.temple)) return;
   place('神殿');
   if(!body.flags.temple){ body.flags.temple=1; story(TXT.temple1); }
@@ -2065,6 +2180,7 @@ async function win(){
   if(body.raidFight){ body.raidFight=0; story(TXT.raid_defend); body.rep.people+=10; body.rep.knight+=5; say('gain','民心 +10，騎士團聲望 +5'); status(); setOptions([{t:'回難民營', f:N.camp},{t:'回市集', f:N.market}]); return; }
   if(body.flags.routeFight){ body.flags.routeFight=0; openRoute(TXT.route_fight); return; }
   if(body.fightRet==='north'){ body.fightRet=null; setOptions([{t:'回到村口', f:()=>N.north(true)}]); return; }
+  if(body.tripFight&&body.trip){ body.tripFight=0; setOptions([{t:'繼續往前走', f:tripNext}],'探索　'+tripStepText()); return; }
   if(body.regionFight){ const r=body.regionFight; body.regionFight=null; setOptions([{t:'繼續探索', f:()=>N.region(r)},{t:'回王都（一天路程）', f:()=>{ spendDay('回王都'); N.market(); }}]); return; }
   if(canChain()&&body.autoHunt&&!isKing(m)&&space()>0&&body.hp>=body.hpMax*body.stopHp){ setOptions([{t:'停止連續狩獵', keep:true, f:()=>{ body.autoHunt=false; clearTimeout(nextT); endCombat(); N.rift(); }}],'1 秒後下一隻…'); nextT=setTimeout(()=>{ if(body.autoHunt&&!inCombat) encounter(); },1000); return; }
   if(body.autoHunt&&space()<=0){ say('info','背包滿了，停止狩獵。'); body.autoHunt=false; }
@@ -2081,7 +2197,7 @@ async function die(force){
   soul.deaths=(soul.deaths||0)+1; const lost=Math.round(body.gold*.1*(1-eatF('altar'))); body.gold-=lost;
   worldEvent(soul.name+' 倒在外面，被人抬回了教堂。');
   body.day++; if(body.day%3===0) growOld(1,true); worldTick();
-  body.hp=body.hpMax; body.regionFight=null; body.flags.routeFight=0; body.fightRet=null; body.floor=Math.max(1,Math.min(body.floor,body.maxFloor)); mon=null; body.flags.warned=0; body.flags.lineWarned=0; body.flags.whet=0; body.flags.oiled=0; body.autoHunt=false;
+  body.hp=body.hpMax; body.regionFight=null; body.trip=null; body.tripFight=0; body.flags.routeFight=0; body.fightRet=null; body.floor=Math.max(1,Math.min(body.floor,body.maxFloor)); mon=null; body.flags.warned=0; body.flags.lineWarned=0; body.flags.whet=0; body.flags.oiled=0; body.autoHunt=false;
   if(body.raidFight){ body.raidFight=0; raidIgnored(); }
   story(soul.deaths>1?rnd(TXT.death_wake_re):TXT.death_wake);
   say('info',(lost?'香油錢：金幣 −'+lost+'。':'祭壇的印在你胸口發亮。修女沒有碰你的錢袋。')+'第 '+body.day+' 天。HP 回滿。'+(sysIs('shadow')?'':'')); status(); N.chapel();
