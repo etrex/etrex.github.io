@@ -169,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.25.0';
+const VERSION='2.26.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -404,7 +404,7 @@ function ageFactor(a){ if(a<20)return .85; if(a<40)return 1; if(a<60)return 1-(a
    作用是指數的：
      攻擊 =（力量 + 武器與攻擊加成）× 1.1386^((力量 − 18) ÷ 2)　（力量 18 以下是 ×1）
      HP  =（24 + 體力 × 2 + HP 加成）× 1.15^(0.8 × (體力 − 18) ÷ 2)
-     防禦另加 (體力 − 18) ÷ 2
+     防禦 =（防具與防禦加成）× 同一個體力倍率
      速度係數 = 1.01^(敏捷 − 20)（敏捷 20 以下是 1）；攻擊間隔與道具使用時間都除以它
    1.1386 = 1.15 ÷ 1.01：攻速隨敏捷變快，攻擊的指數稍微放慢，攻擊 × 攻速正好等於舊版。
    標準成長（起始值不加減）下，攻擊 × 攻速、HP、防禦和舊版等級公式完全一樣。 */
@@ -746,7 +746,7 @@ function evoStage(){ if(!sysIs('devour')) return 0; const n=eatN(); let st=0; EV
 function evoMul(){ return EVO[evoStage()][2]; }
 function eatAtkPct(){ return .05*eatF('fire')+.15*eatF('demon')+.05*eatF('orc')+.1*eatF('core')+.3*eatF('king'); }
 function lootMul(){ return lootUp()?2:1+eatF('goblin'); }
-function lvAtk(){ return 0; } function lvHp(){ return 0; } function lvDef(){ return (sysIs('infinite')?soul.lvUps:0)+vitDef(stats().vit); }
+function lvAtk(){ return 0; } function lvHp(){ return 0; } function lvDef(){ return sysIs('infinite')?soul.lvUps:0; }
 function shadowDmg(){ return body?Math.max(1,Math.round(atkNow()*0.03)):1; } function shadowN(){ return Math.min(50,soul.shadows||0); }
 function rzAtk(){ return 0; } function rzDef(){ return sysIs('rezero')?soul.returns:0; }
 function medAtk(){ return sysIs('ancestor')?soul.meditations:0; } function medHp(){ return 0; }
@@ -754,7 +754,9 @@ function medAtk(){ return sysIs('ancestor')?soul.meditations:0; } function medHp
 function forgeAtk(){ return sysIs('forge')?Math.floor(soul.forges/5):0; }
 function atkNow(){ if(!body||!soul.system) return 0; let a=baseAtk()*evoMul()*(1+eatAtkPct()); return Math.round(a*(sysIs('ancestor')?1:ageFactor(body.age))); }
 function refDef(){ return soul.permDef||0; }
-function defNow(){ if(!body) return 0; const d=(aDef(eqA()).def+(body.armorPlus||0)+lvDef()+rzDef()+refDef()+(job().def||0)+accSum('def'))*(1+.3*eatF('golem')+.1*eatF('tunnel')); return Math.round(body.flags.oiled?d*2:d); }
+/* 防禦 =（防具 + 加固 + 永久加成 + 職業 + 飾品）× 體力倍率（跟 HP 同一條：1.15^(0.8 ×(體力 − 18) ÷ 2)），所以防禦會跟著魔物一起長 */
+function defBase(){ return aDef(eqA()).def+(body.armorPlus||0)+lvDef()+rzDef()+refDef()+(job().def||0)+accSum('def'); }
+function defNow(){ if(!body) return 0; const d=defBase()*vitMul(stats().vit)*(1+.3*eatF('golem')+.1*eatF('tunnel')); return Math.round(body.flags.oiled?d*2:d); }
 function hpMaxNow(){ let m=baseHp()*evoMul()*(1+.2*eatF('giant')); if(soul.system.weak==='frail') m-=NUM.frail(); return Math.max(10,Math.round(m)); }
 function weakDesc(w){ const d=WEAK[w].desc; return typeof d==='function'?d():d; }
 
@@ -926,7 +928,7 @@ function sharpOpt(tier,back,verb){ const T=SHARP[tier]; const n=eqW().sharp||0;
   if(n>=T.cap) return {t:sharpLabel(tier,verb), f:()=>{ sharpDone(tier); back(); }};
   return {t:sharpLabel(tier,verb), dis:sharpMax(tier)<1, f:()=>qtyMenu(Object.assign(sharpQ(tier),{back}))}; }
 function defGainPct(){ const k=repAtk(body.floor); const D=defNow(); const ehp=d=>(k+d)/k; return ((ehp(D+1)/ehp(D)-1)*100).toFixed(1); }
-function showFormula(){ const D=defNow(); const r=k=>Math.round(100*D/(k+D)); const st=stats(); say('info','數值說明\n基本能力：力量 '+st.str+'、體力 '+st.vit+'、敏捷 '+st.agi+'、智力 '+st.int+'（只有升級會長；'+job().n+'的成長'+growText()+'）\n攻擊 =（力量 + 武器與攻擊加成）× 1.1386^((力量 − 18) ÷ 2) × 肉身係數　現在：（'+st.str+' + '+atkFlat()+'）× '+strMul(st.str).toFixed(2)+' × '+(sysIs('ancestor')?1:ageFactor(body.age)).toFixed(2)+' = '+fmt(atkNow())+'；力量每 +2，攻擊 ×1.14\n你打魔物 = 攻擊 × 0.85～1.15 − 魔物防禦（穿刺無視防禦、弱點 ×2 無視防禦）\n魔物打你 = 魔物攻擊² ÷（魔物攻擊力 + 防禦）　防禦 '+D+' 對第一層的犬減傷 '+r(7)+'%、蛛 '+r(10)+'%、巨獸 '+r(16)+'%、魔王 '+r(24)+'%；魔物越深越強，防禦要跟著長\n環境 = HP 上限 × 環境係數（火 15%、冰 12%、毒 10%、雷 20%）×（1 − 抗性），每一步一次，戰鬥中每次被攻擊再 0.3 次\n防禦 = 防具 + 加固 + 體力換算（現在 +'+vitDef(st.vit)+'）+ 永久加成 + 職業 + 飾品；防具與飾品的「再減」在防禦之後另外乘，合計最多六成\nHP =（24 + 體力 × 2 + HP 加成）× 1.15^(0.8 × (體力 − 18) ÷ 2)　現在：（24 + '+st.vit*2+' + '+hpFlat()+'）× '+vitMul(st.vit).toFixed(2)+'\n魔力 =（智力 + 攻擊加成）× 1.1386^((智力 − 18) ÷ 2) × 肉身係數　現在 '+fmt(magNow())+'（神官的聖光用魔力）\n智力：魔物智力 = 8 + 等級 × 2 + 心智 × 2（沒腦子 −8、遲鈍 −4、機靈 +4、狡猾 +8、魔王 +10）。陷阱繞開機率 = 20% +（魔物智力 − 你的智力）× 2%\n職業技能（戰鬥中用，有冷卻；自動行動時冷卻好了會自動用）：劍士 斬鐵（×1.6，無視一半防禦，8 秒）、騎士 盾擊（×1.3＋震暈，10 秒）、盜賊 連刺（三下 ×0.5，7 秒）、神官 聖光（魔力 ×1.2 無視防禦＋回 8% HP，9 秒）、獵人 狙擊（×1.6 無法閃避，10 秒）\n魔物技能：每次出手 15% 用技能；躲開機率 = 50% + 敏捷差 × 2% 或 智力差 × 1%（10%～90%）；沒躲開：傷害 ×2、失去一次行動、或下一次行動慢 1 秒\n閃避是雙向的：敏捷高的一方，每高 1 點就有 1% 閃開對方的攻擊，最多 40%，魔王減半；魔物敏捷 = 15 + 等級 + 身手（出手越快越靈活，±10）；敏捷 '+st.agi+' 對同級魔物 '+Math.round(Math.min(.4,Math.max(0,(st.agi-15-lv())*.01))*100)+'%\n攻擊間隔 =（2 秒 + 武器防具職業飾品的加減）÷ 速度係數，最快 0.25 秒；速度係數 = 1.01^(敏捷 − 20)　現在 ×'+spNow().toFixed(2)+'，攻擊間隔 '+pInterval().toFixed(2)+' 秒\n魔物 = Lv1 基礎值 × 成長率^(等級−1)，每種魔物成長率不同（HP 約 1.18、攻擊約 1.15、防禦約 1.18）；裂谷 1～9 層魔物等級 1～4、4～8、8～12、12～17、17～22、22～28、28～34、34～40、40～46，魔王固定 Lv 50、火龍固定 Lv 46\n經驗值 = 4 × 1.25^(魔物等級−1) × 1.5^(階級−3)（三階為準，一階 0.44 倍、五階 2.25 倍）；升級需要 = 同級三階魔物一隻的經驗 × 隻數 x(L)（Lv 5 起 12 隻、每級 ×1.7，Lv 10 起 900 隻、每級 ×1.06）\n每個地點都有一到五階各一種魔物，階級越高越少見（出現權重 5：3.5：2：1：0.4）\n擊殺金幣 = 5 × 1.2^(魔物等級−1) ×（1 + 0.25×(階級−1)），系統與飾品加成另外乘上去\n年齡：20 歲前 ×0.85，40 歲起每歲 −2%，60 歲起每歲 −1%（最低 0.4）\n背包 = 100 格 + 容器（布袋 30、皮囊 30、背架 60、礦車 130、皮革背包每號 30 最多五號，容器全拿 500；空間背包每個 50 最多十個，系統商城再多 500；每種容器只能有一個。博聞、行商等加成另外疊上去）。裝備和金幣不佔格子\n裝備也佔格子（穿戴中的不算）：短劍 2、杖 3、劍 4、槍 5、斧鎚 6，布衣 3、皮甲 5、鎖甲 8、板甲 12，飾品 1\n每個佔 1 格：裂谷核、灰葉草、魚乾、墨、稀有素材（星鐵 3）、多數道具｜2 格：獸皮、遺物、糧食、鹽、炭、炸彈、捕獸夾｜3 格：礦石、大炸彈｜4 格：木材、帳篷｜5 格：巨型炸彈、爆裂彈\n戰鬥中用道具：按下去立刻生效，接著讀秒，使用時間過完才能再行動，這段時間魔物照打；使用時間 ÷ 速度係數（藥水 1.5 秒、炸彈 2 秒、巨型炸彈 3 秒……）'); }
+function showFormula(){ const D=defNow(); const r=k=>Math.round(100*D/(k+D)); const st=stats(); say('info','數值說明\n基本能力：力量 '+st.str+'、體力 '+st.vit+'、敏捷 '+st.agi+'、智力 '+st.int+'（只有升級會長；'+job().n+'的成長'+growText()+'）\n攻擊 =（力量 + 武器與攻擊加成）× 1.1386^((力量 − 18) ÷ 2) × 肉身係數　現在：（'+st.str+' + '+atkFlat()+'）× '+strMul(st.str).toFixed(2)+' × '+(sysIs('ancestor')?1:ageFactor(body.age)).toFixed(2)+' = '+fmt(atkNow())+'；力量每 +2，攻擊 ×1.14\n你打魔物 = 攻擊 × 0.85～1.15 − 魔物防禦（穿刺無視防禦、弱點 ×2 無視防禦）\n魔物打你 = 魔物攻擊² ÷（魔物攻擊力 + 防禦）　防禦 '+D+' 對第一層的犬減傷 '+r(7)+'%、蛛 '+r(10)+'%、巨獸 '+r(16)+'%、魔王 '+r(24)+'%；魔物越深越強，防禦要跟著長\n環境 = HP 上限 × 環境係數（火 15%、冰 12%、毒 10%、雷 20%）×（1 − 抗性），每一步一次，戰鬥中每次被攻擊再 0.3 次\n防禦 =（防具 + 加固 + 永久加成 + 職業 + 飾品）× 體力倍率　現在：'+defBase()+' × '+vitMul(st.vit).toFixed(2)+' = '+D+'；防具與飾品的「再減」在防禦之後另外乘，合計最多六成\nHP =（24 + 體力 × 2 + HP 加成）× 1.15^(0.8 × (體力 − 18) ÷ 2)　現在：（24 + '+st.vit*2+' + '+hpFlat()+'）× '+vitMul(st.vit).toFixed(2)+'\n魔力 =（智力 + 攻擊加成）× 1.1386^((智力 − 18) ÷ 2) × 肉身係數　現在 '+fmt(magNow())+'（神官的聖光用魔力）\n智力：魔物智力 = 8 + 等級 × 2 + 心智 × 2（沒腦子 −8、遲鈍 −4、機靈 +4、狡猾 +8、魔王 +10）。陷阱繞開機率 = 20% +（魔物智力 − 你的智力）× 2%\n職業技能（戰鬥中用，有冷卻；自動行動時冷卻好了會自動用）：劍士 斬鐵（×1.6，無視一半防禦，8 秒）、騎士 盾擊（×1.3＋震暈，10 秒）、盜賊 連刺（三下 ×0.5，7 秒）、神官 聖光（魔力 ×1.2 無視防禦＋回 8% HP，9 秒）、獵人 狙擊（×1.6 無法閃避，10 秒）\n魔物技能：每次出手 15% 用技能；躲開機率 = 50% + 敏捷差 × 2% 或 智力差 × 1%（10%～90%）；沒躲開：傷害 ×2、失去一次行動、或下一次行動慢 1 秒\n閃避是雙向的：敏捷高的一方，每高 1 點就有 1% 閃開對方的攻擊，最多 40%，魔王減半；魔物敏捷 = 15 + 等級 + 身手（出手越快越靈活，±10）；敏捷 '+st.agi+' 對同級魔物 '+Math.round(Math.min(.4,Math.max(0,(st.agi-15-lv())*.01))*100)+'%\n攻擊間隔 =（2 秒 + 武器防具職業飾品的加減）÷ 速度係數，最快 0.25 秒；速度係數 = 1.01^(敏捷 − 20)　現在 ×'+spNow().toFixed(2)+'，攻擊間隔 '+pInterval().toFixed(2)+' 秒\n魔物 = Lv1 基礎值 × 成長率^(等級−1)，每種魔物成長率不同（HP 約 1.18、攻擊約 1.15、防禦約 1.18）；裂谷 1～9 層魔物等級 1～4、4～8、8～12、12～17、17～22、22～28、28～34、34～40、40～46，魔王固定 Lv 50、火龍固定 Lv 46\n經驗值 = 4 × 1.25^(魔物等級−1) × 1.5^(階級−3)（三階為準，一階 0.44 倍、五階 2.25 倍）；升級需要 = 同級三階魔物一隻的經驗 × 隻數 x(L)（Lv 5 起 12 隻、每級 ×1.7，Lv 10 起 900 隻、每級 ×1.06）\n每個地點都有一到五階各一種魔物，階級越高越少見（出現權重 5：3.5：2：1：0.4）\n擊殺金幣 = 5 × 1.2^(魔物等級−1) ×（1 + 0.25×(階級−1)），系統與飾品加成另外乘上去\n年齡：20 歲前 ×0.85，40 歲起每歲 −2%，60 歲起每歲 −1%（最低 0.4）\n背包 = 100 格 + 容器（布袋 30、皮囊 30、背架 60、礦車 130、皮革背包每號 30 最多五號，容器全拿 500；空間背包每個 50 最多十個，系統商城再多 500；每種容器只能有一個。博聞、行商等加成另外疊上去）。裝備和金幣不佔格子\n裝備也佔格子（穿戴中的不算）：短劍 2、杖 3、劍 4、槍 5、斧鎚 6，布衣 3、皮甲 5、鎖甲 8、板甲 12，飾品 1\n每個佔 1 格：裂谷核、灰葉草、魚乾、墨、稀有素材（星鐵 3）、多數道具｜2 格：獸皮、遺物、糧食、鹽、炭、炸彈、捕獸夾｜3 格：礦石、大炸彈｜4 格：木材、帳篷｜5 格：巨型炸彈、爆裂彈\n戰鬥中用道具：按下去立刻生效，接著讀秒，使用時間過完才能再行動，這段時間魔物照打；使用時間 ÷ 速度係數（藥水 1.5 秒、炸彈 2 秒、巨型炸彈 3 秒……）'); }
 function showStatus(){ say('info','<b>'+esc(soul.name)+'</b>　Lv '+body.level+'（經驗值 '+fmt(body.xp)+'/'+fmt(xpNeed(body.level))+'）｜力量 '+stats().str+'｜體力 '+stats().vit+'｜敏捷 '+stats().agi+'｜攻擊力 '+atkNow()+'｜防禦力 '+defNow()+'｜HP '+body.hp+'/'+body.hpMax+'\n'+body.age+' 歲｜第 '+body.day+' 天\n金幣 '+body.gold+'｜裂谷核 '+body.cores+'｜背包 '+load()+'/'+capOf()+' 格（'+bagText()+'）\n武器：'+wText(eqW())+'\n道具：'+itemsText()+'\n資源：'+(Object.keys(RES).filter(k=>k!=='gold'&&k!=='cores'&&body[k]>0).map(k=>RES[k]+' '+body[k]).join('、')||'無')+'\n聲望：騎士團 '+body.rep.knight+'、神殿 '+body.rep.temple+'、王室 '+body.rep.crown+'、民心 '+body.rep.people+(body.flags.quest?'｜義務 '+Math.min(body.quest,10)+'/10':'')); }
 function status(){
   if(!body){document.getElementById('status').innerHTML='';renderSystem();renderChar();renderQuests();renderAchs();return;}
@@ -1147,7 +1149,7 @@ function panelMenu(){
   const st=stats();
   setOptions([
     {t:'力量 +1（攻擊約 +'+((Math.sqrt(STR_E)-1)*100).toFixed(1)+'%）', ab:1, f:put('str','力量',1)},
-    {t:'體力 +1（HP 約 +'+((Math.pow(1.15,0.4)-1)*100).toFixed(1)+'%，每 2 點防禦 +1）', ab:1, f:put('vit','體力',1)},
+    {t:'體力 +1（HP 約 +'+((Math.pow(1.15,0.4)-1)*100).toFixed(1)+'%，防禦也 +'+((Math.pow(1.15,0.4)-1)*100).toFixed(1)+'%）', ab:1, f:put('vit','體力',1)},
     {t:'智力 +1（魔力約 +'+((Math.sqrt(STR_E)-1)*100).toFixed(1)+'%，智力檢定與陷阱更容易成功）', ab:1, f:put('int','智力',1)},
     {t:'敏捷 +2（攻速與道具速度約 +'+((Math.pow(1.01,2)-1)*100).toFixed(1)+'%）', ab:1, f:put('agi','敏捷',2)},
     {t:'幸運 +1（每殺金幣 +'+12*NUM.killGold(1)+'）', ab:1, f:put('luck','幸運',1)},
