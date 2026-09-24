@@ -169,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.12.0';
+const VERSION='2.12.1';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -1862,8 +1862,15 @@ function auctionPool(){ return Object.keys(ARMORS).filter(k=>!hasA(k)&&!ARMORS[k
 const LOT_GRADES=['精良','稀有','傳說'];
 /* 每天三件：精良、稀有、傳說各一，依日期在該級的池子裡輪流 */
 function auctionLots(){ const pool=auctionPool(); return LOT_GRADES.map(g=>{ const p=pool.filter(l=>lotGrade(l)===g); return p.length?p[(body.day*7+(soul.name||'').length)%p.length]:null; }); }
-/* 拍賣品分級：傳說 1,000 萬、稀有 100 萬、精良依數值。免疫、頂級防具、魔王與龍的東西是傳說。 */
-function lotGrade(l){ const [t,k]=l.split(':'); if(t==='A'){ const D=ARMORS[k]; if(D.res||D.def>=18) return '傳說'; if(D.def>=12||D.ward||D.regen) return '稀有'; return '精良'; } const D=ACCS[k]; if(D.res||['kingring','starring','thunderring','luckring'].includes(k)) return '傳說'; if(isRare(k)) return '稀有'; return '精良'; }
+/* 拍賣品分級看取得難度，不看數值：
+   精良 10 萬：一般材料就做得出來、前期的任務或淺層魔物會給的。
+   稀有 100 萬：要聲望 40～50、跑完任務線、或打裂谷第五層以下／礦坑深處的魔物。
+   傳說 1,000 萬：要稀有素材、火龍與獨眼巨人、神殿最深的信任、或只有魔物身上隨機掉的東西。 */
+const AUC_GRADE={
+  '精良':['A:uniform','A:apron','A:hunterplate','A:scalemail','A:fur','A:heat','A:shadowleather','A:plate','A:robe','C:snowboots','C:ironboots','C:irongauntlet','C:windboots','C:thiefgloves','C:thiefring','C:insulgloves','C:antidoteneck','C:fangneck'],
+  '稀有':['A:sagerobe','A:knightplate','A:blackplate','A:cloak','C:holygloves','C:wardneck','C:royalneck','C:lifeneck','C:ogregauntlet','C:sagering','C:dragonboots'],
+  '傳說':['A:bishoprobe','A:holyplate','A:giantplate','A:dragonscale','A:leafleather','A:starmail','C:starring','C:frostneck','C:pearlring','C:leafneck','C:thunderring','C:luckring']};
+function lotGrade(l){ for(const g of LOT_GRADES) if(AUC_GRADE[g].includes(l)) return g; const [t,k]=l.split(':'); const D=t==='A'?ARMORS[k]:ACCS[k]; return (D&&(D.def||0)>=18)?'稀有':'精良'; }
 function lotPrice(l){ return {'傳說':10000000,'稀有':1000000,'精良':100000}[lotGrade(l)]; }
 function lotText(l){ const [t,k]=l.split(':'); return t==='A'?aText({key:k}):accName(k); }
 N.auction=()=>{ lastNode=N.auction; place('王城市集 · 拍賣所');
