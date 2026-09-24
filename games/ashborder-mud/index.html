@@ -169,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.14.0';
+const VERSION='2.15.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -533,18 +533,18 @@ const ACCS={
 };
 const RARE_ACC=Object.keys(ACCS).filter(k=>(ACCS[k].slot==='neck'||ACCS[k].slot==='ring')&&!ACCS[k].sys);
 function isRare(k){ return RARE_ACC.includes(k); }
-/* 戒指可以戴十枚（十根手指），同一種戒指只能戴一枚。其他部位各一件。 */
+/* 戒指可以戴十枚（十根手指），同一種可以戴好幾枚，效果疊加（有幾枚就能戴幾枚）。其他部位各一件。 */
 const RING_MAX=10;
 function ringsOn(){ if(!body) return []; body.acc=body.acc||{}; let r=body.acc.ring; if(!Array.isArray(r)) r=body.acc.ring=(r?[r]:[]); return r; }
 function accEq(){ const r=[]; if(!body||!body.acc) return r; Object.keys(ASLOT).forEach(s=>{ if(s==='ring'){ ringsOn().forEach(k=>{ if(ACCS[k]) r.push(ACCS[k]); }); return; } const k=body.acc[s]; if(k&&ACCS[k]) r.push(ACCS[k]); }); return r; }
-function accWorn(k){ const s=ACCS[k].slot; return s==='ring'?ringsOn().includes(k):!!(body.acc&&body.acc[s]===k); }
+function accWorn(k){ const s=ACCS[k].slot; return s==='ring'?ringsOn().filter(x=>x===k).length:(body.acc&&body.acc[s]===k?1:0); }
 function eqCount(t,k){ return (t==='W'?body.weapons:t==='A'?body.armors:body.accs||[]).filter(x=>x.key===k).length; }
 function accSum(st){ return accEq().reduce((a,D)=>a+(D[st]||0),0); }
 function accHas(st){ return accEq().some(D=>D[st]); }
 function accStat(k){ const D=ACCS[k]; const p=[]; if(D.atk) p.push('攻擊力 +'+D.atk); if(D.def) p.push('防禦力 +'+D.def); if(D.hp) p.push('HP +'+D.hp); if(D.spd) p.push('攻速 '+(D.spd>0?'+':'')+D.spd.toFixed(1)+' 秒'); return p.join('，'); }
 function accName(k){ const D=ACCS[k]; const st=accStat(k); return D.n+'［'+ASLOT[D.slot]+(isRare(k)?'・稀有':'')+'］'+(st?'（'+st+'）':'')+(D.desc?'　'+D.desc:''); }
 function hasAcc(k){ return !!(body.accs||[]).find(a=>a.key===k); }
-function giveAcc(k){ body.accs=body.accs||[]; body.acc=body.acc||{}; body.accs.push({key:k}); const s=ACCS[k].slot; const dup=eqCount('C',k)>1; let auto=false; if(s==='ring'){ const r=ringsOn(); if(!r.includes(k)&&r.length<RING_MAX){ r.push(k); auto=true; } } else if(!body.acc[s]){ body.acc[s]=k; auto=true; } if(ACCS[k].heat) body.regionFlags.heatArmor=1; if(ACCS[k].cold) body.regionFlags.furCoat=1; say('gain','獲得'+(isRare(k)?'稀有裝備':'裝備')+'：'+accName(k)+(auto?'　已經戴上。':dup?'　（你現在有 '+eqCount('C',k)+' 件，多的可以賣給武器店）':'　到「裝備與道具」可以換上。')); }
+function giveAcc(k){ body.accs=body.accs||[]; body.acc=body.acc||{}; body.accs.push({key:k}); const s=ACCS[k].slot; const dup=eqCount('C',k)>1; let auto=false; setTimeout(overNote,0); if(s==='ring'){ const r=ringsOn(); if(r.length<RING_MAX){ r.push(k); auto=true; } } else if(!body.acc[s]){ body.acc[s]=k; auto=true; } if(ACCS[k].heat) body.regionFlags.heatArmor=1; if(ACCS[k].cold) body.regionFlags.furCoat=1; say('gain','獲得'+(isRare(k)?'稀有裝備':'裝備')+'：'+accName(k)+(auto?'　已經戴上。':dup?'　（你現在有 '+eqCount('C',k)+' 件，多的可以賣給武器店）':'　到「裝備與道具」可以換上。')); }
 /* 掉落率（v2.13）：
    隨機寶物只剩兩枚沒有別的來源的戒指（幸運戒指、雷之戒）。三階以上魔物每隻 1/5000。
      第 4 層自動狩獵（2 秒一場）：拿到其中一枚 90% 約 12.5 小時，指定那一枚約 25 小時。
@@ -580,7 +580,7 @@ function aDef(a){ return ARMORS[a.key]||ARMORS.leather; }
 function aName(a){ const D=aDef(a); return D.n+'［'+ATYPE[D.type]+'］（防禦力 +'+D.def+(D.spd?'，攻速 '+(D.spd>0?'+':'')+D.spd.toFixed(1)+' 秒':'')+'）'; }
 function aText(a){ const D=aDef(a); return aName(a)+(D.desc?'　'+D.desc:''); }
 function hasA(k){ return !!(body.armors||[]).find(a=>a.key===k); }
-function giveArmor(k){ body.armors.push({key:k}); const dupA=eqCount('A',k)>1; if(ARMORS[k].heat) body.regionFlags.heatArmor=1; if(ARMORS[k].cold) body.regionFlags.furCoat=1; say('gain','獲得防具：'+aText({key:k})+(dupA?'　（你現在有 '+eqCount('A',k)+' 件，多的可以賣給武器店）':canWear({key:k})?'　到「裝備與道具」可以換上。':'　'+job().n+'穿不了，先收著。')); }
+function giveArmor(k){ body.armors.push({key:k}); const dupA=eqCount('A',k)>1; overNote(); if(ARMORS[k].heat) body.regionFlags.heatArmor=1; if(ARMORS[k].cold) body.regionFlags.furCoat=1; say('gain','獲得防具：'+aText({key:k})+(dupA?'　（你現在有 '+eqCount('A',k)+' 件，多的可以賣給武器店）':canWear({key:k})?'　到「裝備與道具」可以換上。':'　'+job().n+'穿不了，先收著。')); }
 const ITEMS={
   hpot:{n:'藥水', d:'回復五成HP', out:1, fight:1, price:30},
   smoke:{n:'煙幕彈', d:'戰鬥中必定脫身（魔王除外）', fight:1, price:25},
@@ -604,7 +604,7 @@ function wAtk(){ const w=eqW(); return wDef(w).atk+(w.sharp||0); }
 function wName(w){ const D=wDef(w); return D.n+'（攻擊力 +'+(D.atk+(w.sharp||0))+(w.sharp?'，含鋒利 +'+w.sharp:'')+(D.spd?'，攻速 '+(D.spd>0?'+':'−')+Math.abs(D.spd).toFixed(1)+' 秒':'')+'）'; }
 function wText(w){ const D=wDef(w); return '［'+WTYPE[D.type]+'］'+wName(w)+'　'+D.desc; }
 function hasW(k){ return !!(body.weapons||[]).find(w=>w.key===k); }
-function giveWeapon(k){ body.weapons.push({key:k,sharp:0}); const dupW=eqCount('W',k)>1; say('gain','獲得武器：'+wText({key:k,sharp:0})+(dupW?'。（你現在有 '+eqCount('W',k)+' 把，多的可以賣給武器店）':canUse({key:k})?'。到「裝備與道具」可以換上。':'。你的職業用不了它，但圖鑑會記著。')); }
+function giveWeapon(k){ body.weapons.push({key:k,sharp:0}); const dupW=eqCount('W',k)>1; overNote(); say('gain','獲得武器：'+wText({key:k,sharp:0})+(dupW?'。（你現在有 '+eqCount('W',k)+' 把，多的可以賣給武器店）':canUse({key:k})?'。到「裝備與道具」可以換上。':'。你的職業用不了它，但圖鑑會記著。')); }
 function addItem(k,n){ body.items=body.items||{}; if(n<=0){ body.items[k]=(body.items[k]||0)+n; return n; } const can=Math.min(n,fitI(k)); body.items[k]=(body.items[k]||0)+can; if(can<n){ if(!body.autoHunt) say('info','背包滿了，'+ITEMS[k].n+'只裝得下 '+can+'，還有 '+(n-can)+' 放在腳邊。'); overAdd('items',k,n-can); } return can; }
 function itemN(k){ return (body&&body.items&&body.items[k])||0; }
 function itemsText(){ const l=Object.keys(ITEMS).filter(k=>itemN(k)>0).map(k=>ITEMS[k].n+' ×'+itemN(k)); return l.length?l.join('、'):'無'; }
@@ -633,7 +633,10 @@ function gearMenu(){
   (body.weapons||[]).forEach((w,i)=>o.push({t:(i===body.wpn?'● ':'○ ')+wText(w)+(canUse(w)?'':'（'+job().n+'不能用）'), dis:i===body.wpn||!canUse(w), f:()=>{ body.wpn=i; say('info','你握起'+wDef(w).n+'。攻擊 '+atkNow()+'，攻速 '+pInterval().toFixed(1)+' 秒。'); status(); gearMenu(); }}));
   (body.armors||[]).forEach((a,i)=>o.push({t:(i===body.arm?'● ':'○ ')+aText(a)+(canWear(a)?'':'（'+job().n+'不能穿）'), dis:i===body.arm||!canWear(a), f:()=>{ body.arm=i; say('info','你換上'+aDef(a).n+'。防禦 '+defNow()+'，攻速 '+pInterval().toFixed(1)+' 秒。'); status(); gearMenu(); }}));
   [...new Set((body.accs||[]).map(a=>a.key))].forEach(k=>{ const D=ACCS[k]; if(!D) return; const on=accWorn(k); const cnt=eqCount('C',k); const tail=cnt>1?' ×'+cnt:'';
-    if(D.slot==='ring'){ o.push({t:(on?'● ':'○ ')+accName(k)+tail+(on?'（戴著，點一下卸下）':'（戒指 '+ringsOn().length+' / '+RING_MAX+'）'), f:()=>{ const r=ringsOn(); if(on){ r.splice(r.indexOf(k),1); say('info','你把'+D.n+'摘下來。'); } else if(r.length>=RING_MAX){ say('info','十根手指都戴滿了。先摘下一枚。'); } else { r.push(k); say('info','你戴上'+D.n+'。攻擊 '+atkNow()+'，防禦 '+defNow()+'。'); } status(); gearMenu(); }}); return; }
+    if(D.slot==='ring'){ const r=ringsOn(); const w=on; const tag='（戴著 '+w+' / 持有 '+cnt+'，手指 '+r.length+' / '+RING_MAX+'）';
+      if(w<cnt) o.push({t:'＋ 戴上一枚'+accName(k)+tag, f:()=>{ if(r.length>=RING_MAX){ say('info','十根手指都戴滿了。先摘下一枚。'); } else { r.push(k); say('info','你戴上'+D.n+'（戴著 '+(w+1)+' 枚）。攻擊 '+atkNow()+'，防禦 '+defNow()+'。'); } status(); gearMenu(); }});
+      if(w>0) o.push({t:'－ 摘下一枚'+D.n+tag, f:()=>{ r.splice(r.indexOf(k),1); say('info','你把一枚'+D.n+'摘下來。'); status(); gearMenu(); }});
+      return; }
     const a={key:k}; o.push({t:(on?'● ':'○ ')+accName(a.key)+tail, dis:on, f:()=>{ body.acc=body.acc||{}; body.acc[D.slot]=a.key; say('info','你戴上'+D.n+'。攻擊 '+atkNow()+'，防禦 '+defNow()+'，攻速 '+pInterval().toFixed(1)+' 秒。'); status(); gearMenu(); }}); });
   Object.keys(ASLOT).filter(sl=>sl!=='ring').forEach(sl=>{ if(body.acc&&body.acc[sl]&&ACCS[body.acc[sl]]) o.push({t:'卸下'+ASLOT[sl]+'：'+ACCS[body.acc[sl]].n, f:()=>{ const n=ACCS[body.acc[sl]].n; body.acc[sl]=null; say('info','你脫下'+n+'。'); status(); gearMenu(); }}); });
   const held=Object.keys(ITEMS).filter(k=>itemN(k)>0);
@@ -807,14 +810,14 @@ const W_GRADE={'傳說':['fang','holylance','dragonlance','worldtree','bishopsta
 const GRADE_SELL={'精良':1000,'稀有':10000,'傳說':100000};
 function eqSellPrice(t,k){ const v=EQ_VAL[t+':'+k]; if(v) return Math.max(1,Math.floor(v/2)); let g='精良'; if(t==='W'){ g=W_GRADE['傳說'].includes(k)?'傳說':W_GRADE['稀有'].includes(k)?'稀有':'精良'; } else if(t==='C'&&k==='kingring') g='傳說'; else if(t==='A'&&k==='scale') g='傳說'; else if(t==='C'&&k==='ironring') g='稀有'; else g=lotGrade((t==='A'?'A:':'C:')+k); return GRADE_SELL[g]; }
 function eqName(t,k){ return t==='W'?WEAPONS[k].n:t==='A'?ARMORS[k].n:ACCS[k].n; }
-function eqSpare(t,k){ const n=eqCount(t,k); const inUse=t==='W'?(eqW().key===k?1:0):t==='A'?(eqA().key===k?1:0):(accWorn(k)?1:0); return n-inUse; }
+function eqSpare(t,k){ const n=eqCount(t,k); const inUse=t==='W'?(eqW().key===k?1:0):t==='A'?(eqA().key===k?1:0):accWorn(k); return n-inUse; }
 function eqSellable(){ const out=[]; [['W',body.weapons||[]],['A',body.armors||[]],['C',body.accs||[]]].forEach(([t,L])=>[...new Set(L.map(x=>x.key))].forEach(k=>{ const def=t==='W'?WEAPONS[k]:t==='A'?ARMORS[k]:ACCS[k]; if(def&&eqSpare(t,k)>0) out.push([t,k]); })); return out; }
 function eqRemove(t,k,n){ if(t==='C'){ for(let i=0;i<n;i++){ const j=body.accs.findIndex(a=>a.key===k); if(j>=0) body.accs.splice(j,1); } return; }
   const L=t==='W'?body.weapons:body.armors; const cur=t==='W'?body.wpn:body.arm;
   const idx=L.map((x,i)=>i).filter(i=>L[i].key===k&&i!==cur).sort((a,b)=>((L[a].sharp||0)-(L[b].sharp||0))).slice(0,n).sort((a,b)=>b-a);
   idx.forEach(i=>{ L.splice(i,1); if(t==='W'&&body.wpn>i) body.wpn--; if(t==='A'&&body.arm>i) body.arm--; }); }
 function eqSellMenu(back){ const o=[]; const again=()=>{ if(eqSellable().length) eqSellMenu(back); else back(); };
-  eqSellable().forEach(([t,k])=>{ const p=eqSellPrice(t,k), sp=eqSpare(t,k); o.push({t:'賣'+eqName(t,k)+'（每件 '+fmt(p)+' 金，可賣 '+sp+' 件'+(eqCount(t,k)>sp?'，身上那件留著':'')+'）', f:()=>sellQ('賣'+eqName(t,k),'件',sp,p,again,n=>{ eqRemove(t,k,n); say('gain',eqName(t,k)+' −'+n+'，金幣 +'+fmt(p*n)); })}); });
+  eqSellable().forEach(([t,k])=>{ const p=eqSellPrice(t,k), sp=eqSpare(t,k); o.push({t:'賣'+eqName(t,k)+'（每件 '+fmt(p)+' 金，可賣 '+sp+' 件'+(eqCount(t,k)>sp?'，身上的留著':'')+'）', f:()=>sellQ('賣'+eqName(t,k),'件',sp,p,again,n=>{ eqRemove(t,k,n); say('gain',eqName(t,k)+' −'+n+'，金幣 +'+fmt(p*n)); })}); });
   o.push({t:'返回', f:back});
   setOptions(o,'武器店　鐵匠翻看你攤在櫃檯上的東西。「穿在身上的我不收。其他的，開個價。」',true); }
 function sellQ(title,unit,have,price,back,f,note){ qtyMenu({title, unit, max:have, cost:n=>'+'+fmt(price*n)+' 金', note, f:n=>{ body.gold+=price*n; f(n); }, back}); }
@@ -840,7 +843,7 @@ function sharpOpt(tier,back,verb){ const T=SHARP[tier]; const n=eqW().sharp||0;
   if(n>=T.cap) return {t:sharpLabel(tier,verb), f:()=>{ sharpDone(tier); back(); }};
   return {t:sharpLabel(tier,verb), dis:sharpMax(tier)<1, f:()=>qtyMenu(Object.assign(sharpQ(tier),{back}))}; }
 function defGainPct(){ const k=repAtk(body.floor); const D=defNow(); const ehp=d=>(k+d)/k; return ((ehp(D+1)/ehp(D)-1)*100).toFixed(1); }
-function showFormula(){ const D=defNow(); const r=k=>Math.round(100*D/(k+D)); say('info','數值說明\n攻擊 =（8 + 等級×2 + 武器 + 永久加成 + 屬性點 + 飾品）× 1.15^(等級−5) × 肉身係數　現在：'+atkBase()+' × '+levelMul(lv()).toFixed(2)+' × '+(sysIs('ancestor')?1:ageFactor(body.age)).toFixed(2)+' = '+atkNow()+'\n你打魔物 = 攻擊 × 0.85～1.15 − 魔物防禦（穿刺無視防禦、弱點 ×2 無視防禦）\n魔物打你 = 魔物攻擊² ÷（魔物攻擊力 + 防禦）　防禦 '+D+' 對第一層的犬減傷 '+r(7)+'%、蛛 '+r(10)+'%、巨獸 '+r(16)+'%、魔王 '+r(24)+'%；魔物越深越強，防禦要跟著長\n環境 = HP 上限 × 環境係數（火 15%、冰 12%、毒 10%、雷 20%）×（1 − 抗性），每一步一次，戰鬥中每次被攻擊再 0.3 次\n防禦 = 防具 + 加固 + 屬性點 + 等級 + 永久加成 + 職業 + 飾品；防具與飾品的「再減」在防禦之後另外乘，合計最多六成\nHP =（40 + 等級×4 + 永久加成 + 屬性點×3 + 飾品）× 1.15^(0.8×(等級−5))\n魔物 = Lv1 基礎值 × 成長率^(等級−1)，每種魔物成長率不同（HP 約 1.18、攻擊約 1.15、防禦約 1.18）；裂谷 1～9 層魔物等級 1～4、4～8、8～12、12～17、17～22、22～28、28～34、34～40、40～46，魔王固定 Lv 50、火龍固定 Lv 46\n經驗值 = 4 × 1.25^(魔物等級−1) × 1.5^(階級−3)（三階為準，一階 0.44 倍、五階 2.25 倍）；升級需要 = 同級三階魔物一隻的經驗 × 隻數 x(L)（Lv 5 起 12 隻、每級 ×1.7，Lv 10 起 900 隻、每級 ×1.06）\n每個地點都有一到五階各一種魔物，階級越高越少見（出現權重 5：3.5：2：1：0.4）\n擊殺金幣 = 5 × 1.2^(魔物等級−1) ×（1 + 0.25×(階級−1)），系統與飾品加成另外乘上去\n年齡：20 歲前 ×0.85，40 歲起每歲 −2%，60 歲起每歲 −1%（最低 0.4）\n背包 = 100 格 + 容器（布袋 30、皮囊 30、背架 60、礦車 130、皮革背包每號 30 最多五號，容器全拿 500；空間背包每個 50 最多十個，系統商城再多 500；每種容器只能有一個。博聞、行商等加成另外疊上去）。裝備和金幣不佔格子\n每個佔 1 格：裂谷核、灰葉草、魚乾、墨、稀有素材（星鐵 3）、多數道具｜2 格：獸皮、遺物、糧食、鹽、炭、炸彈、捕獸夾｜3 格：礦石、大炸彈｜4 格：木材、帳篷｜5 格：巨型炸彈、爆裂彈\n戰鬥中用道具會用掉你這一次出手，下一次出手要等道具的使用時間（藥水 1.5 秒、炸彈 2 秒、巨型炸彈 3 秒……）'); }
+function showFormula(){ const D=defNow(); const r=k=>Math.round(100*D/(k+D)); say('info','數值說明\n攻擊 =（8 + 等級×2 + 武器 + 永久加成 + 屬性點 + 飾品）× 1.15^(等級−5) × 肉身係數　現在：'+atkBase()+' × '+levelMul(lv()).toFixed(2)+' × '+(sysIs('ancestor')?1:ageFactor(body.age)).toFixed(2)+' = '+atkNow()+'\n你打魔物 = 攻擊 × 0.85～1.15 − 魔物防禦（穿刺無視防禦、弱點 ×2 無視防禦）\n魔物打你 = 魔物攻擊² ÷（魔物攻擊力 + 防禦）　防禦 '+D+' 對第一層的犬減傷 '+r(7)+'%、蛛 '+r(10)+'%、巨獸 '+r(16)+'%、魔王 '+r(24)+'%；魔物越深越強，防禦要跟著長\n環境 = HP 上限 × 環境係數（火 15%、冰 12%、毒 10%、雷 20%）×（1 − 抗性），每一步一次，戰鬥中每次被攻擊再 0.3 次\n防禦 = 防具 + 加固 + 屬性點 + 等級 + 永久加成 + 職業 + 飾品；防具與飾品的「再減」在防禦之後另外乘，合計最多六成\nHP =（40 + 等級×4 + 永久加成 + 屬性點×3 + 飾品）× 1.15^(0.8×(等級−5))\n魔物 = Lv1 基礎值 × 成長率^(等級−1)，每種魔物成長率不同（HP 約 1.18、攻擊約 1.15、防禦約 1.18）；裂谷 1～9 層魔物等級 1～4、4～8、8～12、12～17、17～22、22～28、28～34、34～40、40～46，魔王固定 Lv 50、火龍固定 Lv 46\n經驗值 = 4 × 1.25^(魔物等級−1) × 1.5^(階級−3)（三階為準，一階 0.44 倍、五階 2.25 倍）；升級需要 = 同級三階魔物一隻的經驗 × 隻數 x(L)（Lv 5 起 12 隻、每級 ×1.7，Lv 10 起 900 隻、每級 ×1.06）\n每個地點都有一到五階各一種魔物，階級越高越少見（出現權重 5：3.5：2：1：0.4）\n擊殺金幣 = 5 × 1.2^(魔物等級−1) ×（1 + 0.25×(階級−1)），系統與飾品加成另外乘上去\n年齡：20 歲前 ×0.85，40 歲起每歲 −2%，60 歲起每歲 −1%（最低 0.4）\n背包 = 100 格 + 容器（布袋 30、皮囊 30、背架 60、礦車 130、皮革背包每號 30 最多五號，容器全拿 500；空間背包每個 50 最多十個，系統商城再多 500；每種容器只能有一個。博聞、行商等加成另外疊上去）。裝備和金幣不佔格子\n裝備也佔格子（穿戴中的不算）：短劍 2、杖 3、劍 4、槍 5、斧鎚 6，布衣 3、皮甲 5、鎖甲 8、板甲 12，飾品 1\n每個佔 1 格：裂谷核、灰葉草、魚乾、墨、稀有素材（星鐵 3）、多數道具｜2 格：獸皮、遺物、糧食、鹽、炭、炸彈、捕獸夾｜3 格：礦石、大炸彈｜4 格：木材、帳篷｜5 格：巨型炸彈、爆裂彈\n戰鬥中用道具會用掉你這一次出手，下一次出手要等道具的使用時間（藥水 1.5 秒、炸彈 2 秒、巨型炸彈 3 秒……）'); }
 function showStatus(){ say('info','<b>'+esc(soul.name)+'</b>　Lv '+body.level+'（經驗值 '+fmt(body.xp)+'/'+fmt(xpNeed(body.level))+'）｜攻擊力 '+atkNow()+'｜防禦力 '+defNow()+'｜HP '+body.hp+'/'+body.hpMax+'\n'+body.age+' 歲｜第 '+body.day+' 天\n金幣 '+body.gold+'｜裂谷核 '+body.cores+'｜背包 '+load()+'/'+capOf()+' 格（'+bagText()+'）\n武器：'+wText(eqW())+'\n道具：'+itemsText()+'\n資源：'+(Object.keys(RES).filter(k=>k!=='gold'&&k!=='cores'&&body[k]>0).map(k=>RES[k]+' '+body[k]).join('、')||'無')+'\n聲望：騎士團 '+body.rep.knight+'、神殿 '+body.rep.temple+'、王室 '+body.rep.crown+'、民心 '+body.rep.people+(body.flags.quest?'｜義務 '+Math.min(body.quest,10)+'/10':'')); }
 function status(){
   if(!body){document.getElementById('status').innerHTML='';renderSystem();renderChar();renderQuests();renderAchs();return;}
@@ -1192,8 +1195,13 @@ function giveBag(k,n){ n=n||1; body.bags=body.bags||{}; body.bags[k]=Math.min(BA
 function bagText(){ const l=Object.keys(BAGS).filter(k=>bagN(k)>0).map(k=>BAGS[k].n+(BAGS[k].max>1?' ×'+bagN(k):'')); return l.length?l.join('、'):'只有一個舊行囊'; }
 function iW(k){ return (ITEMS[k]&&ITEMS[k].w)||1; }
 function wOf(k){ return WT[k]||0; }
-function load(){ return CARRY.reduce((a,k)=>a+(body[k]||0)*WT[k],0)+Object.keys(ITEMS).reduce((a,k)=>a+itemN(k)*iW(k),0); }
+/* 裝備也佔格子（穿在身上、拿在手上、戴著的不算）：短劍 2、杖 3、劍 4、槍 5、斧鎚 6；布衣 3、皮甲 5、鎖甲 8、板甲 12；飾品 1。 */
+const EQ_WT={W:{dagger:2,staff:3,sword:4,spear:5,heavy:6},A:{cloth:3,leather:5,mail:8,plate:12}};
+function eqW8(t,k){ if(t==='C') return 1; const D=t==='W'?WEAPONS[k]:ARMORS[k]; return (D&&EQ_WT[t][D.type])||4; }
+function eqLoad(){ if(!body.weapons) return 0; let w=0; body.weapons.forEach((x,i)=>{ if(i!==body.wpn) w+=eqW8('W',x.key); }); (body.armors||[]).forEach((x,i)=>{ if(i!==body.arm) w+=eqW8('A',x.key); }); (body.accs||[]).forEach(x=>{ w+=1; }); w-=accEq().length; return Math.max(0,w); }
+function load(){ return CARRY.reduce((a,k)=>a+(body[k]||0)*WT[k],0)+Object.keys(ITEMS).reduce((a,k)=>a+itemN(k)*iW(k),0)+eqLoad(); }
 function space(){ return Math.max(0,capOf()-load()); }
+function overNote(){ if(body&&load()>capOf()) say('info','背包超重了（'+load()+' / '+capOf()+'）：撿不了新東西。到住宅存起來、賣給武器店，或在「整理背包」丟掉。'); }
 function fitR(k){ return Math.floor(space()/(WT[k]||1)); }
 function fitI(k){ return Math.floor(space()/iW(k)); }
 function bagMigrate(){ if(body.bags) return; const old=body.coreCap||30; body.bags={}; body.capBonus=0; let ex=old-30;
@@ -1217,6 +1225,7 @@ function packMenu(ret){ packing=true; const over=overList(); const ok=new Set(ov
   const o=[];
   CARRY.filter(k=>body[k]>0&&!ok.has('res'+k)).forEach(k=>o.push({t:'丟掉'+RES[k]+'（持有 '+fmt(body[k])+'，每個佔 '+WT[k]+' 格）', f:()=>qtyMenu({title:'丟掉'+RES[k], unit:'個', max:body[k], cost:n=>'騰出 '+fmt(n*WT[k])+' 格', f:n=>{ body[k]-=n; say('info',RES[k]+' −'+n); }, back:again})}));
   Object.keys(ITEMS).filter(k=>itemN(k)>0&&!ok.has('items'+k)).forEach(k=>o.push({t:'丟掉'+ITEMS[k].n+'（持有 '+itemN(k)+'，每個佔 '+iW(k)+' 格）', f:()=>qtyMenu({title:'丟掉'+ITEMS[k].n, unit:'個', max:itemN(k), cost:n=>'騰出 '+n*iW(k)+' 格', f:n=>{ body.items[k]-=n; say('info',ITEMS[k].n+' −'+n); }, back:again})}));
+  eqSellable().forEach(([t,k])=>{ const sp=eqSpare(t,k), w=eqW8(t,k); o.push({t:'丟掉'+eqName(t,k)+'（可丟 '+sp+' 件，每件佔 '+w+' 格）', f:()=>qtyMenu({title:'丟掉'+eqName(t,k), unit:'件', max:sp, cost:n=>'騰出 '+n*w+' 格', f:n=>{ eqRemove(t,k,n); say('info',eqName(t,k)+' −'+n); }, back:again})}); });
   if(over.length) o.push({t:'不收了，留在原地', f:()=>{ overDrop(); done(); }}); else o.push({t:'整理好了', f:done});
   setOptions(o,'整理背包　'+load()+' / '+capOf()+' 格'+(over.length?'｜還沒裝下：'+overText()+'（共 '+over.reduce((a,x)=>a+x.n*x.w,0)+' 格）':'')+'｜容器：'+bagText(),true); }
 function addRes(k,n){ if(n>0&&RARE_RES&&Object.values(RARE_RES).includes(k)){ body.flags.rareFound=body.flags.rareFound||{}; body.flags.rareFound[k]=1; } if(n<=0){ body[k]+=n; return n; } const can=Math.min(n,fitR(k)); body[k]+=can; if(can>0) body.flags.fullSaid=0; if(can<n){ if(!body.autoHunt) say('info','背包滿了，'+RES[k]+'只裝得下 '+can+'，還有 '+(n-can)+' 放在腳邊。'); overAdd('res',k,n-can); } return can; }
@@ -1838,6 +1847,7 @@ N.market=()=>{ lastNode=N.market; if(pendingEvent(N.market)) return;
   if(Object.keys(SELL).some(k=>body[k]>0)) o.push({t:'把資源賣給收購商（背包 '+load()+' / '+capOf()+'）', f:()=>sellMenu('res',N.market)});
   if(body.relics>0) o.push({t:'把遺物交給王室（每件王室聲望 +5、民心 +3，持有 '+body.relics+'）', f:()=>qtyMenu({title:'把遺物交給王室', unit:'件', max:body.relics, cost:n=>'王室聲望 +'+5*n+'、民心 +'+3*n, f:n=>{ body.relics-=n; body.rep.crown+=5*n; body.rep.people+=3*n; say('gain','遺物 −'+n+'，王室聲望 +'+5*n+'，民心 +'+3*n); }, back:N.market})});
   if(caravanIn()) chiefOptions(o,N.market);
+  if(body.home) o.push({t:'回家（倉庫 '+homeLoad()+' / '+body.home.cap+' 格）', f:N.home}); else o.push({t:'租下市集後巷的一間屋子（'+fmt(HOME_PRICE)+' 金，有自己的倉庫）', dis:body.gold<HOME_PRICE, f:()=>{ body.gold-=HOME_PRICE; body.home={cap:HOME_CAP0,res:{},items:{},eq:[]}; say('npc','房東把鑰匙丟給你。「屋頂會漏，地窖是乾的。東西放地窖。」'); say('gain','你有自己的住處了。倉庫 '+HOME_CAP0+' 格。'); status(); N.home(); }});
   o.push({t:'冒險者公會', f:N.guild}); o.push({t:'拍賣所', f:N.auction}); o.push({t:'酒館（休息、傳聞）', f:N.tavern}); o.push({t:'教堂（治療、祝福、轉生）', f:N.chapel}); o.push({t:'武器店（武器、防具、飾品）', f:N.wshop}); o.push({t:'道具店', f:stallMenu});
   o.push({t:'去北門難民營', f:N.camp}); o.push({t:'去南方哨站（一天路程）', f:N.south});
   o.push({t:'出發：灰燼森林', f:()=>N.region('forest')}); o.push({t:'出發：北方雪原', f:()=>N.region('snow')}); if(fact('route')) o.push({t:'出發：南方港市', f:()=>N.region('port')}); o.push({t:'出發：東方礦坑', f:()=>N.region('mine')});
@@ -1874,6 +1884,32 @@ N.wshop=()=>{ lastNode=N.wshop; place('王城市集 · 武器店');
   o.push({t:'回市集', f:N.market});
   setOptions(o,'武器店　持有金幣 '+body.gold+'｜裂谷核 '+body.cores);
 };
+/* 住宅：市集後巷的屋子。地窖當倉庫，放資源、道具和裝備。倉庫可以擴建。 */
+const HOME_PRICE=2000, HOME_CAP0=500;
+function homeExpandCost(){ const n=Math.round((body.home.cap-HOME_CAP0)/500); return Math.round(3000*Math.pow(1.6,n)); }
+function homeLoad(){ const H=body.home; if(!H) return 0; return Object.keys(H.res).reduce((a,k)=>a+(H.res[k]||0)*WT[k],0)+Object.keys(H.items).reduce((a,k)=>a+(H.items[k]||0)*iW(k),0)+H.eq.reduce((a,e)=>a+eqW8(e.t,e.k),0); }
+function homeSpace(){ return Math.max(0,body.home.cap-homeLoad()); }
+N.home=()=>{ lastNode=N.home; place('王城市集 · 你的屋子'); const H=body.home; if(!H){ N.market(); return; }
+  say('narr',rnd(['屋頂又漏了一點。地窖是乾的。','你推開門。屋子裡有你上次留下的味道。','後巷有人在吵架。你把門關上，世界安靜下來。']));
+  const o=[]; const hint='你的屋子　背包 '+load()+' / '+capOf()+'｜倉庫 '+homeLoad()+' / '+H.cap+' 格';
+  o.push({t:'把東西存進倉庫', f:()=>homeStore()}); o.push({t:'從倉庫拿東西出來', f:()=>homeTake()});
+  o.push({t:'擴建地窖（'+fmt(homeExpandCost())+' 金，倉庫 +500 格）', dis:body.gold<homeExpandCost(), f:()=>{ const c=homeExpandCost(); body.gold-=c; H.cap+=500; say('gain','工人挖了三天。倉庫 +500 格（現在 '+H.cap+'）。金幣 −'+fmt(c)); status(); N.home(); }});
+  o.push({t:'回市集', f:N.market});
+  setOptions(o,hint); };
+function homeStore(){ const H=body.home; const o=[]; const back=homeStore;
+  CARRY.filter(k=>body[k]>0).forEach(k=>o.push({t:'存'+RES[k]+'（持有 '+fmt(body[k])+'，每個 '+WT[k]+' 格）', f:()=>qtyMenu({title:'存'+RES[k], unit:'個', max:Math.min(body[k],Math.floor(homeSpace()/WT[k])), cost:n=>'倉庫 +'+n*WT[k]+' 格', f:n=>{ body[k]-=n; H.res[k]=(H.res[k]||0)+n; say('info',RES[k]+' '+n+' 存進倉庫'); }, back})}));
+  Object.keys(ITEMS).filter(k=>itemN(k)>0).forEach(k=>o.push({t:'存'+ITEMS[k].n+'（持有 '+itemN(k)+'，每個 '+iW(k)+' 格）', f:()=>qtyMenu({title:'存'+ITEMS[k].n, unit:'個', max:Math.min(itemN(k),Math.floor(homeSpace()/iW(k))), cost:n=>'倉庫 +'+n*iW(k)+' 格', f:n=>{ body.items[k]-=n; H.items[k]=(H.items[k]||0)+n; say('info',ITEMS[k].n+' '+n+' 存進倉庫'); }, back})}));
+  eqSellable().forEach(([t,k])=>{ const sp=eqSpare(t,k), w=eqW8(t,k); o.push({t:'存'+eqName(t,k)+'（可存 '+sp+' 件，每件 '+w+' 格）', f:()=>qtyMenu({title:'存'+eqName(t,k), unit:'件', max:Math.min(sp,Math.floor(homeSpace()/w)), cost:n=>'倉庫 +'+n*w+' 格', f:n=>{ for(let i=0;i<n;i++){ let sharp=0; if(t==='W'){ const L=body.weapons; const j=L.map((x,i)=>i).filter(i=>L[i].key===k&&i!==body.wpn).sort((a,b)=>(L[b].sharp||0)-(L[a].sharp||0))[0]; sharp=L[j].sharp||0; L.splice(j,1); if(body.wpn>j) body.wpn--; } else eqRemove(t,k,1); H.eq.push({t,k,sharp}); } say('info',eqName(t,k)+' '+n+' 件存進倉庫'); }, back})}); });
+  o.push({t:'存好了', f:N.home});
+  setOptions(o,'存進倉庫　背包 '+load()+' / '+capOf()+'｜倉庫 '+homeLoad()+' / '+H.cap+' 格（身上穿戴的不能存）',true); }
+function homeTake(){ const H=body.home; const o=[]; const back=homeTake;
+  Object.keys(H.res).filter(k=>H.res[k]>0).forEach(k=>o.push({t:'拿'+RES[k]+'（倉庫 '+fmt(H.res[k])+'，每個 '+WT[k]+' 格）', f:()=>qtyMenu({title:'拿'+RES[k], unit:'個', max:Math.min(H.res[k],fitR(k)), cost:n=>'背包 +'+n*WT[k]+' 格', f:n=>{ H.res[k]-=n; body[k]+=n; say('info','拿出 '+RES[k]+' '+n); }, back})}));
+  Object.keys(H.items).filter(k=>H.items[k]>0).forEach(k=>o.push({t:'拿'+ITEMS[k].n+'（倉庫 '+H.items[k]+'，每個 '+iW(k)+' 格）', f:()=>qtyMenu({title:'拿'+ITEMS[k].n, unit:'個', max:Math.min(H.items[k],fitI(k)), cost:n=>'背包 +'+n*iW(k)+' 格', f:n=>{ H.items[k]-=n; body.items[k]=(body.items[k]||0)+n; say('info','拿出 '+ITEMS[k].n+' '+n); }, back})}));
+  const groups={}; H.eq.forEach(e=>{ const g=e.t+':'+e.k; groups[g]=(groups[g]||0)+1; });
+  Object.keys(groups).forEach(g=>{ const [t,k]=g.split(':'); const w=eqW8(t,k); o.push({t:'拿'+eqName(t,k)+'（倉庫 '+groups[g]+' 件，每件 '+w+' 格）', f:()=>qtyMenu({title:'拿'+eqName(t,k), unit:'件', max:Math.min(groups[g],Math.floor(space()/w)), cost:n=>'背包 +'+n*w+' 格', f:n=>{ for(let i=0;i<n;i++){ const j=H.eq.findIndex(e=>e.t===t&&e.k===k); const e=H.eq.splice(j,1)[0]; if(t==='W') body.weapons.push({key:k,sharp:e.sharp||0}); else if(t==='A') body.armors.push({key:k}); else body.accs.push({key:k}); } say('info','拿出 '+eqName(t,k)+' '+n+' 件。到「裝備與道具」可以換上。'); }, back})}); });
+  if(o.length===0) o.push({t:'（倉庫是空的）', dis:true, f:()=>{}});
+  o.push({t:'拿好了', f:N.home});
+  setOptions(o,'從倉庫拿出來　背包 '+load()+' / '+capOf()+'｜倉庫 '+homeLoad()+' / '+H.cap+' 格',true); }
 /* 冒險者公會：委託與等級 */
 const GUILD_RANK=[['F',0],['E',3],['D',8],['C',15],['B',25],['A',40],['S',60]];
 function guildRank(){ const p=body.guildPts||0; let r='F'; GUILD_RANK.forEach(([n,t])=>{ if(p>=t) r=n; }); return r; }
