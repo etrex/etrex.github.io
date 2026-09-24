@@ -169,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.10.0';
+const VERSION='2.10.1';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -1545,7 +1545,7 @@ function tripNode(){ const T=body.trip; if(!T) return;
   if(envTick()) return;
   const known=body.flags.terrain||{}; const side=['往左：','往前：','往右：'];
   const ch=tripChoices();
-  const o=ch.map((c,i)=>({t:(ch.length===2?['往左：','往右：'][i]:side[i])+c.n+(c.id!=='_rare'&&known[T.r+c.id]?'（'+c.tag+'）':''), f:()=>tripPick(c,i)}));
+  const o=ch.map((c,i)=>({t:(ch.length===2?['往左：','往右：'][i]:side[i])+c.n, f:()=>tripPick(c,i)}));
   o.push({t:'原路回去（這一趟到此為止）', f:()=>{ say('narr','你沿著原路走了回去。'); tripEnd(); }});
   setOptions(o,'探索　'+tripStepText(),true); }
 function tripAdd(k,n){ const T=body.trip; if(n<=0) return; const got=k==='gold'?(body.gold+=n,n):addRes(k,n); if(got>0) T.loot[k]=(T.loot[k]||0)+got; }
