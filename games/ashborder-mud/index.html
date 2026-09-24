@@ -169,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.28.0';
+const VERSION='2.28.1';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -936,9 +936,9 @@ function sharpLabel(tier,verb){ const T=SHARP[tier]; const n=eqW().sharp||0; if(
 /* ===== 裝備強化 =====
    所有裝備都能強化，強化值記在那一件裝備上。強化 n → n+1 = 基本價 × 1.15^n 金。
    武器每級攻擊 +1、防具每級防禦 +1（再乘體力倍率）、鞋每級敏捷 +1、手套每級攻擊 +1、項鍊與戒指每級效果 +10%。
-   項鍊與戒指很貴：基本價 300 金，每級另外一枚裂谷核。
+   項鍊與戒指很貴：基本價 5 萬金（+0 到 +10 合計約 100 萬，跟一枚稀有戒指的行情差不多），每級另外一枚裂谷核。
    師傅有上限：王都武器店 +10 → 東方礦坑老鐵匠 +25 → 港市南方刀匠 +45 → 熔淵古爐無上限（每級另燒一枚核）。 */
-const ENH_BASE={W:30,A:40,boots:60,gloves:60,neck:300,ring:300};
+const ENH_BASE={W:30,A:40,boots:60,gloves:60,neck:50000,ring:50000};
 const ENH_EFF={W:'攻擊 +1',A:'防禦 +1（乘體力倍率）',boots:'敏捷 +1',gloves:'攻擊 +1',neck:'效果 +10%',ring:'效果 +10%'};
 function enhType(t,k){ return t==='C'?ACCS[k].slot:t; }
 function enhCost(t,k,n){ return Math.round(ENH_BASE[enhType(t,k)]*Math.pow(1.15,n)); }
