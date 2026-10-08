@@ -148,6 +148,7 @@
   <span class="ver" id="ver"></span>
   <div class="status" id="status"></div>
   <button class="tog spd" id="spd">文字：正常</button>
+  <button class="tog copy" id="saveIO">存檔字串</button>
   <button class="tog copy" id="copyLog">複製紀錄</button>
   <button class="tog" id="tog">角色與系統</button>
 </header>
@@ -169,7 +170,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.29.4';
+const VERSION='2.30.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -863,7 +864,7 @@ function setOptions(list,hint,noExtras){
   opts.innerHTML=hint?'<div class="hint">'+hint+'</div>':'';
   const hasOver=body&&!inCombat&&!packing&&!body.autoHunt&&overList().length>0;
   if(hasOver){ const L0=list, H0=hint, X0=noExtras; const ret=L0.rb||(!noExtras&&curBuild)||(()=>setOptions(L0,H0,X0)); list=[{t:'背包滿了：還有'+overText()+'裝不下——整理背包，丟掉一些東西', ab:1, pack:1, f:()=>packMenu(ret)}].concat(list); }
-  if(body&&!inCombat&&!noExtras){ if(sysIs('panel')&&body.freePts>0) list=list.concat([{t:'分配屬性點（未分配 '+body.freePts+'）', ab:1, f:panelMenu}]); list=list.concat([{t:'裝備與道具', f:gearMenu},{t:'任務日誌', keep:true, side:1, f:showJournal},{t:'圖鑑與成就', keep:true, side:1, f:showAchs},{t:'數值說明', keep:true, f:showFormula},{t:'查看狀態與持有物', keep:true, side:1, f:showStatus}]); }
+  if(body&&!inCombat&&!noExtras){ if(sysIs('panel')&&body.freePts>0) list=list.concat([{t:'分配屬性點（未分配 '+body.freePts+'）', ab:1, f:panelMenu}]); list=list.concat([{t:'裝備與道具', f:gearMenu},{t:'任務日誌', keep:true, side:1, f:showJournal},{t:'圖鑑與成就', keep:true, side:1, f:showAchs},{t:'數值說明', keep:true, f:showFormula},{t:'查看狀態與持有物', keep:true, side:1, f:showStatus},{t:'存檔字串（匯出／讀檔）', keep:true, side:1, f:saveIO}]); }
   if(sysIs('omni')&&list.length){ const best=list.find(o=>o.ab&&!/^(窺探|調查)/.test(o.t))||list.find(o=>/裂谷|狩獵/.test(o.t)); if(best) best.t='★ '+best.t; }
   scrollBottom(); save();
   const isNav=o=>!o.ab&&/^(退回|返回|回大殿|回市集|回王都|回難民營|去市集|去裂谷|去王座廳|去王城市集|去騎士團|去神殿|去北門|去南方|出發|查看狀態|安全線|跟奧文去|關閉商城|先不分配|算了|走開|不碰|不賣|不賭|不買了|不了|離開|裝備與道具|任務日誌|圖鑑與成就|數值說明)/.test(o.t);
@@ -1105,6 +1106,36 @@ function renderSystem(){
 }
 document.getElementById('tog').onclick=()=>document.getElementById('side').classList.add('open');
 document.getElementById('close').onclick=()=>document.getElementById('side').classList.remove('open');
+/* ===== 存檔字串：把整個進度打包成一串文字，玩家自己保存；貼回來就能回到那時候 =====
+   格式：ASHB2:（gzip 壓縮後的 base64）；瀏覽器不支援壓縮時用 ASHB1:（純 base64）。 */
+function u8b64(u8){ let s=''; for(let i=0;i<u8.length;i+=0x8000) s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000)); return btoa(s); }
+function b64u8(b){ const s=atob(b); const u=new Uint8Array(s.length); for(let i=0;i<s.length;i++) u[i]=s.charCodeAt(i); return u; }
+async function exportSave(){ const json=JSON.stringify({v:VERSION,soul,body,savedAt:Date.now()});
+  if(typeof CompressionStream!=='undefined'){ const buf=await new Response(new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer(); return 'ASHB2:'+u8b64(new Uint8Array(buf)); }
+  return 'ASHB1:'+u8b64(new TextEncoder().encode(json)); }
+async function importSave(str){ str=(str||'').replace(/\s+/g,''); const m=str.match(/^ASHB([12]):(.+)$/); if(!m) throw new Error('不是灰燼邊境的存檔字串');
+  let u=b64u8(m[2]); if(m[1]==='2'){ if(typeof DecompressionStream==='undefined') throw new Error('這個瀏覽器不支援解壓縮'); u=new Uint8Array(await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()); }
+  const o=JSON.parse(new TextDecoder().decode(u)); if(!o||!o.soul||!o.soul.name) throw new Error('存檔內容不完整'); return o; }
+function saveIO(){ if(document.getElementById('saveio')) return;
+  const ov=document.createElement('div'); ov.id='saveio'; ov.style.cssText='position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px';
+  const has=!bootLock&&soul&&soul.name;
+  ov.innerHTML='<div style="background:var(--ink-2);color:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:16px;width:100%;max-width:560px;max-height:90vh;overflow:auto;font-size:.9rem">'+
+    '<b style="color:var(--gold)">存檔字串</b><p style="color:var(--paper-dim);margin:.4rem 0">把這串文字存在自己的地方（記事本、訊息給自己）。之後貼回來，就能回到那個時候的進度。換電腦、換瀏覽器也能用。</p>'+
+    (has?'<div style="margin:.6rem 0"><b>匯出目前進度</b>（'+esc(soul.name)+(body?'，Lv '+body.level+'，第 '+body.day+' 天':'')+'）<textarea id="sioOut" readonly style="width:100%;height:5.5rem;margin-top:.3rem;background:var(--ink-3);color:var(--paper);border:1px solid var(--rule);font-size:.75rem;word-break:break-all">產生中……</textarea><button class="tog" id="sioCopy" style="display:inline-block;margin:.3rem 0 0">複製</button> <span id="sioMsg" style="color:var(--moss)"></span></div>':'<p style="color:var(--paper-dim)">目前沒有進行中的角色可以匯出。</p>')+
+    '<div style="margin:.8rem 0 .4rem"><b>從字串讀檔</b><textarea id="sioIn" placeholder="貼上 ASHB 開頭的存檔字串" style="width:100%;height:5.5rem;margin-top:.3rem;background:var(--ink-3);color:var(--paper);border:1px solid var(--rule);font-size:.75rem;word-break:break-all"></textarea>'+
+    '<button class="tog" id="sioLoad" style="display:inline-block;margin:.3rem 0 0">讀取這個存檔</button> <span id="sioErr" style="color:var(--ember)"></span></div>'+
+    '<div style="text-align:right"><button class="tog" id="sioClose" style="display:inline-block">關閉</button></div></div>';
+  document.body.appendChild(ov);
+  const close=()=>ov.remove(); ov.onclick=e=>{ if(e.target===ov) close(); }; document.getElementById('sioClose').onclick=close;
+  if(has){ exportSave().then(t=>{ const ta=document.getElementById('sioOut'); if(ta) ta.value=t; }).catch(e=>{ const ta=document.getElementById('sioOut'); if(ta) ta.value='匯出失敗：'+e.message; });
+    document.getElementById('sioCopy').onclick=async()=>{ const ta=document.getElementById('sioOut'); ta.select(); let ok=false; try{ await navigator.clipboard.writeText(ta.value); ok=true; }catch(e){ try{ ok=document.execCommand('copy'); }catch(e2){} } document.getElementById('sioMsg').textContent=ok?'已複製（共 '+ta.value.length+' 字）':'請手動全選複製'; }; }
+  document.getElementById('sioLoad').onclick=async()=>{ const err=document.getElementById('sioErr'); err.textContent='';
+    try{ const o=await importSave(document.getElementById('sioIn').value);
+      if(has&&!confirm('讀取「'+o.soul.name+(o.body?'，Lv '+o.body.level+'，第 '+o.body.day+' 天':'')+'」的存檔？目前的進度會被蓋掉（建議先把上面的字串複製起來）。')) return;
+      o.savedAt=Date.now(); clearTimeout(saveTimer); if(inCombat){ try{ endCombat(); }catch(e){} }
+      await sset('save:v3',{soul:o.soul,body:o.body,savedAt:o.savedAt},false); close(); boot(o); say('gain','已讀取存檔字串（存檔版本 v'+(o.v||'?')+'）。按「繼續」回到那時候的進度。');
+    }catch(e){ err.textContent='讀不進來：'+e.message; } }; }
+document.getElementById('saveIO').onclick=saveIO;
 document.getElementById('copyLog').onclick=async()=>{
   const btn=document.getElementById('copyLog'); const dump=['=== 除錯狀態（版本 '+VERSION+'）==='];
   dump.push('儲存層：'+(hasStore?'共享':'記憶體')+'｜全伺服器擊殺 '+world.kills+'｜市價 '+world.price);
@@ -2529,7 +2560,7 @@ function boot(saved){
   if(saved&&saved.soul&&saved.soul.name){
     bootLock=true;
     story(TXT.back(esc(saved.soul.name)));
-    setOptions([{t:'繼續（'+esc(saved.soul.name)+'，'+(saved.soul.system?saved.soul.system.name:'尚未締約')+(saved.body?'，Lv '+saved.body.level:'')+'）', f:()=>{ bootLock=false; soul=saved.soul; body=saved.body; if(soul.system&&!soul.system.cd) soul.system.cd={}; const offl=(body&&sysIs('idle')&&body.idleArmed); if(body&&!body.floor){ body.floor=1; body.maxFloor=1; } if(body&&!body.weapons){ body.weapons=[{key:'sword',sharp:Math.max(0,(body.weapon||2)-2)}]; body.wpn=0; delete body.weapon; } if(body&&!body.items) body.items={}; if(body&&!body.qs) body.qs={}; if(body&&!body.job) body.job='swordsman'; if(body&&!body.armors){ body.armors=[{key:'leather'}]; body.arm=0; body.armorPlus=Math.max(0,(body.armor||2)-2); if(body.regionFlags&&body.regionFlags.heatArmor) body.armors.push({key:'heat'}); if(body.regionFlags&&body.regionFlags.furCoat) body.armors.push({key:'fur'}); } if(body&&!body.accs){ body.accs=[]; body.acc={}; } if(body&&body.eaten){ const mp={dog:'wolf',spider:'bug',beast:'golem'}; Object.keys(mp).forEach(k=>{ if(body.eaten[k]){ body.eaten[mp[k]]=1; delete body.eaten[k]; } }); } if(body&&!body.flags.rift10){ body.flags.rift10=1; if(body.floor>=6) body.floor=5; if(body.maxFloor>=6) body.maxFloor=5; delete body.flags.fl6; delete body.flags.gate5; } if(body) ['worldleaf','frostcrystal','pearl','starmetal'].forEach(k=>{ if(body[k]===undefined) body[k]=0; }); if(body&&body.armors&&!canWear(eqA())){ const wi=body.armors.findIndex(canWear); body.arm=wi<0?0:wi; } if(body&&body.stopHp===undefined){ body.stopHp=0.3; body.mode='attack'; } if(body&&body.autoAct===undefined) body.autoAct=false; if(body&&body.rep.people===undefined){ body.rep.people=0; body.herbs=0; } if(body&&!body.depth){ body.depth={}; body.regionFlags={}; body.pelts=0; body.relics=0; body.ore=0; } if(body&&body.grain===undefined){ ['grain','salt','timber','fish','ink','coal'].forEach(k=>body[k]=0); body.talked={}; } if(body&&body.coreCap<30) body.coreCap+=20; if(body&&body.autoAct===undefined) body.autoAct=false; if(body&&body.rep.people===undefined){ body.rep.people=0; body.herbs=0; } if(body&&!body.depth){ body.depth={}; body.regionFlags={}; body.pelts=0; body.relics=0; body.ore=0; } if(body&&body.grain===undefined){ ['grain','salt','timber','fish','ink','coal'].forEach(k=>body[k]=0); body.talked={}; } if(body&&body.coreCap<30) body.coreCap+=20; if(body){ bagMigrate(); enhMigrate(); } clearLog(); status(); if(body&&body.trip){ body.tripFight=0; const T=body.trip; place(REGIONS[T.r].name+' · '+REGIONS[T.r].depths[T.d-1]); curZone={r:T.r,d:T.d}; say('narr','你還在路上。這一趟還有 '+(T.max-T.step)+' 步。'); tripNode(); return; } if(body){ if(offl){ const dead=offlineHunt(saved); if(dead) return; N.rift(); } else N.market(); } else startQuestionnaire(); }},{t:'重新開始（刪除存檔）', f:()=>boot(null)}]);
+    setOptions([{t:'繼續（'+esc(saved.soul.name)+'，'+(saved.soul.system?saved.soul.system.name:'尚未締約')+(saved.body?'，Lv '+saved.body.level:'')+'）', f:()=>{ bootLock=false; soul=saved.soul; body=saved.body; if(soul.system&&!soul.system.cd) soul.system.cd={}; const offl=(body&&sysIs('idle')&&body.idleArmed); if(body&&!body.floor){ body.floor=1; body.maxFloor=1; } if(body&&!body.weapons){ body.weapons=[{key:'sword',sharp:Math.max(0,(body.weapon||2)-2)}]; body.wpn=0; delete body.weapon; } if(body&&!body.items) body.items={}; if(body&&!body.qs) body.qs={}; if(body&&!body.job) body.job='swordsman'; if(body&&!body.armors){ body.armors=[{key:'leather'}]; body.arm=0; body.armorPlus=Math.max(0,(body.armor||2)-2); if(body.regionFlags&&body.regionFlags.heatArmor) body.armors.push({key:'heat'}); if(body.regionFlags&&body.regionFlags.furCoat) body.armors.push({key:'fur'}); } if(body&&!body.accs){ body.accs=[]; body.acc={}; } if(body&&body.eaten){ const mp={dog:'wolf',spider:'bug',beast:'golem'}; Object.keys(mp).forEach(k=>{ if(body.eaten[k]){ body.eaten[mp[k]]=1; delete body.eaten[k]; } }); } if(body&&!body.flags.rift10){ body.flags.rift10=1; if(body.floor>=6) body.floor=5; if(body.maxFloor>=6) body.maxFloor=5; delete body.flags.fl6; delete body.flags.gate5; } if(body) ['worldleaf','frostcrystal','pearl','starmetal'].forEach(k=>{ if(body[k]===undefined) body[k]=0; }); if(body&&body.armors&&!canWear(eqA())){ const wi=body.armors.findIndex(canWear); body.arm=wi<0?0:wi; } if(body&&body.stopHp===undefined){ body.stopHp=0.3; body.mode='attack'; } if(body&&body.autoAct===undefined) body.autoAct=false; if(body&&body.rep.people===undefined){ body.rep.people=0; body.herbs=0; } if(body&&!body.depth){ body.depth={}; body.regionFlags={}; body.pelts=0; body.relics=0; body.ore=0; } if(body&&body.grain===undefined){ ['grain','salt','timber','fish','ink','coal'].forEach(k=>body[k]=0); body.talked={}; } if(body&&body.coreCap<30) body.coreCap+=20; if(body&&body.autoAct===undefined) body.autoAct=false; if(body&&body.rep.people===undefined){ body.rep.people=0; body.herbs=0; } if(body&&!body.depth){ body.depth={}; body.regionFlags={}; body.pelts=0; body.relics=0; body.ore=0; } if(body&&body.grain===undefined){ ['grain','salt','timber','fish','ink','coal'].forEach(k=>body[k]=0); body.talked={}; } if(body&&body.coreCap<30) body.coreCap+=20; if(body){ bagMigrate(); enhMigrate(); } clearLog(); status(); if(body&&body.trip){ body.tripFight=0; const T=body.trip; place(REGIONS[T.r].name+' · '+REGIONS[T.r].depths[T.d-1]); curZone={r:T.r,d:T.d}; say('narr','你還在路上。這一趟還有 '+(T.max-T.step)+' 步。'); tripNode(); return; } if(body){ if(offl){ const dead=offlineHunt(saved); if(dead) return; N.rift(); } else N.market(); } else startQuestionnaire(); }},{t:'用存檔字串讀檔', keep:true, f:saveIO},{t:'重新開始（刪除存檔）', f:()=>boot(null)}],'',true);
     return;
   }
   story(TXT.void); story(TXT.name);
