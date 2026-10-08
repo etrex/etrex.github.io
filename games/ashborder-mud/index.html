@@ -170,7 +170,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.30.0';
+const VERSION='2.31.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -1075,7 +1075,7 @@ function renderQuests(){
   const rows=QUESTS.filter(q=>body.qs[q.id]!==undefined).map(q=>{ const v=body.qs[q.id]; const cls='q'+(q.main?' main':'')+(typeof v!=='number'?' done':''); const txt=v==='done'?'✓ '+q.end:v==='fail'?'✗ '+(q.failEnd||'失敗'):q.stages[v].t(); return '<div class="'+cls+'"><b>'+q.name+'</b><span>'+esc(txt)+'</span></div>'; });
   c.innerHTML='<h2>任務</h2>'+(rows.length?rows.join(''):'<div class="slot"><span>還沒有任務。</span></div>');
 }
-function showJournal(){ if(!body||!body.qs) return; const l=QUESTS.filter(q=>body.qs[q.id]!==undefined).map(q=>{ const v=body.qs[q.id]; return (q.main?'【主線】':'【支線】')+q.name+'：'+(v==='done'?'完成。'+q.end:v==='fail'?'失敗。'+(q.failEnd||''):q.stages[v].t()); }); say('info',l.length?l.join('\n'):'還沒有任務。'); }
+function showJournal(){ if(!body||!body.qs) return; const l=QUESTS.filter(q=>body.qs[q.id]!==undefined).map(q=>{ const v=body.qs[q.id]; return (q.main?'【主線】':'【支線】')+q.name+'：'+(v==='done'?'完成。'+q.end:v==='fail'?'失敗。'+(q.failEnd||''):q.stages[v].t()); }); (body.gq||[]).forEach(q=>l.push('【公會】'+q.title+'（'+gqProgress(q)+(gqReady(q)?'，可以回報':'')+'）：'+q.hint)); say('info',l.length?l.join('\n'):'還沒有任務。'); }
 /* ===== 世界事件：日子往前走，世界不等你 ===== */
 function worldTick(){
   const d=body.day; const ev=body.flags.ev||(body.flags.ev={});
@@ -1233,7 +1233,7 @@ let lastNode=null;
 function reveal(text){ say('narr','<span class="reveal">'+text+'</span>'); }
 function fact(k){ return !!body.facts[k]; }
 function learn(k,text){ if(fact(k))return; body.facts[k]=1; if(text)reveal(text); addLuck(5,'揭露秘密'); if(sysIs('omni')){ body.capBonus=(body.capBonus|0)+1; say('gain','博聞：背包 +1'); } }
-function place(n){ curZone=null; document.getElementById('place').textContent=n; if(body){ body.flags.been=body.flags.been||{}; body.flags.been[n.split(' · ')[0].replace(/ 第 \d+ 層.*$/,'')]=1; } }
+function place(n){ curZone=null; document.getElementById('place').textContent=n; if(body){ body.flags.been=body.flags.been||{}; const key=n.split(' · ')[0].replace(/ 第 \d+ 層.*$/,''); body.flags.been[key]=1; if(body.gq&&body.gq.length) gqOnPlace(key); } }
 const PLACES=['召喚大殿','王座廳','騎士團營房','神殿','北門難民營','王城市集','北方空村','南方哨站','灰燼森林','北方雪原','南方港市','東方礦坑','裂谷'];
 const ACHS=[
  {id:'meet_all', n:'認識所有人', d:'跟邊境上每一個能說話的人說過話', c:()=>NPCS.every(n=>body.talked[n.n])},
@@ -1251,8 +1251,8 @@ const ACHS=[
  {id:'fullset', n:'全副武裝', d:'鞋、手套、項鍊、戒指四個部位都戴上', c:()=>Object.keys(ASLOT).every(s=>s==='ring'?ringsOn().length>0:body.acc&&body.acc[s])},
  {id:'jeweler', n:'珠寶匠', d:'集齊全部稀有裝備（項鍊與戒指）', c:()=>RARE_ACC.every(hasAcc)},
  {id:'prospector', n:'淘金客', d:'四種稀有素材各找到過一個', c:()=>['worldleaf','frostcrystal','pearl','starmetal'].every(k=>body.flags.rareFound&&body.flags.rareFound[k])},
- {id:'guild_c', n:'C 級冒險者', d:'完成十五件公會委託', c:()=>(body.guildPts||0)>=15},
- {id:'guild_s', n:'S 級冒險者', d:'完成六十件公會委託', c:()=>(body.guildPts||0)>=60},
+ {id:'guild_c', n:'C 級冒險者', d:'公會點數十五點', c:()=>(body.guildPts||0)>=15},
+ {id:'guild_s', n:'S 級冒險者', d:'公會點數六十點', c:()=>(body.guildPts||0)>=60},
  {id:'bidder', n:'拍賣常客', d:'在拍賣所買下五件拍品', c:()=>(body.flags.auctionBought||0)>=5},
  {id:'immune4', n:'百毒不侵', d:'火、冰、毒、雷四種免疫同時穿在身上', c:()=>['fire','ice','poison','lightning'].every(k=>{ let r=0; const add=D=>{ if(D&&D.res&&D.res[k]) r+=D.res[k]; }; add(aDef(eqA())); accEq().forEach(add); return r>=1; })},
  {id:'risen', n:'從教堂醒來', d:'倒下三次，還在走', c:()=>(soul.deaths||0)>=3},
@@ -1833,7 +1833,7 @@ function showEvent(r,ev,after){ const craft=isCraftEv(ev);
       evMark(ev,op); op.f(); if(body.hp<=0||inCombat) return; back(); }}; }),{rb:()=>render()}),'',true);
   render(); }
 function tripNext(){ const T=body.trip; if(!T) return; if(T.step>=T.max){ say('narr','天色暗了。你帶著東西往回走。'); tripEnd(); } else tripNode(); }
-function tripEnd(){ const T=body.trip; if(!T) return; const r=T.r; body.trip=null; body.tripFight=0;
+function tripEnd(){ const T=body.trip; if(!T) return; const r=T.r; body.trip=null; body.tripFight=0; gqOnTrip(r,T.d);
   const parts=Object.keys(T.loot).map(k=>(k==='gold'?'金幣':RES[k])+' +'+T.loot[k]);
   say('gain','這一趟一共拿到：'+(parts.length?parts.join('、'):'什麼都沒有')+'。'); say('narr','你走回'+REGIONS[r].depths[T.d-1]+'的入口。');
   status(); N.region(r); }
@@ -2071,19 +2071,56 @@ function homeTake(){ const H=body.home; const o=[]; const back=homeTake;
 /* 冒險者公會：委託與等級 */
 const GUILD_RANK=[['F',0],['E',3],['D',8],['C',15],['B',25],['A',40],['S',60]];
 function guildRank(){ const p=body.guildPts||0; let r='F'; GUILD_RANK.forEach(([n,t])=>{ if(p>=t) r=n; }); return r; }
-function newBounty(){ const reg=MONSTERS.filter(m=>m.region&&!m.lvl&&body.regionFlags[m.region]&&Math.min(...m.depths)<=regionDepthOf(m.region)); const pool=(riftClosed()&&reg.length)?reg:floorPool(Math.min(9,Math.max(1,body.maxFloor||1))).concat(reg); const m=rnd(pool); body.bounty={key:m.key, n:0, need:3, day:body.day, reward:Math.round(NUM.killGold(m.tier)*8)}; }
-N.guild=()=>{ lastNode=N.guild; place('王城市集 · 冒險者公會');
+/* ===== 委託欄：牆上一次貼六張，每張掛三天，自己挑著接 =====
+   種類：討伐、精英討伐、收購（交資源）、道具委託（交道具）、送信、勘查。每張都附一句不精準的情報。
+   同時能接的件數看公會等級：F/E 兩件、D/C 三件、B 以上四件。 */
+const G_RANKS=GUILD_RANK.map(x=>x[0]);
+function rankIdx(r){ return G_RANKS.indexOf(r); }
+function gqMax(){ const i=rankIdx(guildRank()); return i<=1?2:i<=3?3:4; }
+const DELIVER=[{to:'北門難民營',who:'藥婆',what:'一包乾淨的布'},{to:'神殿',who:'書記官',what:'一封封了蠟的信'},{to:'南方哨站',who:'哨站的隊長',what:'一袋補給'},{to:'騎士團營房',who:'布蘭德',what:'一箱磨刀石'},{to:'灰燼森林',who:'獵人',what:'一捆新的套索'},{to:'北方雪原',who:'廢村的守夜人',what:'一罐燈油'},{to:'南方港市',who:'漁夫',what:'一包修網的線'},{to:'東方礦坑',who:'工頭',what:'一盒燈芯'},{to:'北方空村',who:'空村裡唯一亮著燈的人家',what:'一包種子'}];
+const ITEM_REQ=[['hpot',3,5],['bandage',5,8],['bomb',2,4],['trap',2,3],['smoke',2,3],['whet',2,3],['armoroil',2,3]];
+const GATHER=['herbs','pelts','timber','ore','fish','salt','coal','grain','relics','ink'];
+function floorBand(f){ return f<=3?'淺層':f<=6?'中層':'深層'; }
+function monHint(m){ if(m.region){ const R=REGIONS[m.region]; const d=Math.min(...(m.depths||[1])); return rnd(['有人在'+R.name+'的'+R.depths[d-1]+'一帶看過牠們。','聽說'+R.name+'那邊，'+R.depths[d-1]+'附近最常遇到。','送單子的人說是從'+R.name+'回來的，在'+R.depths[d-1]+'被追了一路。']); }
+  const f=Math.min(...(m.floors||[1])); return rnd(['裂谷'+floorBand(f)+'有人撞見過。','據說在裂谷的'+floorBand(f)+'，往下走一點就有。','上一個接單的人說，裂谷'+floorBand(f)+'不算少見。']); }
+function resHint(k){ const where=Object.keys(TRIP).filter(r=>(TRIP[r].t||[]).some(t=>t.give&&t.give[k])).map(r=>REGIONS[r].name); if(k==='relics') where.push('北方空村'); return where.length?'去'+where.slice(0,2).join('或')+'探索常帶得回來；市集與各地的交換也收得到。':'各地的交換管道收得到。'; }
+function monFloorEq(m){ return m.region?Math.min(...(m.depths||[1]))*3:Math.min(...(m.floors||[1])); }
+function rankFor(f){ return G_RANKS[Math.min(6,Math.max(0,Math.floor((f-1)/1.5)))]; }
+function huntPool(){ const reg=MONSTERS.filter(m=>m.region&&!m.lvl&&body.regionFlags[m.region]&&Math.min(...m.depths)<=regionDepthOf(m.region)+1); const top=Math.min(9,(body.maxFloor||1)+1); let rift=[]; if(!riftClosed()) for(let f=1;f<=top;f++) rift=rift.concat(floorPool(f)); return rift.concat(reg).filter((m,i,a)=>a.indexOf(m)===i&&!m.lvl); }
+function makePosting(){ const id='g'+((body.gqSeq=(body.gqSeq||0)+1)); const exp=body.day+2; const roll=Math.random(); const mine=rankIdx(guildRank()); const fits=l=>{ const ok=l.filter(m=>rankIdx(rankFor(monFloorEq(m)))<=mine+1); return (ok.length&&Math.random()<0.85)?ok:l; }; const base=f=>NUM.killGold(2,Math.max(1,Math.min(9,f)));
+  if(roll<0.32){ const m=rnd(fits(huntPool().filter(x=>x.tier<=3))); if(!m) return null; const need=m.tier>=3?2:3+Math.floor(Math.random()*3); const f=monFloorEq(m); return {id,type:'hunt',key:m.key,need,n:0,exp,rank:rankFor(f),gold:Math.round(NUM.killGold(m.tier,f)*need*3),pts:1,title:'討伐 '+m.n+' ×'+need,hint:monHint(m),desc:m.desc||''}; }
+  if(roll<0.45){ const m=rnd(fits(huntPool().filter(x=>x.tier>=4))); if(!m) return null; const f=monFloorEq(m); return {id,type:'hunt',key:m.key,need:1,n:0,exp,rank:rankFor(f+1),gold:Math.round(NUM.killGold(m.tier,f)*12),pts:2,title:'精英討伐 '+m.n,hint:monHint(m)+'這隻不好對付。',desc:m.desc||''}; }
+  if(roll<0.65){ const k=rnd(GATHER); const need=k==='relics'?2+Math.floor(Math.random()*3):6+Math.floor(Math.random()*10); return {id,type:'gather',res:k,need,exp,rank:'F',gold:Math.round((SELL[k]||10)*need*2.5)+base(body.maxFloor||1)*2,pts:1,title:'收購 '+RES[k]+' ×'+need,hint:resHint(k),desc:rnd(['南方商人急著出一批貨。','神殿要辦事，缺材料。','難民營的人自己做不出來，託公會收。'])}; }
+  if(roll<0.77){ const [k,lo,hi]=rnd(ITEM_REQ); const need=lo+Math.floor(Math.random()*(hi-lo+1)); return {id,type:'item',item:k,need,exp,rank:'F',gold:Math.round(ITEMS[k].price*need*1.8)+base(body.maxFloor||1),pts:1,title:'道具委託 '+ITEMS[k].n+' ×'+need,hint:'道具店買得到，有些師傅也做得出來。',desc:rnd(['騎士團的巡邏隊要用。','一個商隊要出遠門。','北門的守衛託人來問。'])}; }
+  if(roll<0.9){ const been=(body.flags.been)||{}; const pool=DELIVER.filter(d=>been[d.to]); const d=rnd(pool.length?pool:DELIVER.slice(0,2)); const far=/森林|雪原|港市|礦坑|空村|哨站/.test(d.to); return {id,type:'deliver',to:d.to,who:d.who,what:d.what,done:false,exp,rank:'F',gold:Math.round(base(body.maxFloor||1)*(far?6:3)),pts:1,title:'送信 把'+d.what+'送到'+d.to,hint:'交給'+d.to+'的'+d.who+'。到了那裡就會交出去。',desc:'櫃檯底下拿出一個包好的東西。「別拆。」'}; }
+  const vis=Object.keys(REGIONS).filter(r=>body.regionFlags[r]); const r=rnd(vis.length?vis:Object.keys(REGIONS)); const R=REGIONS[r]; const d=Math.min(3,regionDepthOf(r)+(Math.random()<.4?1:0));
+  return {id,type:'explore',r,d,done:false,exp,rank:rankFor(d*3),gold:Math.round(base(d*3)*8),pts:1,title:'勘查 '+R.name+'・'+R.depths[d-1],hint:'到'+R.name+'的'+R.depths[d-1]+'（或更深）探索一趟，走完就算。',desc:rnd(['地圖該更新了，沒人知道那邊現在長什麼樣。','有人說那邊的路變了。','公會要知道那裡還走不走得通。'])}; }
+function boardRefresh(){ body.board=body.board||{list:[]}; const L=body.board.list=(body.board.list||[]).filter(p=>p.exp>=body.day); let guard=0; while(L.length<6&&guard++<30){ const p=makePosting(); if(p) L.push(p); } }
+function gqMigrate(){ if(body.bounty){ const B=body.bounty; if(!B.done&&MONSTERS.find(m=>m.key===B.key)){ body.gq=body.gq||[]; const m=MON(B.key); body.gq.push({id:'g0',type:'hunt',key:B.key,need:B.need,n:B.n,exp:body.day+3,rank:'F',gold:B.reward,pts:1,title:'討伐 '+m.n+' ×'+B.need,hint:monHint(m),desc:''}); } delete body.bounty; } body.gq=body.gq||[]; }
+function gqProgress(q){ if(q.type==='hunt') return q.n+'/'+q.need; if(q.type==='gather') return '有 '+(body[q.res]||0)+'/'+q.need; if(q.type==='item') return '有 '+itemN(q.item)+'/'+q.need; return q.done?'完成':'還沒'; }
+function gqReady(q){ if(q.type==='hunt') return q.n>=q.need; if(q.type==='gather') return (body[q.res]||0)>=q.need; if(q.type==='item') return itemN(q.item)>=q.need; return !!q.done; }
+function gqLabel(q){ return '［'+({hunt:'討伐',gather:'收購',item:'道具',deliver:'送信',explore:'勘查'})[q.type]+'］'+q.title.replace(/^(討伐|精英討伐|收購|道具委託|送信|勘查) /,'')+'｜'+fmt(q.gold)+' 金｜'+q.rank+' 級'; }
+/* 進度掛鉤：打倒魔物、走到地方、走完探索 */
+function gqOnKill(m){ (body.gq||[]).forEach(q=>{ if(q.type==='hunt'&&q.key===m.key&&q.n<q.need){ q.n++; say('info','公會委託：'+m.n+' '+q.n+'/'+q.need+(q.n>=q.need?'。回公會回報。':'')); } }); }
+function gqOnPlace(key){ (body.gq||[]).forEach(q=>{ if(q.type==='deliver'&&!q.done&&q.to===key){ q.done=true; say('gain','你把'+q.what+'交給'+q.who+'。回公會領報酬。'); } }); }
+function gqOnTrip(r,d){ (body.gq||[]).forEach(q=>{ if(q.type==='explore'&&!q.done&&q.r===r&&d>=q.d){ q.done=true; say('gain','勘查完成：'+REGIONS[r].name+'。回公會回報。'); } }); }
+function boardMenu(){ boardRefresh(); const o=body.board.list.map(p=>({t:gqLabel(p)+'（剩 '+(p.exp-body.day+1)+' 天）', f:()=>{ say('npc','「'+p.title+'。」'+(p.desc?p.desc:'')); say('info','情報：'+p.hint+'　報酬 '+fmt(p.gold)+' 金'+(p.pts>1?'，公會點數 +'+p.pts:'')+'　需要 '+p.rank+' 級');
+    setOptions([{t:'接下這張委託', f:()=>{ const mine=rankIdx(guildRank()), need=rankIdx(p.rank); if(need>mine+1){ say('npc','「這張要 '+p.rank+' 級。你還差一點。」'); boardMenu(); return; } if((body.gq||[]).length>=gqMax()){ say('npc','「你手上已經 '+body.gq.length+' 件了。'+guildRank()+' 級最多 '+gqMax()+' 件。」'); boardMenu(); return; }
+        body.gq.push(p); body.board.list=body.board.list.filter(x=>x!==p); say('gain','接下委託：'+p.title+'。'); boardMenu(); }},{t:'再看看別張', f:boardMenu}],'',true); }}));
+  if(!o.length) o.push({t:'（牆上空空的，明天再來）', dis:true, f:()=>{}});
+  o.push({t:'不看了', f:N.guild});
+  setOptions(o,'委託欄　手上 '+(body.gq||[]).length+' / '+gqMax()+' 件（'+guildRank()+' 級）。比你高一級的單子也能接，再高就不行。每張掛三天。',true); }
+N.guild=()=>{ lastNode=N.guild; place('王城市集 · 冒險者公會'); gqMigrate(); boardRefresh();
   if(!body.flags.guild){ body.flags.guild=1; story(TXT.guild1); } else say('narr',rnd(TXT.guild_re));
-  say('info','公會等級 <b>'+guildRank()+'</b>（完成委託 '+(body.guildPts||0)+' 件）');
-  const o=[]; const B=body.bounty;
-  if(!B||(B.done&&B.day!==body.day)){ o.push({t:'看牆上的委託單，接一件', f:()=>{ newBounty(); const m=MON(body.bounty.key); say('npc','斷指的女人撕下一張單子。「'+m.n+'，三隻。證據帶回來，'+body.bounty.reward+' 金。」'); status(); N.guild(); }}); }
-  else if(B.done) o.push({t:'（今天的委託做完了，明天再來）', dis:true, f:()=>{}});
-  else if(B.n>=B.need) o.push({t:'回報委託：'+MON(B.key).n+'（領 '+B.reward+' 金）', f:()=>{ body.gold+=B.reward; body.rep.people+=2; body.guildPts=(body.guildPts||0)+1; B.done=1; B.day=body.day; const r0=guildRank(); say('gain','金幣 +'+B.reward+'，民心 +2。公會等級 '+guildRank()); if(guildRank()!==r0) say('title','公會等級提升：'+guildRank()); status(); N.guild(); }});
-  else { o.push({t:'（委託進行中：'+MON(B.key).n+' '+B.n+'/'+B.need+'）', dis:true, f:()=>{}}); o.push({t:'放棄這件委託', f:()=>{ body.bounty=null; say('npc','「單子貼回去。」她連頭都沒抬。'); N.guild(); }}); }
+  say('info','公會等級 <b>'+guildRank()+'</b>（完成委託 '+(body.guildPts||0)+' 點）｜手上委託 '+body.gq.length+' / '+gqMax());
+  const o=[];
+  body.gq.forEach(q=>{ if(gqReady(q)) o.push({t:'回報：'+q.title+'（領 '+fmt(q.gold)+' 金）', ab:1, f:()=>{ if(q.type==='gather') body[q.res]-=q.need; if(q.type==='item') body.items[q.item]-=q.need; body.gold+=q.gold; body.rep.people+=1; const r0=guildRank(); body.guildPts=(body.guildPts||0)+(q.pts||1); body.gq=body.gq.filter(x=>x!==q); say('gain','委託完成：'+q.title+'。金幣 +'+fmt(q.gold)+'，民心 +1。'); if(guildRank()!==r0) say('title','公會等級提升：'+guildRank()); status(); N.guild(); }});
+    else o.push({t:'放棄：'+q.title+'（'+gqProgress(q)+'）', f:()=>{ body.gq=body.gq.filter(x=>x!==q); say('npc','「單子貼回去。」她連頭都沒抬。'); N.guild(); }}); });
+  o.push({t:'看委託欄（'+body.board.list.length+' 張）', f:boardMenu});
   o.push({t:'翻公會的圖鑑與成就', f:()=>{ showAchs(); N.guild(); }});
   o.push({t:'看自己的任務日誌', f:()=>{ showJournal(); N.guild(); }});
   o.push({t:'回市集', f:N.market});
-  setOptions(o,'冒險者公會　委託每天一件，殺三隻回來領錢。');
+  setOptions(o,'冒險者公會　委託欄每天換新，自己挑著接。'+(body.gq.length?'手上：'+body.gq.map(q=>q.title+'（'+gqProgress(q)+'）').join('、'):''));
 };
 /* 拍賣所：每天一件拍品 */
 /* 拍賣品：基本裝備（店裡買得到的、素面的低階貨）不上桌 */
@@ -2493,7 +2530,7 @@ async function win(){
   if(sysIs('rezero')) grow('rezero','記憶：防禦力永久 +1',()=>{ soul.permDef=(soul.permDef||0)+1; });
   if(sysIs('idle')) grow('idle','肌肉記憶：攻擊力永久 +1',()=>{ soul.permAtk++; });
   body.flags.killed=body.flags.killed||{}; body.flags.killed[m.key]=1;
-  if(body.bounty&&!body.bounty.done&&body.bounty.key===m.key&&body.bounty.n<body.bounty.need){ body.bounty.n++; say('info','公會委託：'+m.n+' '+body.bounty.n+'/'+body.bounty.need+(body.bounty.n>=body.bounty.need?'。回公會領錢。':'')); }
+  if(body.bounty) gqMigrate(); gqOnKill(m);
   { const first={gatekeeper:'giantaxe',firelizard:'dragonlance',shadowdog:'shadowblade'}[m.key]; if(first&&trophyRoll(m)){ say('narr',({gatekeeper:'獨眼巨人倒下的時候，手裡的斧頭砸出一個坑。',firelizard:'火龍的角斷了一根，還在發燙。',shadowdog:'地獄犬的影子沒有跟著牠消失。它凝成了一把刀。'})[m.key]); giveWeapon(first); } }
   { const fa={gatekeeper:'giantplate',firelizard:'dragonscale',leech:'shadowleather'}[m.key]; if(fa&&trophyRoll(m)){ say('narr',({gatekeeper:'巨人的胸甲上有一道你砍出來的口子。除此之外完好。',firelizard:'火龍的鱗一片一片剝下來，還是燙的。',leech:'吸血蝙蝠的翼膜薄得透光，卻割不破。'})[m.key]); giveArmor(fa); } }
   { const fc={beast:'ogregauntlet',wolf:'windboots',worm:'dragonboots',snowwolf:'fangneck',bonespider:'lifeneck',crab:'ironring'}[m.key]; if(fc&&trophyRoll(m)){ say('narr',({beast:'食人魔的手掌比你的頭還大。手骨是空心的。',wolf:'野狼死了，腳還在抽。你把牠四隻腳上的皮剝下來。',worm:'沙蟲的內壁又硬又滑，燒不起來。',snowwolf:'白狼的牙齒是白的，比雪白。',bonespider:'骷髏兵的胸腔裡掛著一條項鍊，還帶著體溫。它的體溫。',crab:'岩石魔像碎開，中間是一圈鐵。'})[m.key]); giveAcc(fc); } }
