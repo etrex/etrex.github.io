@@ -169,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.29.2';
+const VERSION='2.29.3';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -1297,6 +1297,7 @@ N.barracks=()=>{ lastNode=N.barracks; if(pendingEvent(N.barracks)) return;
   if(body.rep.knight>=30&&!body.flags.flareGiven) o.push({t:'跟布蘭德要信號彈', f:()=>{ body.flags.flareGiven=1; addItem('flare',2); say('npc','「兩支。放了我們就來。別浪費。」'); say('gain','信號彈 +2'); status(); N.barracks(); }});
   if(!body.flags.g_spear&&!hasW('spear')) o.push({t:'跟布蘭德要一支騎士槍（騎士團聲望 20，現在 '+body.rep.knight+'）', dis:body.rep.knight<20, f:()=>{ body.flags.g_spear=1; talk(TXT.barracks_spear); giveWeapon('spear'); status(); N.barracks(); }});
   if(body.rep.knight<30) o.push({t:'幫騎士團跑腿（騎士團聲望 +10，老一歲）', f:()=>{ body.rep.knight+=10; growOld(1,true); say('gain','騎士團聲望 +10'); N.barracks(); }});
+  { const t=talkOptions('barracks',N.barracks); if(t) o.push(t); const x=exchangeOptions('barracks',N.barracks); if(x) o.push(x); }
   o.push({t:'去裂谷', f:N.rift},{t:'去市集', f:N.market},{t:'回大殿', f:N.hall}); omniOptions(o,'barracks',N.barracks,['布蘭德']); townExtras(o,N.barracks); setOptions(o);
 };
 /* ============================================================
