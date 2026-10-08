@@ -170,7 +170,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.32.0';
+const VERSION='2.32.1';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -2119,8 +2119,9 @@ function makeCrit(){ const r=Math.random();
   if(r<0.65){ const w=rnd(Object.keys(WTYPE)); const ds=Object.keys(WEAPONS).filter(k=>WEAPONS[k].type===w&&!WEAPONS[k].any).map(k=>WEAPONS[k].atk); if(!ds.length) return null; return {c:'wtype',w,min:rnd(ds)}; }
   if(r<0.85){ const opts=[['boots','spd'],['gloves','atk'],['ring','gold'],['neck','hp'],['ring','atk'],['neck','def'],['ring','regen']]; const [slot,prop]=rnd(opts); return {c:'acc',slot,prop}; }
   return {c:'enh',t:rnd(['W','A','any']),min:rnd([3,5,5,8,10])}; }
-function spareMatch(c){ const out=[]; (body.weapons||[]).forEach((w,i)=>{ if(i!==body.wpn&&critTest(c,'W',w.key,w)) out.push({t:'W',inst:w}); }); (body.armors||[]).forEach((a,i)=>{ if(i!==body.arm&&critTest(c,'A',a.key,a)) out.push({t:'A',inst:a}); }); const worn=new Set(accWornInst()); (body.accs||[]).forEach(a=>{ if(!worn.has(a)&&critTest(c,'C',a.key,a)) out.push({t:'C',inst:a}); });
-  out.sort((x,y)=>(eqSellPrice(x.t,x.inst.key)+(x.inst.sharp||0)*100)-(eqSellPrice(y.t,y.inst.key)+(y.inst.sharp||0)*100)); return out[0]||null; }
+function spareMatches(c){ const out=[]; (body.weapons||[]).forEach((w,i)=>{ if(i!==body.wpn&&critTest(c,'W',w.key,w)) out.push({t:'W',inst:w}); }); (body.armors||[]).forEach((a,i)=>{ if(i!==body.arm&&critTest(c,'A',a.key,a)) out.push({t:'A',inst:a}); }); const worn=new Set(accWornInst()); (body.accs||[]).forEach(a=>{ if(!worn.has(a)&&critTest(c,'C',a.key,a)) out.push({t:'C',inst:a}); });
+  out.sort((x,y)=>(eqSellPrice(x.t,x.inst.key)+(x.inst.sharp||0)*100)-(eqSellPrice(y.t,y.inst.key)+(y.inst.sharp||0)*100)); return out; }
+function spareMatch(c){ return spareMatches(c)[0]||null; }
 function takeSpare(m){ const L=m.t==='W'?body.weapons:m.t==='A'?body.armors:body.accs; const i=L.indexOf(m.inst); if(i<0) return; L.splice(i,1); if(m.t==='W'&&body.wpn>i) body.wpn--; if(m.t==='A'&&body.arm>i) body.arm--; }
 const GATHER=['herbs','pelts','timber','ore','fish','salt','coal','grain','relics','ink'];
 function floorBand(f){ return f<=3?'淺層':f<=6?'中層':'深層'; }
@@ -2159,7 +2160,9 @@ N.guild=()=>{ lastNode=N.guild; place('王城市集 · 冒險者公會'); gqMigr
   if(!body.flags.guild){ body.flags.guild=1; story(TXT.guild1); } else say('narr',rnd(TXT.guild_re));
   say('info','公會等級 <b>'+guildRank()+'</b>（完成委託 '+(body.guildPts||0)+' 點）｜手上委託 '+body.gq.length+' / '+gqMax());
   const o=[];
-  body.gq.forEach(q=>{ if(gqReady(q)) o.push({t:'回報：'+q.title+'（領 '+fmt(q.gold)+' 金）', ab:1, f:()=>{ if(q.type==='gather') body[q.res]-=q.need; if(q.type==='item') body.items[q.item]-=q.need; if(q.type==='equip'){ const m=spareMatch(q.crit); if(!m){ N.guild(); return; } takeSpare(m); say('info','你交出了'+eqName(m.t,m.inst.key)+(m.inst.sharp?' +'+m.inst.sharp:'')+'。'); } body.gold+=q.gold; body.rep.people+=1; const r0=guildRank(); body.guildPts=(body.guildPts||0)+(q.pts||1); body.gq=body.gq.filter(x=>x!==q); say('gain','委託完成：'+q.title+'。金幣 +'+fmt(q.gold)+'，民心 +1。'); if(guildRank()!==r0) say('title','公會等級提升：'+guildRank()); status(); N.guild(); }});
+  const finish=q=>{ body.gold+=q.gold; body.rep.people+=1; const r0=guildRank(); body.guildPts=(body.guildPts||0)+(q.pts||1); body.gq=body.gq.filter(x=>x!==q); say('gain','委託完成：'+q.title+'。金幣 +'+fmt(q.gold)+'，民心 +1。'); if(guildRank()!==r0) say('title','公會等級提升：'+guildRank()); status(); N.guild(); };
+  body.gq.forEach(q=>{ if(gqReady(q)&&q.type==='equip') o.push({t:'回報：'+q.title+'（領 '+fmt(q.gold)+' 金，選一件交出）', ab:1, f:()=>{ const L=spareMatches(q.crit); setOptions(L.map(m=>({t:'交出 '+eqName(m.t,m.inst.key)+(m.inst.sharp?' +'+m.inst.sharp:'')+'（賣給武器店約 '+fmt(eqSellPrice(m.t,m.inst.key))+' 金）', f:()=>{ takeSpare(m); say('info','你交出了'+eqName(m.t,m.inst.key)+(m.inst.sharp?' +'+m.inst.sharp:'')+'。'); finish(q); }})).concat([{t:'算了，再想想', f:N.guild}]),'要交哪一件？（只列出符合條件、身上沒穿的）',true); }});
+    else if(gqReady(q)) o.push({t:'回報：'+q.title+'（領 '+fmt(q.gold)+' 金）', ab:1, f:()=>{ if(q.type==='gather') body[q.res]-=q.need; if(q.type==='item') body.items[q.item]-=q.need; if(q.type==='equip'){ const m=spareMatch(q.crit); if(!m){ N.guild(); return; } takeSpare(m); say('info','你交出了'+eqName(m.t,m.inst.key)+(m.inst.sharp?' +'+m.inst.sharp:'')+'。'); } body.gold+=q.gold; body.rep.people+=1; const r0=guildRank(); body.guildPts=(body.guildPts||0)+(q.pts||1); body.gq=body.gq.filter(x=>x!==q); say('gain','委託完成：'+q.title+'。金幣 +'+fmt(q.gold)+'，民心 +1。'); if(guildRank()!==r0) say('title','公會等級提升：'+guildRank()); status(); N.guild(); }});
     else o.push({t:'放棄：'+q.title+'（'+gqProgress(q)+'）', f:()=>{ body.gq=body.gq.filter(x=>x!==q); say('npc','「單子貼回去。」她連頭都沒抬。'); N.guild(); }}); });
   o.push({t:'看委託欄（'+body.board.list.length+' 張）', f:boardMenu});
   o.push({t:'翻公會的圖鑑與成就', f:()=>{ showAchs(); N.guild(); }});
