@@ -170,7 +170,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.34.0';
+const VERSION='2.35.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -735,7 +735,7 @@ function gearMenu(){
   o.wok=1;
   setOptions(o,(load()>capOf()?'【超重 '+load()+' / '+capOf()+'：離開前要把重量降下來】\n':'')+'裝備與道具　手上：'+wDef(eqW()).n+'｜身上：'+aDef(eqA()).n+(accEq().length?'｜'+accEq().map(D=>D.n).join('、'):'')+'｜攻擊力 '+atkNow()+'｜防禦力 '+defNow()+'｜攻速 '+pInterval().toFixed(1)+' 秒'+(body.flags.whet?'｜已磨刀 ×1.5':'')+(body.flags.oiled?'｜已上油':'')+(atHome?'\n在家：［倉庫］的裝備可以直接穿上，換下來的直接收進地窖（倉庫 '+homeLoad()+' / '+H.cap+' 格）':''),true);
 }
-function leaveFight(){ body.autoHunt=false; endCombat(); status(); if(body.tripFight&&body.trip){ body.tripFight=0; say('narr','你甩掉了牠。路還沒走完。'); tripNext(); return; } if(body.raidFight){ body.raidFight=0; raidIgnored(); status(); N.market(); return; } if(body.flags.routeFight){ body.flags.routeFight=0; say('narr','你退了回來。商隊頭子看了你一眼，沒說話。'); N.south(); return; } if(body.fightRet==='north'){ body.fightRet=null; N.north(true); return; } if(body.regionFight){ const r=body.regionFight; body.regionFight=null; N.region(r); } else N.rift(); }
+function leaveFight(){ body.autoHunt=false; endCombat(); status(); if(body.tripFight&&body.trip){ body.tripFight=0; say('narr','你甩掉了牠。路還沒走完。'); tripNext(); return; } if(body.raidFight){ body.raidFight=0; raidIgnored(); status(); N.market(); return; } if(body.flags.routeFight){ body.flags.routeFight=0; say('narr','你退了回來。商隊頭子看了你一眼，沒說話。'); N.south(); return; } if(body.flags.escortFight){ body.flags.escortFight=0; say('narr','你帶著商隊繞路跑開。貨保住了一半，商隊頭子只付了一半的錢。'); body.gold+=Math.round(cvEscortPay()*.5); say('gain','金幣 +'+fmt(Math.round(cvEscortPay()*.5))); status(); setOptions([{t:'回南方商行', f:caravanMenu},{t:'回市集', f:N.market}]); return; } if(body.fightRet==='north'){ body.fightRet=null; N.north(true); return; } if(body.regionFight){ const r=body.regionFight; body.regionFight=null; N.region(r); } else N.rift(); }
 function hpFlat(){ return (soul.permHp||0)+eatHp()+accSum('hp'); }
 function hpBase(){ const V=stats().vit; return (24+2*V+hpFlat())*vitMul(V); }
 function baseHp(){ return Math.round(hpBase()); }
@@ -895,8 +895,26 @@ function buyQ(title,unit,price,back,f,limit){ qtyMenu({title, unit, max:capN(lim
 /* 賣東西：資源賣給市集的收購商，道具半價賣回道具店。價錢都比在別處買進低，不能買低賣高。稀有素材收購商不收，去拍賣所委託。 */
 const SELL={herbs:15,pelts:25,relics:60,ore:12,grain:4,salt:6,timber:6,fish:4,ink:15,coal:6};
 function itemSell(k){ if(k==='flare') return 0; if(k==='elixir') return 25; return Math.floor((ITEMS[k].price||0)/2); }
+/* ===== 南方商行 =====
+   每週（七天）換一次：本週南方貨（限量的稀有素材）、本週收購單（兩種資源，高價、限量）。
+   另外可以投資下一趟商隊（七天後回來，可能賺也可能被劫），或花一天護送商隊（路上會遇敵）。 */
+const RARE4=['worldleaf','frostcrystal','pearl','starmetal'];
+function cvWeek(){ const w=Math.floor(body.day/7); if(!body.cv||body.cv.w!==w){ const g=RARE4.slice().sort(()=>Math.random()-.5).slice(0,2).map(k=>({k,price:Math.round((30000+Math.random()*30000)/1000)*1000,left:1})); const wants=GATHER.slice().sort(()=>Math.random()-.5).slice(0,2).map(k=>({k,price:Math.max(2,Math.round((SELL[k]||10)*2.5)),left:15+Math.floor(Math.random()*16)})); body.cv={w,goods:g,wants,escort:-1}; } return body.cv; }
+function cvInvestCap(){ return Math.max(1000,Math.round(NUM.killGold(3,Math.max(1,body.maxFloor||1))*60)); }
+function cvSettle(){ const I=body.cvInv; if(!I||body.day<I.back) return; const r=Math.random(); let mul,txt;
+  if(r<.15){ mul=.6; txt='商隊在山口遇劫，貨丟了一半。商隊頭子把剩下的錢推給你，沒說話。'; } else if(r<.40){ mul=1.0; txt='「平盤。南方今年不好做。」商隊頭子把本錢原封不動還你。'; } else if(r<.75){ mul=1.3; txt='「鹽賣得好。」商隊頭子數了三遍，把錢給你。'; } else if(r<.95){ mul=1.6; txt='「核在南方漲瘋了。」商隊頭子難得笑了一下。'; } else { mul=2.0; txt='「這趟走了大運。」他把一袋沉甸甸的錢丟過來。'; }
+  if(body.rep.people>=50&&mul<1.6) mul+=.1; const back=Math.round(I.amt*mul); body.gold+=back; body.cvInv=null; say('npc',txt); say('gain','投資回來了：本金 '+fmt(I.amt)+' → '+fmt(back)+' 金。'); }
 function caravanMenu(){ lastNode=caravanMenu; place('王城市集 · 南方商行'); say('narr',rnd(['帳房裡堆著南方的箱子，商隊頭子在對帳。','商隊頭子抬頭看你一眼。「有貨就拿出來。」','南方的香料味從門縫裡漏出來。']));
-  const o=[]; chiefOptions(o,caravanMenu); o.push({t:'回市集', f:N.market}); setOptions(o,'南方商行　商隊頭子收裂谷核的價比市集高。'); }
+  const C=cvWeek(); cvSettle(); const o=[]; const wk=7-(body.day%7);
+  C.goods.forEach(g=>{ if(g.left>0) o.push({t:'本週南方貨：'+RES[g.k]+'（'+fmt(g.price)+' 金，只有 1 個）', f:()=>{ if(body.gold<g.price){ say('npc','「錢不夠就別摸。」'); caravanMenu(); return; } if(fitR(g.k)<1){ say('info','背包放不下。'); caravanMenu(); return; } body.gold-=g.price; g.left=0; addRes(g.k,1); say('gain',RES[g.k]+' +1。「南方山裡挖出來的。別問誰挖的。」'); status(); caravanMenu(); }}); });
+  C.wants.forEach(w=>{ if(w.left>0) o.push({t:'本週收購單：'+RES[w.k]+'（每個 '+w.price+' 金，還收 '+w.left+' 個，持有 '+(body[w.k]||0)+'）', f:()=>sellQ('賣'+RES[w.k]+'給商隊','個',Math.min(w.left,body[w.k]||0),w.price,caravanMenu,n=>{ body[w.k]-=n; w.left-=n; say('gain',RES[w.k]+' −'+n+'，金幣 +'+fmt(w.price*n)); },'商隊這週要帶去南方，價錢比收購商好，收滿就不收了。')}); });
+  if(body.cvInv) o.push({t:'問投資的事（'+fmt(body.cvInv.amt)+' 金，第 '+body.cvInv.back+' 天回來）', f:()=>{ say('npc','「還在路上。第 '+body.cvInv.back+' 天再來。」'); caravanMenu(); }});
+  else o.push({t:'投資下一趟商隊（最多 '+fmt(cvInvestCap())+' 金，七天後回來，可能賺也可能被劫）', f:()=>qtyMenu({title:'投資商隊', unit:'金', max:Math.min(body.gold,cvInvestCap()), cost:n=>'七天後回來，大約 0.6～2 倍', note:'被劫的話只拿得回六成；民心高的話商隊比較信你，回報多一點。', f:n=>{ body.gold-=n; body.cvInv={amt:n,back:body.day+7}; say('npc','「第 '+(body.day+7)+' 天回來。死了就當你捐了。」'); }, back:caravanMenu})});
+  if(C.escort!==body.day) o.push({t:'護送商隊出城一段（一天，路上可能遇敵，報酬約 '+fmt(cvEscortPay())+' 金）', f:()=>{ C.escort=body.day; spendDay('護送商隊'); if(chance(.6)){ const pool=huntPool().filter(m=>m.tier<=3&&!m.region); const m=rnd(pool.length?pool:[MONSTERS[0]]); say('narr','走到第二個山口，路邊的草動了。'); body.flags.escortFight=1; encounter(m,RIFT_LV[Math.max(1,Math.min(9,body.maxFloor||1))]); return; } cvEscortDone(false); }});
+  chiefOptions(o,caravanMenu); o.push({t:'回市集', f:N.market});
+  setOptions(o,'南方商行　本週的貨和收購單還有 '+wk+' 天換。'); }
+function cvEscortPay(){ return Math.round(NUM.killGold(3,Math.max(1,body.maxFloor||1))*15); }
+function cvEscortDone(fought){ const p=cvEscortPay()*(fought?1.5:1); body.gold+=Math.round(p); body.rep.people+=2; say('npc',fought?'商隊頭子看著地上的東西，又看看你。「多給你一點。」':'一路平安。商隊頭子在路口停下來，數錢給你。'); say('gain','金幣 +'+fmt(Math.round(p))+'，民心 +2。'); status(); setOptions([{t:'回南方商行', f:caravanMenu},{t:'回市集', f:N.market}]); }
 function sellMenu(kind,back){ const o=[];
   if(kind==='res'&&body.cores>0) o.push({t:'賣裂谷核（每枚 '+world.price+' 金，持有 '+body.cores+'；賣越多市價跌越多）', f:()=>{ const p=world.price; sellQ('賣裂谷核','枚',body.cores,p,()=>sellMenu(kind,back),n=>{ body.cores-=n; say('gain','賣出 '+n+' 枚，金幣 +'+fmt(p*n)); movePrice(-0.02*n); if(n>=10) worldEvent(soul.name+' 一口氣賣出 '+n+' 枚裂谷核，市價跌至 '+world.price); },'賣得越多，市價跌得越多。'); }});
   if(kind==='res') Object.keys(SELL).filter(k=>body[k]>0).forEach(k=>o.push({t:'賣'+RES[k]+'（每個 '+SELL[k]+' 金，佔 '+WT[k]+' 格，持有 '+fmt(body[k])+'）', f:()=>sellQ('賣'+RES[k],'個',body[k],SELL[k],()=>sellMenu(kind,back),n=>{ body[k]-=n; say('gain',RES[k]+' −'+n+'，金幣 +'+fmt(SELL[k]*n)+'，騰出 '+n*WT[k]+' 格'); })}));
@@ -2596,6 +2614,7 @@ async function win(){
   endCombat(); status();
   if(body.raidFight){ body.raidFight=0; story(TXT.raid_defend); body.rep.people+=10; body.rep.knight+=5; say('gain','民心 +10，騎士團聲望 +5'); status(); setOptions([{t:'回難民營', f:N.camp},{t:'回市集', f:N.market}]); return; }
   if(body.flags.routeFight){ body.flags.routeFight=0; openRoute(TXT.route_fight); return; }
+  if(body.flags.escortFight){ body.flags.escortFight=0; cvEscortDone(true); return; }
   if(body.fightRet==='north'){ body.fightRet=null; setOptions([{t:'回到村口', f:()=>N.north(true)}]); return; }
   if(body.tripFight&&body.trip){ body.tripFight=0; setOptions([{t:'繼續往前走', f:tripNext}],'探索　'+tripStepText()); return; }
   if(body.regionFight){ const r=body.regionFight; body.regionFight=null; setOptions([{t:'繼續探索', f:()=>N.region(r)},{t:'回王都（一天路程）', f:()=>{ spendDay('回王都'); N.market(); }}]); return; }
@@ -2613,7 +2632,7 @@ async function die(force){
   soul.deaths=(soul.deaths||0)+1; const lost=Math.round(body.gold*.1*(1-eatF('altar'))); body.gold-=lost;
   worldEvent(soul.name+' 倒在外面，被人抬回了教堂。');
   body.day++; if(body.day%3===0) growOld(1,true); worldTick();
-  body.hp=body.hpMax; body.regionFight=null; body.trip=null; body.tripFight=0; body.flags.routeFight=0; body.fightRet=null; body.floor=Math.max(1,Math.min(body.floor,body.maxFloor)); mon=null; body.flags.warned=0; body.flags.lineWarned=0; body.flags.whet=0; body.flags.oiled=0; body.autoHunt=false;
+  body.hp=body.hpMax; body.regionFight=null; body.trip=null; body.tripFight=0; body.flags.routeFight=0; body.flags.escortFight=0; body.fightRet=null; body.floor=Math.max(1,Math.min(body.floor,body.maxFloor)); mon=null; body.flags.warned=0; body.flags.lineWarned=0; body.flags.whet=0; body.flags.oiled=0; body.autoHunt=false;
   if(body.raidFight){ body.raidFight=0; raidIgnored(); }
   story(soul.deaths>1?rnd(TXT.death_wake_re):TXT.death_wake);
   say('info',(lost?'香油錢：金幣 −'+lost+'。':'祭壇的印在你胸口發亮。修女沒有碰你的錢袋。')+'第 '+body.day+' 天。HP 回滿。'+(sysIs('shadow')?'':'')); status(); N.chapel();
