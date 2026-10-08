@@ -170,7 +170,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.33.0';
+const VERSION='2.34.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -895,13 +895,16 @@ function buyQ(title,unit,price,back,f,limit){ qtyMenu({title, unit, max:capN(lim
 /* 賣東西：資源賣給市集的收購商，道具半價賣回道具店。價錢都比在別處買進低，不能買低賣高。稀有素材收購商不收，去拍賣所委託。 */
 const SELL={herbs:15,pelts:25,relics:60,ore:12,grain:4,salt:6,timber:6,fish:4,ink:15,coal:6};
 function itemSell(k){ if(k==='flare') return 0; if(k==='elixir') return 25; return Math.floor((ITEMS[k].price||0)/2); }
+function caravanMenu(){ lastNode=caravanMenu; place('王城市集 · 南方商行'); say('narr',rnd(['帳房裡堆著南方的箱子，商隊頭子在對帳。','商隊頭子抬頭看你一眼。「有貨就拿出來。」','南方的香料味從門縫裡漏出來。']));
+  const o=[]; chiefOptions(o,caravanMenu); o.push({t:'回市集', f:N.market}); setOptions(o,'南方商行　商隊頭子收裂谷核的價比市集高。'); }
 function sellMenu(kind,back){ const o=[];
+  if(kind==='res'&&body.cores>0) o.push({t:'賣裂谷核（每枚 '+world.price+' 金，持有 '+body.cores+'；賣越多市價跌越多）', f:()=>{ const p=world.price; sellQ('賣裂谷核','枚',body.cores,p,()=>sellMenu(kind,back),n=>{ body.cores-=n; say('gain','賣出 '+n+' 枚，金幣 +'+fmt(p*n)); movePrice(-0.02*n); if(n>=10) worldEvent(soul.name+' 一口氣賣出 '+n+' 枚裂谷核，市價跌至 '+world.price); },'賣得越多，市價跌得越多。'); }});
   if(kind==='res') Object.keys(SELL).filter(k=>body[k]>0).forEach(k=>o.push({t:'賣'+RES[k]+'（每個 '+SELL[k]+' 金，佔 '+WT[k]+' 格，持有 '+fmt(body[k])+'）', f:()=>sellQ('賣'+RES[k],'個',body[k],SELL[k],()=>sellMenu(kind,back),n=>{ body[k]-=n; say('gain',RES[k]+' −'+n+'，金幣 +'+fmt(SELL[k]*n)+'，騰出 '+n*WT[k]+' 格'); })}));
   else Object.keys(ITEMS).filter(k=>itemSell(k)>0&&itemN(k)>0).forEach(k=>o.push({t:'賣'+ITEMS[k].n+'（每個 '+fmt(itemSell(k))+' 金，佔 '+iW(k)+' 格，持有 '+itemN(k)+'）', f:()=>sellQ('賣'+ITEMS[k].n,'個',itemN(k),itemSell(k),()=>sellMenu(kind,back),n=>{ body.items[k]-=n; say('gain',ITEMS[k].n+' −'+n+'，金幣 +'+fmt(itemSell(k)*n)+'，騰出 '+n*iW(k)+' 格'); })}));
   if(!o.length) o.push({t:'（沒有可以賣的東西）', dis:true, f:()=>{}});
   o.push({t:'返回', f:back});
   o.wok=1;
-  setOptions(o,(kind==='res'?'收購商　稀有素材他不敢收，要賣去拍賣所委託。':'道具店老闆娘　「用過的不收。沒拆的，半價。」')+'｜背包 '+load()+' / '+capOf()+' 格｜金幣 '+fmt(body.gold),true); }
+  setOptions(o,(kind==='res'?'收購商　裂谷核照今天的市價收；稀有素材他不敢收，要賣去拍賣所委託。':'道具店老闆娘　「用過的不收。沒拆的，半價。」')+'｜背包 '+load()+' / '+capOf()+' 格｜金幣 '+fmt(body.gold),true); }
 /* 賣裝備：身上穿著、手上拿著的不能賣。
    材料做的、店裡買的：照材料或原價算一半；打怪、任務、神殿給的：照拍賣分級（精良 1,000、稀有 1 萬、傳說 10 萬）。 */
 const EQ_VAL={'W:sword':20,'A:leather':40,'W:iron':150,'W:steel':600,'W:knife':40,'W:club':40,'W:woodspear':45,'W:woodstaff':40,'W:dagger':60,'W:bone':100,'W:stoneaxe':60,'W:ironspear':72,'W:axe':96,'W:hammer':144,'W:ram':440,'W:hook':120,'W:assassin':240,'W:poisondagger':75,'W:scimitar':300,
@@ -1320,6 +1323,7 @@ N.throne=()=>{ lastNode=N.throne; if(pendingEvent(N.throne)) return;
   if(alive&&body.flags.cured&&!body.flags.kingCured) o.push({t:'獻上萬靈藥', ab:1, f:()=>{ body.flags.kingCured=1; body.rep.crown+=40; story(TXT.throne_cure); say('gain','王室聲望 +40。國王欠你一條命。'); say('npc','國王解下頸上的項鍊。「王家的東西。你戴著。」'); giveAcc('royalneck'); addLuck(15,'救了一個王'); status(); N.throne(); }});
   const er=endingReady();
   if(fact('ledger')&&!body.flags.ending){ if(er.includes('expose')) o.push({t:'把帳冊和證人帶到王座前，揭發神殿', ab:1, f:()=>ending('expose')}); else o.push({t:'（揭發：要有帳冊、願意作證的孩子，還要國王活著或王室聲望 60）', dis:true, f:()=>{}}); }
+  if(body.relics>0) o.push({t:'把遺物交給王室（每件王室聲望 +5、民心 +3，持有 '+body.relics+'）', f:()=>qtyMenu({title:'把遺物交給王室', unit:'件', max:body.relics, cost:n=>'王室聲望 +'+5*n+'、民心 +'+3*n, f:n=>{ body.relics-=n; body.rep.crown+=5*n; body.rep.people+=3*n; say('gain','遺物 −'+n+'，王室聲望 +'+5*n+'，民心 +'+3*n); }, back:N.throne})});
   o.push({t:'回大殿', f:N.hall}); o.push({t:'去市集', f:N.market}); o.push({t:'去裂谷', f:N.rift});
   omniOptions(o,'throne',N.throne,['國王','奧文']); townExtras(o,N.throne); setOptions(o);
 };
@@ -1975,7 +1979,7 @@ N.south=()=>{ lastNode=N.south;
 };
 /* 商隊頭子的生意：商路剛通時在哨站；商隊進城後搬到市集口的南方商行 */
 function chiefOptions(o,back){
-  const tag=caravanIn()?'南方商行：':'';
+  const tag='';
   o.push({t:tag+'跟商隊頭子買一把曲刀（300 金）', dis:body.gold<300, f:()=>{ body.gold-=300; say('npc','「南方的鋼。別拿去砍柴。」'); giveWeapon('scimitar'); status(); back(); }});
   o.push({t:tag+'跟商隊做生意（裂谷核每枚 '+Math.round(world.price*1.6)+' 金，持有 '+body.cores+'）', dis:body.cores<1, f:()=>{ const p=Math.round(world.price*1.6); sellQ('跟商隊做生意','枚',body.cores,p,back,n=>{ body.cores-=n; say('gain','賣出 '+n+' 枚，金幣 +'+fmt(p*n)); }); }});
 }
@@ -2005,10 +2009,8 @@ N.market=()=>{ lastNode=N.market; if(pendingEvent(N.market)) return;
   say('info','裂谷核市價 <b>'+world.price+'</b> 金｜回春藥 '+body.elixirPrice+' 金');
   if(!canSeeWorld()&&worldLog.length&&chance(.35)&&body.flags.lastRumor!==worldLog[worldLog.length-1].ts){ body.flags.lastRumor=worldLog[worldLog.length-1].ts; const e=worldLog[worldLog.length-1].t; const vague=e.replace(/^\S+ /,'有人').replace(/\d[\d,]* ?枚/g,'一大批').replace(/\d[\d,]* ?金/g,'一大筆錢').replace(/市價跌至 \d+/,'把市價砸下去').replace(/\d[\d,]*/g,'很多'); say('npc','商人壓低聲音：「'+vague+'。別問我是誰。」'); }
   const o=[];
-  if(body.cores>0) o.push({t:'賣裂谷核（每枚 '+world.price+' 金，持有 '+body.cores+'）', f:()=>{ const p=world.price; sellQ('賣裂谷核','枚',body.cores,p,N.market,n=>{ body.cores-=n; say('gain','賣出 '+n+' 枚，金幣 +'+fmt(p*n)); movePrice(-0.02*n); if(n>=10) worldEvent(soul.name+' 一口氣賣出 '+n+' 枚裂谷核，市價跌至 '+world.price); },'賣得越多，市價跌得越多。'); }});
-  if(Object.keys(SELL).some(k=>body[k]>0)) o.push({t:'把資源賣給收購商（背包 '+load()+' / '+capOf()+'）', f:()=>sellMenu('res',N.market)});
-  if(body.relics>0) o.push({t:'把遺物交給王室（每件王室聲望 +5、民心 +3，持有 '+body.relics+'）', f:()=>qtyMenu({title:'把遺物交給王室', unit:'件', max:body.relics, cost:n=>'王室聲望 +'+5*n+'、民心 +'+3*n, f:n=>{ body.relics-=n; body.rep.crown+=5*n; body.rep.people+=3*n; say('gain','遺物 −'+n+'，王室聲望 +'+5*n+'，民心 +'+3*n); }, back:N.market})});
-  if(caravanIn()) chiefOptions(o,N.market);
+  o.push({t:'收購商（裂谷核、資源；裂谷核今天 '+world.price+' 金）', f:()=>sellMenu('res',N.market)});
+  if(caravanIn()) o.push({t:'南方商行（商隊頭子）', f:caravanMenu});
   if(body.home) o.push({t:'回家（倉庫 '+homeLoad()+' / '+body.home.cap+' 格）', f:N.home}); else o.push({t:'租下市集後巷的一間屋子（'+fmt(HOME_PRICE)+' 金，有自己的倉庫）', dis:body.gold<HOME_PRICE, f:()=>{ body.gold-=HOME_PRICE; body.home={cap:HOME_CAP0,res:{},items:{},eq:[]}; say('npc','房東把鑰匙丟給你。「屋頂會漏，地窖是乾的。東西放地窖。」'); say('gain','你有自己的住處了。倉庫 '+HOME_CAP0+' 格。'); status(); N.home(); }});
   o.push({t:'冒險者公會', f:N.guild}); o.push({t:'拍賣所', f:N.auction}); o.push({t:'酒館（休息、傳聞）', f:N.tavern}); o.push({t:'教堂（治療、祝福、轉生）', f:N.chapel}); o.push({t:'武器店（武器、防具、飾品）', f:N.wshop}); o.push({t:'道具店', f:stallMenu});
   o.push({t:'去北門難民營', f:N.camp}); o.push({t:'去南方哨站（一天路程）', f:N.south});
