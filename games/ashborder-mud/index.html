@@ -170,7 +170,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.32.1';
+const VERSION='2.33.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -617,7 +617,7 @@ function accHas(st){ return accEq().some(D=>D[st]); }
 function accStat(k){ const D=ACCS[k]; const p=[]; if(D.atk) p.push('攻擊力 +'+D.atk); if(D.def) p.push('防禦力 +'+D.def); if(D.hp) p.push('HP +'+D.hp); if(D.spd) p.push('攻速 '+(D.spd>0?'+':'')+D.spd.toFixed(1)+' 秒'); return p.join('，'); }
 function accName(k){ const D=ACCS[k]; const st=accStat(k); return D.n+'［'+ASLOT[D.slot]+(isRare(k)?'・稀有':'')+'］'+(st?'（'+st+'）':'')+(D.desc?'　'+D.desc:''); }
 function hasAcc(k){ return !!(body.accs||[]).find(a=>a.key===k); }
-function giveAcc(k){ body.accs=body.accs||[]; body.acc=body.acc||{}; body.accs.push({key:k}); const s=ACCS[k].slot; const dup=eqCount('C',k)>1; let auto=false; setTimeout(overNote,0); if(s==='ring'){ const r=ringsOn(); if(r.length<RING_MAX){ r.push(k); auto=true; } } else if(!body.acc[s]){ body.acc[s]=k; auto=true; } if(ACCS[k].heat) body.regionFlags.heatArmor=1; if(ACCS[k].cold) body.regionFlags.furCoat=1; say('gain','獲得'+(isRare(k)?'稀有裝備':'裝備')+'：'+accName(k)+(auto?'　已經戴上。':dup?'　（你現在有 '+eqCount('C',k)+' 件，多的可以賣給武器店）':'　到「裝備與道具」可以換上。')); }
+function giveAcc(k){ body.accs=body.accs||[]; body.acc=body.acc||{}; body.accs.push({key:k}); ownedMark('C',k); const s=ACCS[k].slot; const dup=eqCount('C',k)>1; let auto=false; setTimeout(overNote,0); if(s==='ring'){ const r=ringsOn(); if(r.length<RING_MAX){ r.push(k); auto=true; } } else if(!body.acc[s]){ body.acc[s]=k; auto=true; } if(ACCS[k].heat) body.regionFlags.heatArmor=1; if(ACCS[k].cold) body.regionFlags.furCoat=1; say('gain','獲得'+(isRare(k)?'稀有裝備':'裝備')+'：'+accName(k)+(auto?'　已經戴上。':dup?'　（你現在有 '+eqCount('C',k)+' 件，多的可以賣給武器店）':'　到「裝備與道具」可以換上。')); }
 /* 掉落率（v2.13）：
    隨機寶物只剩兩枚沒有別的來源的戒指（幸運戒指、雷之戒）。三階以上魔物每隻 1/5000。
      第 4 層自動狩獵（2 秒一場）：拿到其中一枚 90% 約 12.5 小時，指定那一枚約 25 小時。
@@ -653,7 +653,12 @@ function aDef(a){ return ARMORS[a.key]||ARMORS.leather; }
 function aName(a){ const D=aDef(a); return D.n+(a.sharp?' +'+a.sharp:'')+'［'+ATYPE[D.type]+'］（防禦力 +'+(D.def+(a.sharp||0))+(D.spd?'，攻速 '+(D.spd>0?'+':'')+D.spd.toFixed(1)+' 秒':'')+'）'; }
 function aText(a){ const D=aDef(a); return aName(a)+(D.desc?'　'+D.desc:''); }
 function hasA(k){ return !!(body.armors||[]).find(a=>a.key===k); }
-function giveArmor(k){ body.armors.push({key:k}); const dupA=eqCount('A',k)>1; overNote(); if(ARMORS[k].heat) body.regionFlags.heatArmor=1; if(ARMORS[k].cold) body.regionFlags.furCoat=1; say('gain','獲得防具：'+aText({key:k})+(dupA?'　（你現在有 '+eqCount('A',k)+' 件，多的可以賣給武器店）':canWear({key:k})?'　到「裝備與道具」可以換上。':'　'+job().n+'穿不了，先收著。')); }
+/* 圖鑑記「曾經持有過」的種類：賣掉、交出去、存進倉庫都還算數，重複拿到只算一次 */
+function ownedReg(){ const f=body.flags; f.owned=f.owned||{W:{},A:{},C:{}}; const o=f.owned; (body.weapons||[]).forEach(w=>o.W[w.key]=1); (body.armors||[]).forEach(a=>o.A[a.key]=1); (body.accs||[]).forEach(a=>o.C[a.key]=1); ((body.home&&body.home.eq)||[]).forEach(e=>o[e.t][e.k]=1); return o; }
+function ownedMark(t,k){ if(!body) return; ownedReg()[t][k]=1; }
+function everW(k){ return !!ownedReg().W[k]; } function everA(k){ return !!ownedReg().A[k]; } function everC(k){ return !!ownedReg().C[k]; }
+function ownedN(t,D){ const o=ownedReg()[t]; return Object.keys(o).filter(k=>D[k]).length; }
+function giveArmor(k){ body.armors.push({key:k}); ownedMark('A',k); const dupA=eqCount('A',k)>1; overNote(); if(ARMORS[k].heat) body.regionFlags.heatArmor=1; if(ARMORS[k].cold) body.regionFlags.furCoat=1; say('gain','獲得防具：'+aText({key:k})+(dupA?'　（你現在有 '+eqCount('A',k)+' 件，多的可以賣給武器店）':canWear({key:k})?'　到「裝備與道具」可以換上。':'　'+job().n+'穿不了，先收著。')); }
 const ITEMS={
   hpot:{n:'藥水', d:'回復五成HP', out:1, fight:1, price:30},
   smoke:{n:'煙幕彈', d:'戰鬥中必定脫身（魔王除外）', fight:1, price:25},
@@ -677,7 +682,7 @@ function wAtk(){ const w=eqW(); return wDef(w).atk+(w.sharp||0); }
 function wName(w){ const D=wDef(w); return D.n+(w.sharp?' +'+w.sharp:'')+'（攻擊力 +'+(D.atk+(w.sharp||0))+(w.sharp?'，含強化 +'+w.sharp:'')+(D.spd?'，攻速 '+(D.spd>0?'+':'−')+Math.abs(D.spd).toFixed(1)+' 秒':'')+'）'; }
 function wText(w){ const D=wDef(w); return '［'+WTYPE[D.type]+'］'+wName(w)+'　'+D.desc; }
 function hasW(k){ return !!(body.weapons||[]).find(w=>w.key===k); }
-function giveWeapon(k){ body.weapons.push({key:k,sharp:0}); const dupW=eqCount('W',k)>1; overNote(); say('gain','獲得武器：'+wText({key:k,sharp:0})+(dupW?'。（你現在有 '+eqCount('W',k)+' 把，多的可以賣給武器店）':canUse({key:k})?'。到「裝備與道具」可以換上。':'。你的職業用不了它，但圖鑑會記著。')); }
+function giveWeapon(k){ body.weapons.push({key:k,sharp:0}); ownedMark('W',k); const dupW=eqCount('W',k)>1; overNote(); say('gain','獲得武器：'+wText({key:k,sharp:0})+(dupW?'。（你現在有 '+eqCount('W',k)+' 把，多的可以賣給武器店）':canUse({key:k})?'。到「裝備與道具」可以換上。':'。你的職業用不了它，但圖鑑會記著。')); }
 function addItem(k,n){ body.items=body.items||{}; if(n<=0){ body.items[k]=(body.items[k]||0)+n; return n; } const can=Math.min(n,fitI(k)); body.items[k]=(body.items[k]||0)+can; if(can<n){ if(!body.autoHunt) say('info','背包滿了，'+ITEMS[k].n+'只裝得下 '+can+'，還有 '+(n-can)+' 放在腳邊。'); overAdd('items',k,n-can); } return can; }
 function itemN(k){ return (body&&body.items&&body.items[k])||0; }
 function itemsText(){ const l=Object.keys(ITEMS).filter(k=>itemN(k)>0).map(k=>ITEMS[k].n+' ×'+itemN(k)); return l.length?l.join('、'):'無'; }
@@ -1242,14 +1247,14 @@ const ACHS=[
  {id:'trader10', n:'行商', d:'做成十筆交換', c:()=>(body.flags.exCount||0)>=10},
  {id:'trader50', n:'商路上的人', d:'做成五十筆交換', c:()=>(body.flags.exCount||0)>=50},
  {id:'routes', n:'情報販子', d:'知道所有的交換管道', c:()=>EXCH.every(e=>exKnown(e.id))},
- {id:'armory', n:'武器庫', d:'收集二十把武器', c:()=>(body.weapons||[]).length>=20},
- {id:'armory_all', n:'武器大師', d:'集齊全部三十三把武器', c:()=>Object.keys(WEAPONS).every(hasW)},
- {id:'typemaster', n:'五藝', d:'五種武器各拿到一把（不必能用）', c:()=>Object.keys(WTYPE).every(t=>(body.weapons||[]).some(w=>wDef(w).type===t))},
- {id:'wardrobe', n:'鐵壁', d:'收集十二件防具', c:()=>(body.armors||[]).length>=12},
- {id:'wardrobe_all', n:'衣冠', d:'集齊全部二十四件防具', c:()=>Object.keys(ARMORS).every(hasA)},
- {id:'armortype', n:'四裝', d:'四種防具各拿到一件（不必能穿）', c:()=>Object.keys(ATYPE).every(t=>(body.armors||[]).some(a=>aDef(a).type===t))},
+ {id:'armory', n:'武器庫', d:'拿到過二十種武器', c:()=>ownedN('W',WEAPONS)>=20},
+ {id:'armory_all', n:'武器大師', d:'全部三十三種武器都拿到過', c:()=>Object.keys(WEAPONS).every(everW)},
+ {id:'typemaster', n:'五藝', d:'五種武器各拿到一把（不必能用）', c:()=>Object.keys(WTYPE).every(t=>Object.keys(ownedReg().W).some(k=>WEAPONS[k]&&WEAPONS[k].type===t))},
+ {id:'wardrobe', n:'鐵壁', d:'拿到過十二種防具', c:()=>ownedN('A',ARMORS)>=12},
+ {id:'wardrobe_all', n:'衣冠', d:'全部防具都拿到過', c:()=>Object.keys(ARMORS).every(everA)},
+ {id:'armortype', n:'四裝', d:'四種防具各拿到一件（不必能穿）', c:()=>Object.keys(ATYPE).every(t=>Object.keys(ownedReg().A).some(k=>ARMORS[k]&&ARMORS[k].type===t))},
  {id:'fullset', n:'全副武裝', d:'鞋、手套、項鍊、戒指四個部位都戴上', c:()=>Object.keys(ASLOT).every(s=>s==='ring'?ringsOn().length>0:body.acc&&body.acc[s])},
- {id:'jeweler', n:'珠寶匠', d:'集齊全部稀有裝備（項鍊與戒指）', c:()=>RARE_ACC.every(hasAcc)},
+ {id:'jeweler', n:'珠寶匠', d:'全部稀有裝備（項鍊與戒指）都拿到過', c:()=>RARE_ACC.every(everC)},
  {id:'prospector', n:'淘金客', d:'四種稀有素材各找到過一個', c:()=>['worldleaf','frostcrystal','pearl','starmetal'].every(k=>body.flags.rareFound&&body.flags.rareFound[k])},
  {id:'guild_c', n:'C 級冒險者', d:'公會點數十五點', c:()=>(body.guildPts||0)>=15},
  {id:'guild_s', n:'S 級冒險者', d:'公會點數六十點', c:()=>(body.guildPts||0)>=60},
@@ -1279,7 +1284,7 @@ function checkAchs(){ if(!body) return; soul.ach=soul.ach||{}; ACHS.forEach(a=>{
 function renderAchs(){ const c=document.getElementById('achCard'); if(!body){ c.innerHTML='<h2>圖鑑與成就</h2><div class="slot"><span>尚未降生。</span></div>'; return; }
   const got=Object.keys(soul.ach||{}).length; const known=Object.keys(FACT_NAME).filter(fact).length;
   const kv=(k,v)=>'<div class="kv"><i>'+k+'</i><em>'+v+'</em></div>';
-  const col='<div class="slot"><b>圖鑑</b><div class="cols">'+kv('認識的人',NPCS.filter(n=>body.talked[n.n]).length+' / '+NPCS.length)+kv('交換管道',EXCH.filter(e=>exKnown(e.id)).length+' / '+EXCH.length)+kv('秘密',known+' / '+Object.keys(FACT_NAME).length)+kv('武器',(body.weapons||[]).length+' / '+Object.keys(WEAPONS).length)+kv('防具',(body.armors||[]).length+' / '+Object.keys(ARMORS).length)+kv('飾品',(body.accs||[]).length+' / '+Object.keys(ACCS).length)+kv('用過的道具',Object.keys(body.flags.used||{}).length+' / '+Object.keys(ITEMS).length)+kv('到過的地方',PLACES.filter(p=>body.flags.been&&body.flags.been[p]).length+' / '+PLACES.length)+kv('魔物',Object.keys(body.flags.seen||{}).length+' / '+(MONSTERS.length+1))+'</div></div>';
+  const col='<div class="slot"><b>圖鑑</b><div class="cols">'+kv('認識的人',NPCS.filter(n=>body.talked[n.n]).length+' / '+NPCS.length)+kv('交換管道',EXCH.filter(e=>exKnown(e.id)).length+' / '+EXCH.length)+kv('秘密',known+' / '+Object.keys(FACT_NAME).length)+kv('武器',ownedN('W',WEAPONS)+' / '+Object.keys(WEAPONS).length)+kv('防具',ownedN('A',ARMORS)+' / '+Object.keys(ARMORS).length)+kv('飾品',ownedN('C',ACCS)+' / '+Object.keys(ACCS).length)+kv('用過的道具',Object.keys(body.flags.used||{}).length+' / '+Object.keys(ITEMS).length)+kv('到過的地方',PLACES.filter(p=>body.flags.been&&body.flags.been[p]).length+' / '+PLACES.length)+kv('魔物',Object.keys(body.flags.seen||{}).length+' / '+(MONSTERS.length+1))+'</div></div>';
   c.innerHTML='<h2>圖鑑與成就（'+got+'/'+ACHS.length+'）</h2>'+col+ACHS.map(a=>'<div class="ach'+(soul.ach&&soul.ach[a.id]?' on':'')+'"><b>'+(soul.ach&&soul.ach[a.id]?'✓ ':'')+a.n+'</b>　'+a.d+'</div>').join(''); }
 function showAchs(){ if(!body) return; const got=ACHS.filter(a=>soul.ach&&soul.ach[a.id]); say('info','圖鑑：認識的人 '+NPCS.filter(n=>body.talked[n.n]).length+'/'+NPCS.length+'、交換管道 '+EXCH.filter(e=>exKnown(e.id)).length+'/'+EXCH.length+'、秘密 '+Object.keys(FACT_NAME).filter(fact).length+'/'+Object.keys(FACT_NAME).length+'、武器 '+(body.weapons||[]).length+'/'+Object.keys(WEAPONS).length+'、防具 '+(body.armors||[]).length+'/'+Object.keys(ARMORS).length+'、飾品 '+(body.accs||[]).length+'/'+Object.keys(ACCS).length+'、用過的道具 '+Object.keys(body.flags.used||{}).length+'/'+Object.keys(ITEMS).length+'、到過的地方 '+PLACES.filter(p=>body.flags.been&&body.flags.been[p]).length+'/'+PLACES.length+'\n成就 '+got.length+'/'+ACHS.length+'：'+(got.map(a=>a.n).join('、')||'還沒有')+'\n未達成：'+ACHS.filter(a=>!(soul.ach&&soul.ach[a.id])).map(a=>a.n+'（'+a.d+'）').join('、')); }
 const N={};
