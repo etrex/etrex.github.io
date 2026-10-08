@@ -169,7 +169,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.29.3';
+const VERSION='2.29.4';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -276,7 +276,9 @@ async function sget(k,shared=false){ if(!hasStore){ if(LS){ try{ const v=LS.getI
 async function sset(k,v,shared=false){ if(!hasStore){ if(LS){ try{ LS.setItem(lsKey(k,shared),JSON.stringify(v)); }catch(e){} } else mem[(shared?'s:':'p:')+k]=v; return; } try{await window.storage.set(k,JSON.stringify(v),shared)}catch(e){} }
 async function slist(prefix,shared=false){ if(!hasStore){ if(LS){ const p=lsKey(prefix,shared); const out=[]; for(let i=0;i<LS.length;i++){ const key=LS.key(i); if(key&&key.startsWith(p)) out.push(key.slice(('ab:'+(shared?'s:':'p:')).length)); } return out; } return Object.keys(mem).filter(k=>k.startsWith((shared?'s:':'p:')+prefix)).map(k=>k.slice(2)); } try{const r=await window.storage.list(prefix,shared);return r?r.keys:[]}catch{return[]} }
 let saveTimer=null;
-function save(){ clearTimeout(saveTimer); saveTimer=setTimeout(()=>sset('save:v3',{soul,body,savedAt:Date.now()},false),300); }
+/* 讀檔畫面還沒選「繼續」或「重新開始」之前不能存檔，否則空白角色會蓋掉舊紀錄 */
+let bootLock=false;
+function save(){ if(bootLock) return; clearTimeout(saveTimer); saveTimer=setTimeout(()=>sset('save:v3',{soul,body,savedAt:Date.now()},false),300); }
 
 /* ============================================================
    系統：十四套，每套 2～3 條固有技能，第一天全開
@@ -2523,10 +2525,11 @@ function offlineHunt(saved){
   return false;
 }
 function boot(saved){
-  place('主神空間'); clearLog();
+  bootLock=false; place('主神空間'); clearLog();
   if(saved&&saved.soul&&saved.soul.name){
+    bootLock=true;
     story(TXT.back(esc(saved.soul.name)));
-    setOptions([{t:'繼續（'+esc(saved.soul.name)+'，'+(saved.soul.system?saved.soul.system.name:'尚未締約')+(saved.body?'，Lv '+saved.body.level:'')+'）', f:()=>{ soul=saved.soul; body=saved.body; if(soul.system&&!soul.system.cd) soul.system.cd={}; const offl=(body&&sysIs('idle')&&body.idleArmed); if(body&&!body.floor){ body.floor=1; body.maxFloor=1; } if(body&&!body.weapons){ body.weapons=[{key:'sword',sharp:Math.max(0,(body.weapon||2)-2)}]; body.wpn=0; delete body.weapon; } if(body&&!body.items) body.items={}; if(body&&!body.qs) body.qs={}; if(body&&!body.job) body.job='swordsman'; if(body&&!body.armors){ body.armors=[{key:'leather'}]; body.arm=0; body.armorPlus=Math.max(0,(body.armor||2)-2); if(body.regionFlags&&body.regionFlags.heatArmor) body.armors.push({key:'heat'}); if(body.regionFlags&&body.regionFlags.furCoat) body.armors.push({key:'fur'}); } if(body&&!body.accs){ body.accs=[]; body.acc={}; } if(body&&body.eaten){ const mp={dog:'wolf',spider:'bug',beast:'golem'}; Object.keys(mp).forEach(k=>{ if(body.eaten[k]){ body.eaten[mp[k]]=1; delete body.eaten[k]; } }); } if(body&&!body.flags.rift10){ body.flags.rift10=1; if(body.floor>=6) body.floor=5; if(body.maxFloor>=6) body.maxFloor=5; delete body.flags.fl6; delete body.flags.gate5; } if(body) ['worldleaf','frostcrystal','pearl','starmetal'].forEach(k=>{ if(body[k]===undefined) body[k]=0; }); if(body&&body.armors&&!canWear(eqA())){ const wi=body.armors.findIndex(canWear); body.arm=wi<0?0:wi; } if(body&&body.stopHp===undefined){ body.stopHp=0.3; body.mode='attack'; } if(body&&body.autoAct===undefined) body.autoAct=false; if(body&&body.rep.people===undefined){ body.rep.people=0; body.herbs=0; } if(body&&!body.depth){ body.depth={}; body.regionFlags={}; body.pelts=0; body.relics=0; body.ore=0; } if(body&&body.grain===undefined){ ['grain','salt','timber','fish','ink','coal'].forEach(k=>body[k]=0); body.talked={}; } if(body&&body.coreCap<30) body.coreCap+=20; if(body&&body.autoAct===undefined) body.autoAct=false; if(body&&body.rep.people===undefined){ body.rep.people=0; body.herbs=0; } if(body&&!body.depth){ body.depth={}; body.regionFlags={}; body.pelts=0; body.relics=0; body.ore=0; } if(body&&body.grain===undefined){ ['grain','salt','timber','fish','ink','coal'].forEach(k=>body[k]=0); body.talked={}; } if(body&&body.coreCap<30) body.coreCap+=20; if(body){ bagMigrate(); enhMigrate(); } clearLog(); status(); if(body&&body.trip){ body.tripFight=0; const T=body.trip; place(REGIONS[T.r].name+' · '+REGIONS[T.r].depths[T.d-1]); curZone={r:T.r,d:T.d}; say('narr','你還在路上。這一趟還有 '+(T.max-T.step)+' 步。'); tripNode(); return; } if(body){ if(offl){ const dead=offlineHunt(saved); if(dead) return; N.rift(); } else N.market(); } else startQuestionnaire(); }},{t:'重新開始（刪除存檔）', f:()=>boot(null)}]);
+    setOptions([{t:'繼續（'+esc(saved.soul.name)+'，'+(saved.soul.system?saved.soul.system.name:'尚未締約')+(saved.body?'，Lv '+saved.body.level:'')+'）', f:()=>{ bootLock=false; soul=saved.soul; body=saved.body; if(soul.system&&!soul.system.cd) soul.system.cd={}; const offl=(body&&sysIs('idle')&&body.idleArmed); if(body&&!body.floor){ body.floor=1; body.maxFloor=1; } if(body&&!body.weapons){ body.weapons=[{key:'sword',sharp:Math.max(0,(body.weapon||2)-2)}]; body.wpn=0; delete body.weapon; } if(body&&!body.items) body.items={}; if(body&&!body.qs) body.qs={}; if(body&&!body.job) body.job='swordsman'; if(body&&!body.armors){ body.armors=[{key:'leather'}]; body.arm=0; body.armorPlus=Math.max(0,(body.armor||2)-2); if(body.regionFlags&&body.regionFlags.heatArmor) body.armors.push({key:'heat'}); if(body.regionFlags&&body.regionFlags.furCoat) body.armors.push({key:'fur'}); } if(body&&!body.accs){ body.accs=[]; body.acc={}; } if(body&&body.eaten){ const mp={dog:'wolf',spider:'bug',beast:'golem'}; Object.keys(mp).forEach(k=>{ if(body.eaten[k]){ body.eaten[mp[k]]=1; delete body.eaten[k]; } }); } if(body&&!body.flags.rift10){ body.flags.rift10=1; if(body.floor>=6) body.floor=5; if(body.maxFloor>=6) body.maxFloor=5; delete body.flags.fl6; delete body.flags.gate5; } if(body) ['worldleaf','frostcrystal','pearl','starmetal'].forEach(k=>{ if(body[k]===undefined) body[k]=0; }); if(body&&body.armors&&!canWear(eqA())){ const wi=body.armors.findIndex(canWear); body.arm=wi<0?0:wi; } if(body&&body.stopHp===undefined){ body.stopHp=0.3; body.mode='attack'; } if(body&&body.autoAct===undefined) body.autoAct=false; if(body&&body.rep.people===undefined){ body.rep.people=0; body.herbs=0; } if(body&&!body.depth){ body.depth={}; body.regionFlags={}; body.pelts=0; body.relics=0; body.ore=0; } if(body&&body.grain===undefined){ ['grain','salt','timber','fish','ink','coal'].forEach(k=>body[k]=0); body.talked={}; } if(body&&body.coreCap<30) body.coreCap+=20; if(body&&body.autoAct===undefined) body.autoAct=false; if(body&&body.rep.people===undefined){ body.rep.people=0; body.herbs=0; } if(body&&!body.depth){ body.depth={}; body.regionFlags={}; body.pelts=0; body.relics=0; body.ore=0; } if(body&&body.grain===undefined){ ['grain','salt','timber','fish','ink','coal'].forEach(k=>body[k]=0); body.talked={}; } if(body&&body.coreCap<30) body.coreCap+=20; if(body){ bagMigrate(); enhMigrate(); } clearLog(); status(); if(body&&body.trip){ body.tripFight=0; const T=body.trip; place(REGIONS[T.r].name+' · '+REGIONS[T.r].depths[T.d-1]); curZone={r:T.r,d:T.d}; say('narr','你還在路上。這一趟還有 '+(T.max-T.step)+' 步。'); tripNode(); return; } if(body){ if(offl){ const dead=offlineHunt(saved); if(dead) return; N.rift(); } else N.market(); } else startQuestionnaire(); }},{t:'重新開始（刪除存檔）', f:()=>boot(null)}]);
     return;
   }
   story(TXT.void); story(TXT.name);
@@ -2562,7 +2565,12 @@ function birth(jobKey){ body=newBody(); body.job=jobKey; JOB_START[jobKey].forEa
 let curBuild=null;
 Object.keys(N).forEach(k=>{ const f=N[k]; N[k]=(...a)=>{ curBuild=()=>N[k](...a); return f(...a); }; });
 /* 啟動 */
-(async()=>{ await pullWorld(); const saved=await sget('save:v3',false); boot(saved); status(); setInterval(async()=>{ await pushPresence(); await pullWorld(); status(); },8000); })();
+/* 新版本檢查：GitHub Pages 會快取約十分鐘。發現伺服器上有新版本時，上方出現提示，按一下會先存檔再繞過快取重新載入。 */
+async function checkUpdate(){ try{ const r=await fetch(location.pathname+'?nocache='+Date.now(),{cache:'no-store'}); const t=await r.text(); const m=t.match(/const VERSION='([^']+)'/); if(!m||m[1]===VERSION||document.getElementById('updbar')) return;
+  const bar=document.createElement('div'); bar.id='updbar'; bar.style.cssText='position:sticky;top:0;z-index:50;background:#7a5a1a;color:#fff;padding:8px 12px;text-align:center;cursor:pointer;font-size:14px';
+  bar.textContent='有新版本 v'+m[1]+'（你現在是 v'+VERSION+'）——按這裡更新，進度會先存好'; bar.onclick=async()=>{ bar.textContent='存檔中……'; if(!bootLock&&soul&&soul.name){ clearTimeout(saveTimer); await sset('save:v3',{soul,body,savedAt:Date.now()},false); } location.replace(location.pathname+'?v='+m[1]+'&t='+Date.now()); };
+  document.body.prepend(bar); }catch(e){} }
+(async()=>{ await pullWorld(); const saved=await sget('save:v3',false); boot(saved); status(); checkUpdate(); setInterval(checkUpdate,5*60*1000); setInterval(async()=>{ await pushPresence(); await pullWorld(); status(); },8000); })();
 </script>
 </body>
 </html>
