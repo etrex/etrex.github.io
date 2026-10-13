@@ -170,7 +170,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.35.0';
+const VERSION='2.36.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -318,9 +318,9 @@ const SYSTEMS={
     {n:'商城', d:()=>'藥水 10 點、空間背包 40 點（背包 +50，最多十個）、回春藥 20 點、攻擊力永久 +1 30 點、HP 上限永久 +2 30 點、裂谷核 5 點、鳳凰之尾 50 點。永久提升每 18 秒買一次，每日 100 次（'+growInfo('shop')+'）。'},
     {n:'限時折扣', d:()=>'每現實日第一次購買半價。'}]},
   gacha:{name:'抽獎系統', skills:[
-    {n:'十連抽', d:()=>'每 60 秒一次十連抽，每日 30 次（'+growInfo('gacha',60000,30)+'）。R：金幣與核；SR：攻擊或HP永久提升；SSR：永久技能。'},
+    {n:'十連抽', d:()=>'每 60 秒一次十連抽，每日 30 次（'+growInfo('gacha',60000,30)+'）。R（65%）：金幣、核、資源、道具，偶爾稀有素材；SR（25%）：隨機一種永久數值；SSR（10%）：技能（重複的升星，無上限）或基本能力 +1。每抽另有萬分之一稀有裝備、十萬分之一傳說裝備。'},
     {n:'保底', d:()=>'每 3 次十連必出 SSR。目前保底計數 '+soul.pity+'/3。'},
-    {n:'技能池', d:()=>'先手權、反彈、再生、每場一次秒殺、必掉核。已抽到：'+(soul.ssr.length?soul.ssr.map(k=>SSR[k].n).join('、'):'無')}]},
+    {n:'技能池', d:()=>'共 '+Object.keys(SSR).length+' 種。已抽到：'+(soul.ssr.length?soul.ssr.filter(k=>SSR[k]).map(k=>SSR[k].n+' '+ssrStar(k)+'★（'+SSR[k].d(ssrF(k))+'）').join('、'):'無')+((soul.permStat&&Object.keys(soul.permStat).length)?'｜基本能力：'+Object.keys(soul.permStat).map(k=>STAT_N[k]+' +'+soul.permStat[k]).join('、'):'')+((soul.permMag||soul.permGold)?'｜魔力 +'+(soul.permMag||0)+'、金幣 +'+(soul.permGold||0)+'%':'')}]},
   panel:{name:'屬性面板系統', skills:[
     {n:'自由屬性點', d:()=>'每升兩級 1 點，加在基本能力上：力量 +1、體力 +1、敏捷 +2（力量體力是指數效果，一點很值錢），或幸運：每點每殺多拿十二份這一層小魔物的賞金（目前每點 +'+12*NUM.killGold(1)+' 金）。未分配 '+(body?body.freePts:0)+' 點。'},
     {n:'數值透視', d:()=>'看見自己與敵人的所有數值。'},
@@ -364,7 +364,12 @@ const SYSTEMS={
     {n:'威壓', d:()=>'弱於你的敵人第一回合不敢動。'}]},
 };
 const SYS_KEYS=Object.keys(SYSTEMS);
-const SSR={ first:{n:'先手權'}, reflect:{n:'反彈'}, regen:{n:'再生'}, exec:{n:'秒殺'}, loot:{n:'必掉核'} };
+/* SSR 技能：抽到重複的就升星，沒有上限。效果倍率 = 1 + 0.5 × ln(星數)：一星 ×1、十星 ×2.15、百星 ×3.3，越後面越慢 */
+const SSR={ first:{n:'先手權',d:f=>'開場先出手，第一擊傷害 ×'+(1+.2*(f-1)).toFixed(2)}, reflect:{n:'反彈',d:f=>'受到的傷害 ×'+f.toFixed(2)+' 反彈回去'}, regen:{n:'再生',d:f=>'每次出手回復 '+(5*f).toFixed(1)+'% HP'}, exec:{n:'秒殺',d:f=>'每場 '+Math.floor(f)+' 次秒殺（魔王除外）'}, loot:{n:'必掉核',d:f=>'必掉核，另外多掉 '+Math.floor(f-1+1e-9)+' 枚'},
+  crit:{n:'會心',d:f=>'會心機率 +'+(5*f).toFixed(1)+'%'}, leech:{n:'吸血',d:f=>'造成傷害的 '+(5*f).toFixed(1)+'% 化為 HP'}, double:{n:'連擊',d:f=>(10*f).toFixed(1)+'% 機會多打一下'}, shield:{n:'護盾',d:f=>'開場護盾 '+(10*f).toFixed(1)+'% HP 上限'},
+  evade:{n:'殘影',d:f=>'閃避 +'+(5*f).toFixed(1)+'%'}, xp:{n:'悟性',d:f=>'經驗值 ×'+(1+.3*f).toFixed(2)}, fortune:{n:'招財',d:f=>'擊殺金幣 ×'+(1+.3*f).toFixed(2)}, mana:{n:'魔力爆發',d:f=>'每次攻擊追加魔力 ×'+(.1*f).toFixed(2)+' 的傷害'} };
+function ssrStar(k){ return ssr(k)?((soul.ssrStar&&soul.ssrStar[k])||1):0; }
+function ssrF(k){ const n=ssrStar(k); return n?1+0.5*Math.log(n):0; }
 const WEAK={
   lone:{name:'孤行', desc:'你的系統無法與他人共享，隊友得不到你的任何加成。'},
   erode:{name:'蝕壽', desc:'每場戰鬥老化一年（其他人戰鬥不會老）。'},
@@ -425,14 +430,14 @@ function ptsFix(){ if(!body) return {str:0,vit:0,agi:0,luck:0}; let p=body.pts||
   if(p.atk!==undefined){ p=body.pts={str:p.atk|0, vit:(p.hp|0)+(p.def|0), agi:0, luck:p.luck|0}; }
   if(body.ptsV!==3){ body.ptsV=3; ['str','vit','agi','luck'].forEach(k=>p[k]=Math.round((p[k]|0)/12)); body.freePts=Math.round((body.freePts|0)/12); }
   return p; }
-function statsAt(L){ const r=jobRate(); const p=ptsFix(); const add=(body&&body.statAdd)||{}; const o=r.off||{}; const g=(k)=>Math.floor(STAT_BASE[k]+(o[k]|0)+r[k]*L+1e-9); return {str:g('str')+(p.str|0)+(add.str|0), vit:g('vit')+(p.vit|0)+(add.vit|0), agi:g('agi')+2*(p.agi|0)+(add.agi|0), int:Math.floor(STAT_BASE.int+(r.int||2)*L+1e-9)+(p.int|0)+(add.int|0)}; }
+function statsAt(L){ const r=jobRate(); const p=ptsFix(); const add=(body&&body.statAdd)||{}; const o=r.off||{}; const g=(k)=>Math.floor(STAT_BASE[k]+(o[k]|0)+r[k]*L+1e-9); const ps=(soul&&soul.permStat)||{}; return {str:g('str')+(p.str|0)+(add.str|0)+(ps.str|0), vit:g('vit')+(p.vit|0)+(add.vit|0)+(ps.vit|0), agi:g('agi')+2*(p.agi|0)+(add.agi|0)+(ps.agi|0), int:Math.floor(STAT_BASE.int+(r.int||2)*L+1e-9)+(p.int|0)+(add.int|0)+(ps.int|0)}; }
 function stats(){ return statsAt(lv()); }
 function spNow(){ return SP(stats().agi); }
 /* 閃避是雙向的：誰的敏捷高，差多少點就有多少 % 閃開對方的攻擊，雙方最多 90%（你的含鞋子強化）；魔王的部分只算一半。
    魔物敏捷 = 15 + 魔物等級 + 身手（出手越快的魔物越靈活：(1.8 − 攻擊間隔) × 10，±10 以內）。
    標準成長打同級、普通速度的魔物，雙方都是 0%。 */
 function monAgi(m){ if(!m) return 16; const q=Math.max(-10,Math.min(10,Math.round((1.8-(m.iv||1.8))*10))); return 15+(m.lv||1)+q; }
-function dodgeP(m){ if(!body||!m) return 0; let p=Math.min(0.9,Math.max(0,(stats().agi-monAgi(m))*0.01)+accSum('dodge')); if(isKing(m)) p*=0.5; return p; }
+function dodgeP(m){ if(!body||!m) return 0; let p=Math.min(0.9,Math.max(0,(stats().agi-monAgi(m))*0.01)+accSum('dodge')+(ssr('evade')?.05*ssrF('evade'):0)); if(isKing(m)) p*=0.5; return p; }
 function monDodgeP(m){ if(!body||!m||monSkipN>0) return 0; let p=Math.min(0.9,Math.max(0,(monAgi(m)-stats().agi)*0.01)); if(isKing(m)) p*=0.5; return p; }
 /* 智力：魔物有聰明笨拙之分。魔物智力 = 8 + 等級 × 2 + 心智 × 2（心智：笨 −8 ～ 聰明 +8，魔王 +10）；玩家標準成長智力 = 8 + 等級 × 2。 */
 const WIT_RULES=[[/薩滿|法師|巫妖|魔女|祭司|惡魔|領主|公爵|君主|影魔|密探|刺客|船長|總督|墮落勇者|夜魔|蛛后/,8],[/哥布林|半獸人|盜賊|海盜|傭兵|騎士|衛兵|處刑人|打手|狼首領|狼王|三頭犬|獵犬|地獄犬|石像鬼|雪豹|龍|酋長|軍閥|穴居人/,4],[/史萊姆|魔像|殭屍|骷髏|泥|蟲|焦屍|巨像|礦鼠|雪兔/,-8],[/食人魔|巨魔|米諾陶|巨人|泰坦|雪人|蝠|蜘蛛|蜂|蠍|蜥/,-4]];
@@ -463,7 +468,7 @@ function atkFlat(){ return (body?wAtk():2)+(soul.permAtk||0)+medAtk()+forgeAtk()
 function atkBase(){ const S=stats().str; return (S+atkFlat())*strMul(S); }
 function baseAtk(){ return atkBase(); }
 /* 魔力：跟攻擊同一套公式，只是用智力代替力量。魔力 =（智力 + 攻擊加成）× 1.1386^((智力 − 18) ÷ 2) × 其他倍率 */
-function magNow(){ if(!body||!soul.system) return 0; const I=stats().int; const a=(I+atkFlat())*strMul(I)*evoMul()*(1+eatAtkPct()); return Math.round(a*(sysIs('ancestor')?1:ageFactor(body.age))); }
+function magNow(){ if(!body||!soul.system) return 0; const I=stats().int; const a=(I+atkFlat()+(soul.permMag||0))*strMul(I)*evoMul()*(1+eatAtkPct()); return Math.round(a*(sysIs('ancestor')?1:ageFactor(body.age))); }
 /* ============================================================
    武器與道具
    ============================================================ */
@@ -1228,12 +1233,30 @@ function shopMenu(back){
     ...['sysboots','sysgloves','sysneck','sysring'].filter(k=>!hasAcc(k)).map(k=>({t:accName(k)+'（'+P(1500)+' 點）', ab:1, dis:soul.points<P(1500), f:buy(P(1500),()=>{ giveAcc(k); })})),
     {t:'關閉商城', f:back}], half?'今日首購半價':'');
 }
+/* 十連抽：SSR 10%、SR 25%、R 65%，每 3 次十連保底一個 SSR。
+   SSR：七成是技能（新的或升星，無上限）、三成是基本能力 +1（力量、體力、敏捷、智力隨機）。
+   SR：隨機一種永久數值（攻擊 +1、HP +3、防禦 +1、魔力 +1、擊殺金幣 +1%）。
+   R：金幣、裂谷核、資源、道具，偶爾稀有素材。每一抽另外有萬分之一抽到稀有裝備、十萬分之一抽到傳說裝備。 */
+function gachaEquip(g){ const ids=(AUC_GRADE[g]||[]).concat((W_GRADE[g]||[]).map(k=>'W:'+k)); const id=rnd(ids); if(!id) return null; const [t,k]=id.split(':'); if(t==='A') giveArmor(k); else if(t==='W') giveWeapon(k); else giveAcc(k); return eqName(t,k); }
 function doGacha(){
-  say('title','十連抽'); const out=[]; soul.pity++;
+  say('title','十連抽'); const out=[]; soul.pity++; soul.ssrStar=soul.ssrStar||{}; soul.permStat=soul.permStat||{};
   let ssrHit=false;
-  for(let i=0;i<10;i++){ const r=Math.random(); if(r<0.1||(i===9&&soul.pity>=3&&!ssrHit)){ ssrHit=true; const pool=Object.keys(SSR).filter(k=>!soul.ssr.includes(k)); if(pool.length){ const k=rnd(pool); soul.ssr.push(k); out.push('<b>SSR</b> 永久技能「'+SSR[k].n+'」'); } else { soul.permAtk+=1; out.push('<b>SSR</b>（技能已滿）攻擊力永久 +1'); } }
-    else if(r<0.35){ if(chance(.5)){ soul.permAtk+=1; out.push('SR 攻擊力永久 +1'); } else { soul.permHp+=1; out.push('SR HP 上限 +1'); } }
-    else { if(chance(.5)){ const g=NUM.killGold()*3; body.gold+=g; out.push('R 金幣 +'+g); } else { addRes('cores',2); out.push('R 裂谷核 +2'); } } }
+  for(let i=0;i<10;i++){
+    const u=Math.random();
+    if(u<0.00001){ const n=gachaEquip('傳說'); if(n){ out.push('<b>★傳說★</b> '+n+'！！'); worldEvent(soul.name+' 在十連抽裡抽到了傳說裝備「'+n+'」'); continue; } }
+    else if(u<0.00011){ const n=gachaEquip('稀有'); if(n){ out.push('<b>稀有裝備</b> '+n+'！'); continue; } }
+    const r=Math.random();
+    if(r<0.1||(i===9&&soul.pity>=3&&!ssrHit)){ ssrHit=true;
+      if(chance(.3)){ const k=rnd(['str','vit','agi','int']); soul.permStat[k]=(soul.permStat[k]|0)+1; out.push('<b>SSR</b> '+STAT_N[k]+'永久 +1'); }
+      else { const k=rnd(Object.keys(SSR)); if(!soul.ssr.includes(k)){ soul.ssr.push(k); soul.ssrStar[k]=1; out.push('<b>SSR</b> 新技能「'+SSR[k].n+'」：'+SSR[k].d(ssrF(k))); } else { soul.ssrStar[k]=(soul.ssrStar[k]||1)+1; out.push('<b>SSR</b> 「'+SSR[k].n+'」升到 '+soul.ssrStar[k]+' 星：'+SSR[k].d(ssrF(k))); } } }
+    else if(r<0.35){ const p=Math.random();
+      if(p<.3){ soul.permAtk=(soul.permAtk||0)+1; out.push('SR 攻擊力永久 +1'); } else if(p<.55){ soul.permHp=(soul.permHp||0)+3; out.push('SR HP 上限永久 +3'); } else if(p<.75){ soul.permDef=(soul.permDef||0)+1; out.push('SR 防禦力永久 +1'); } else if(p<.9){ soul.permMag=(soul.permMag||0)+1; out.push('SR 魔力永久 +1'); } else { soul.permGold=(soul.permGold||0)+1; out.push('SR 擊殺金幣永久 +1%'); } }
+    else { const p=Math.random();
+      if(p<.3){ const g=NUM.killGold()*3; body.gold+=g; out.push('R 金幣 +'+g); }
+      else if(p<.55){ addRes('cores',2); out.push('R 裂谷核 +2'); }
+      else if(p<.75){ const k=rnd(GATHER); const n=3+Math.floor(Math.random()*6); const got=addRes(k,n); out.push('R '+RES[k]+' +'+got); }
+      else if(p<.985){ const k=rnd(['hpot','hpot','bandage','bomb','smoke','trap','whet','armoroil','coredust','torch','ration']); const n=1+Math.floor(Math.random()*2); const got=addItem(k,n); out.push('R '+ITEMS[k].n+' +'+got); }
+      else { const k=rnd(RARE4); addRes(k,1); out.push('R <b>稀有素材</b> '+RES[k]+' +1'); } } }
   if(ssrHit) soul.pity=0;
   say('gain',out.join('\n')); status();
 }
@@ -2490,6 +2513,7 @@ function makeMon(pick,lv){
 function encounter(force,lv,ret){
   body.fightRet=ret||null;
   const m=makeMon(force||pickMon(body.floor), lv||RIFT_LV[body.floor]||[1,4]);
+  body.shield=ssr('shield')?Math.round(body.hpMax*Math.min(.9,.1*ssrF('shield'))):0;
   mon=m; inCombat=true; guard=false; turnNo=0; execUsed=false; monSkip=false; pending=null; casting=null; skillCD=0; ready=false; body.blessFight=!!body.flags.blessed; body.flags.blessed=0; if(!body.mode||!modeList().includes(body.mode)) body.mode='attack';
   say('title',m.n+'出現了！'+(body.floor>1&&!force?'（第 '+body.floor+' 層）':''));
   body.flags.seen=body.flags.seen||{}; if(!body.flags.seen[m.key]&&m.desc){ body.flags.seen[m.key]=1; say('narr',m.desc); }
@@ -2509,7 +2533,7 @@ function renderCombat(){
   const o=modeList().map(k=>({t:(body.mode===k?'● ':'○ ')+MODES[k]+(k==='burst'?'（怒氣 5 時釋放）':k==='weak'?'：'+mon.weak:''), ab:body.mode===k, keep:true, f:()=>chooseAct(k)}));
   { const S=jobSkill(); o.push({t:(pending==='skill'?'● ':'')+'技能：'+S.n+'（'+S.d+'，冷卻 '+S.cd+' 秒）'+(skillReady()?'　可以用':'　冷卻中 '+skillCD.toFixed(1)+' 秒'), ab:skillReady(), keep:true, f:useSkill}); }
   Object.keys(ITEMS).filter(k=>ITEMS[k].fight&&itemN(k)>0).forEach(k=>o.push({t:(pending==='item:'+k?'● ':'')+'用'+ITEMS[k].n+' ×'+itemN(k)+'（'+itemT(k).toFixed(1)+' 秒）：'+ITEMS[k].d, keep:true, f:()=>fightItem(k)}));
-  if(ssr('exec')&&!execUsed&&!isKing(mon)) o.push({t:'秒殺（SSR）', ab:1, keep:true, f:()=>{ execUsed=true; mon.hp=0; say('combat','一劍。'+mon.n+'還沒明白發生什麼事。'); win(); }});
+  if(ssr('exec')&&(execUsed|0)<Math.floor(ssrF('exec'))&&!isKing(mon)) o.push({t:'秒殺（SSR，這場還有 '+(Math.floor(ssrF('exec'))-(execUsed|0))+' 次）', ab:1, keep:true, f:()=>{ execUsed=(execUsed|0)+1; mon.hp=0; say('combat','一劍。'+mon.n+'還沒明白發生什麼事。'); win(); }});
   o.push({t:(body.autoAct?'● ':'○ ')+'自動行動（輪到你時自動重複上一次）', keep:true, f:()=>{ body.autoAct=!body.autoAct; if(body.autoAct&&ready){ ready=false; lastTick=Date.now(); playerAct(); if(inCombat) pT=pInterval(); } renderCombat(); save(); }});
   if(canChain()) o.push({t:(body.autoHunt?'● ':'○ ')+'連續狩獵（打完自動下一隻）', keep:true, f:()=>{ body.autoHunt=!body.autoHunt; renderCombat(); save(); }});
   setOptions(o,hint);
@@ -2526,19 +2550,19 @@ function tick(){
   const h=opts.querySelector('.hint'); if(h) h.textContent=combatHint();
 }
 let lastCrit=false;
-function playerAtk(){ let a=atkNow()*(0.85+Math.random()*.3); if(body.flags.whet) a*=1.5; const D=wDef(eqW()); { const cr=(D.crit||0)+accSum('crit'); lastCrit=cr>0&&chance(cr); } if(lastCrit) a*=2; return Math.round(a); }
-function afterHit(d){ const D=wDef(eqW()); if(eat('ash')&&d>0){ const bd=Math.max(1,Math.round(atkNow()*.1*eatF('ash'))); mon.hp-=bd; say('combat','餘燼：'+fmt(bd)+' 傷害。'); } if(eat('bat')&&d>0&&body.hp<body.hpMax){ const h=Math.max(1,Math.round(d*.05*eatF('bat'))); body.hp=Math.min(body.hpMax,body.hp+h); say('gain','吸血：HP +'+h); } if(D.poison){ const p=Math.max(1,Math.round(mon.hpMax*D.poison)); mon.hp-=p; say('combat','毒：'+mon.n+'失去 '+p+' HP。'); } if(D.stun&&chance(D.stun)){ monSkipN=(monSkipN||0)+1; say('combat','震：'+mon.n+'被打得站不穩，下一擊會落空。'); } { const rg=(D.regen||0)+(job().regen||0)+(aDef(eqA()).regen||0)+accSum('regen')+.02*eatF('slime'); if(rg>0){ const h=Math.max(1,Math.round(body.hpMax*rg)); if(h>0&&body.hp<body.hpMax){ body.hp=Math.min(body.hpMax,body.hp+h); say('gain','回復：HP +'+h); } } } if(D.burn){ const b=Math.round(atkNow()*D.burn); mon.hp-=b; say('combat','餘熱：'+b+' 傷害。'); } if(D.leech&&d>0){ const h=Math.round(d*D.leech); if(h>0){ body.hp=Math.min(body.hpMax,body.hp+h); say('gain','吸血：HP +'+h); } } }
+function playerAtk(){ let a=atkNow()*(0.85+Math.random()*.3); if(ssr('first')&&turnNo<=1) a*=1+.2*(ssrF('first')-1); if(body.flags.whet) a*=1.5; const D=wDef(eqW()); { const cr=(D.crit||0)+accSum('crit')+(ssr('crit')?.05*ssrF('crit'):0); lastCrit=cr>0&&chance(cr); } if(lastCrit) a*=2; return Math.round(a); }
+function afterHit(d){ const D=wDef(eqW()); if(ssr('leech')&&d>0&&body.hp<body.hpMax){ const h=Math.max(1,Math.round(d*.05*ssrF('leech'))); body.hp=Math.min(body.hpMax,body.hp+h); } if(ssr('mana')&&d>0&&mon){ const md=Math.max(1,Math.round(magNow()*.1*ssrF('mana'))); mon.hp-=md; say('combat','魔力爆發：'+fmt(md)+' 傷害。'); } if(eat('ash')&&d>0){ const bd=Math.max(1,Math.round(atkNow()*.1*eatF('ash'))); mon.hp-=bd; say('combat','餘燼：'+fmt(bd)+' 傷害。'); } if(eat('bat')&&d>0&&body.hp<body.hpMax){ const h=Math.max(1,Math.round(d*.05*eatF('bat'))); body.hp=Math.min(body.hpMax,body.hp+h); say('gain','吸血：HP +'+h); } if(D.poison){ const p=Math.max(1,Math.round(mon.hpMax*D.poison)); mon.hp-=p; say('combat','毒：'+mon.n+'失去 '+p+' HP。'); } if(D.stun&&chance(D.stun)){ monSkipN=(monSkipN||0)+1; say('combat','震：'+mon.n+'被打得站不穩，下一擊會落空。'); } { const rg=(D.regen||0)+(job().regen||0)+(aDef(eqA()).regen||0)+accSum('regen')+.02*eatF('slime'); if(rg>0){ const h=Math.max(1,Math.round(body.hpMax*rg)); if(h>0&&body.hp<body.hpMax){ body.hp=Math.min(body.hpMax,body.hp+h); say('gain','回復：HP +'+h); } } } if(D.burn){ const b=Math.round(atkNow()*D.burn); mon.hp-=b; say('combat','餘熱：'+b+' 傷害。'); } if(D.leech&&d>0){ const h=Math.round(d*D.leech); if(h>0){ body.hp=Math.min(body.hpMax,body.hp+h); say('gain','吸血：HP +'+h); } } }
 function playerAct(k){
   turnNo++; if(!k) k=body.mode;
   if(eat('bug')){ const p=Math.max(1,Math.round(mon.hpMax*0.08*eatF('bug'))); mon.hp-=p; say('combat','蛛毒：'+mon.n+'失去 '+p+' HP。'); }
   if(soul.shadows>0){ const d=shadowDmg()*shadowN(); mon.hp-=d; say('combat','影子軍團（'+shadowN()+'）合擊：'+d+' 傷害。'); }
-  if(ssr('regen')){ const h=Math.round(body.hpMax*.05); body.hp=Math.min(body.hpMax,body.hp+h); }
+  if(ssr('regen')){ const h=Math.round(body.hpMax*Math.min(.5,.05*ssrF('regen'))); body.hp=Math.min(body.hpMax,body.hp+h); }
   if(mon.hp<=0){ win(); return; }
   // 安全線：低於就自動切撤退
   if(body.hp<body.hpMax*body.stopHp&&k!=='flee'&&!isKing(mon)){ if(body.autoAct){ body.mode='flee'; k='flee'; say('info','HP低於安全線，自動改為撤退。'); } else if(!body.flags.lineWarned){ body.flags.lineWarned=1; sysText('你已經在安全線以下了。要走現在走。'); } }
   if(k==='burst'&&body.rage<5) k='attack';
   if((k==='attack'||k==='weak'||k==='burst')&&monDodged()){ status(); return; }
-  if(k==='attack'){ const D=wDef(eqW()); const d=Math.max(1,playerAtk()-(D.pierce?0:mon.def)); mon.hp-=d; say('combat',D.n+'的一擊！'+(lastCrit?'會心一擊！':'')+'對'+mon.n+'造成了 '+d+' 點傷害。'); afterHit(d); }
+  if(k==='attack'){ const D=wDef(eqW()); const d=Math.max(1,playerAtk()-(D.pierce?0:mon.def)); mon.hp-=d; say('combat',D.n+'的一擊！'+(lastCrit?'會心一擊！':'')+'對'+mon.n+'造成了 '+d+' 點傷害。'); afterHit(d); if(ssr('double')&&mon.hp>0&&chance(Math.min(.9,.1*ssrF('double')))){ const d2=Math.max(1,playerAtk()-(D.pierce?0:mon.def)); mon.hp-=d2; say('combat','連擊！'+fmt(d2)+' 傷害。'); afterHit(d2); } }
   if(k==='weak'){ const d=playerAtk()*2; mon.hp-=d; say('combat',wDef(eqW()).n+'命中弱點'+mon.weak+'！'+(lastCrit?'會心一擊！':'')+'造成了 '+d+' 點傷害。'); afterHit(d); }
   if(k==='burst'){ body.rage=0; const d=Math.round(atkNow()*5); mon.hp-=d; say('combat','怒氣爆發：'+d+' 傷害。'); }
   if(k==='guard'){ guard=true; say('combat','你舉起劍格擋。'); }
@@ -2564,9 +2588,10 @@ function monsterAttack(){
   if(soul.system.weak==='hated') d+=NUM.hated(); if(body.flags.seal) d*=.8; if(guard){d*=.5;guard=false;}
   d=Math.round(d);
   if(sysIs('reflect')&&!body.unyield&&body.hp-d<=body.hpMax*.1&&body.hp>0){ body.unyield=true; say('gain','不倒：這一擊被你硬生生擋下。'); d=0; }
+  if(body.shield>0&&d>0){ const ab=Math.min(body.shield,d); body.shield-=ab; d-=ab; say('info','護盾擋下 '+fmt(ab)+'（剩 '+fmt(body.shield)+'）'); }
   body.hp-=d; soul.hitsTaken=(soul.hitsTaken||0)+1; say('hurt',mon.n+'的攻擊！受到了 '+d+' 點傷害。'); if(mon.leech&&d>0){ const h=Math.round(d*.5); mon.hp=Math.min(mon.hpMax,mon.hp+h); say('combat',mon.n+'吸了你的血，HP +'+h+'。'); } if(sysIs('reflect')) grow('reflect','皮糙肉厚：防禦力永久 +1',()=>{ soul.permDef=(soul.permDef||0)+1; });
   if(sysIs('reflect')&&d>0){ const r=d*3; mon.hp-=r; body.rage=Math.min(5,body.rage+1); say('combat','三倍奉還：'+r+' 傷害回到'+mon.n+'身上。怒氣 '+body.rage+'/5'); }
-  if(ssr('reflect')&&d>0){ mon.hp-=d; say('combat','反彈：'+d+' 傷害。'); }
+  if(ssr('reflect')&&d>0){ const rd=Math.round(d*ssrF('reflect')); mon.hp-=rd; say('combat','反彈：'+fmt(rd)+' 傷害。'); }
   if(mon.hp<=0&&body.hp>0){ win(); return; }
   if(body.hp>0) zoneEnv().forEach(k=>{ const ed=envDmg(k,.3); if(ed>0){ body.hp-=ed; say('hurt',ENV[k].n+'：−'+ed+' HP'); } });
   if(body.hp<=0){ die(); return; }
@@ -2587,11 +2612,11 @@ async function win(){
   if(!inCombat) return; inCombat=false; const m=curMonRef(); 
   say('gain','打倒了'+m.n+'！'); sys('kill');
   const luckMul=sysIs('luck')?(1+soul.luck/10):1;
-  const luckBonus=sysIs('panel')?ptsFix().luck*12*NUM.killGold(1):0; const gold=Math.round(killGoldLv(m)*luckMul*(1+accSum('gold')+.25*eatF('dock')))+luckBonus; body.gold+=gold; say('gain','金幣 +'+gold+(luckBonus?'（幸運 +'+luckBonus+'）':''));
-  let nDrop=(ssr('loot')||chance(Math.min(1,m.drop*lootMul())))?1:0; if(isKing(m))nDrop+=2; if(sysIs('luck')) nDrop+=Math.floor(soul.luck/10);
+  const luckBonus=sysIs('panel')?ptsFix().luck*12*NUM.killGold(1):0; const gold=Math.round(killGoldLv(m)*luckMul*(1+accSum('gold')+.25*eatF('dock')+(soul.permGold||0)/100)*(ssr('fortune')?1+.3*ssrF('fortune'):1))+luckBonus; body.gold+=gold; say('gain','金幣 +'+gold+(luckBonus?'（幸運 +'+luckBonus+'）':''));
+  let nDrop=(ssr('loot')||chance(Math.min(1,m.drop*lootMul())))?1:0; if(ssr('loot')) nDrop+=Math.floor(ssrF('loot')-1+1e-9); if(isKing(m))nDrop+=2; if(sysIs('luck')) nDrop+=Math.floor(soul.luck/10);
   const got=addRes('cores',nDrop); if(got) say('gain','獲得了裂谷核 ×'+got+'！');
   if(!isKing(m)){ if(chance(.25*lootMul())){ const k=rnd(['hpot','hpot','smoke','bomb','whet','bandage','bandage','coredust','trap','ration']); if(addItem(k,1)>0) say('gain','你在牠身邊撿到一個'+ITEMS[k].n+'。'); } if(m.tier>=3&&chance(RAND_P*lootMul())) dropRare(); } else { addItem('hpot',2); say('gain','魔王的殘骸裡有兩瓶藥水。'); say('narr','魔王的牙還在發燙。'); giveWeapon('fang'); giveArmor('scale'); say('narr','魔王的指骨上套著一枚戒指。'); giveAcc('kingring'); }
-  let xp=killXp(m); if(sysIs('infinite')&&m.hpMax>body.hpMax) xp*=3; gainXp(xp);
+  let xp=killXp(m); if(ssr('xp')) xp=Math.round(xp*(1+.3*ssrF('xp'))); if(sysIs('infinite')&&m.hpMax>body.hpMax) xp*=3; gainXp(xp);
   if(sysIs('devour')){ if(m.fm&&DEVOUR[m.fm]&&(body.eaten[m.fm]|0)<m.tier){ const st0=evoStage(); const first=!body.eaten[m.fm]; body.eaten[m.fm]=m.tier; say('gain','捕食：'+devText(m.fm,m.tier)+'。'+(first?'（'+eatN()+'/'+Object.keys(DEVOUR).length+' 種）':'吃到更高階的了，效果升級。')); const st=evoStage(); if(st>st0){ body.evolved=true; say('title',EVO[st][1]); say('gain','攻擊與 HP 上限 ×'+EVO[st][2]+'。'); } } soul.eats++; if(soul.eats%10===0) say('gain','血肉累積：HP 上限 +'+soul.eats+'。'); }
   if(sysIs('shadow')){ soul.shadows++; body.flags.dailyKills=(body.flags.dailyKills||0)+1; say('gain','影子抽取成功。影子軍團：'+soul.shadows+'。'); grow('shadow','影之鍛：攻擊力永久 +1',()=>{ soul.permAtk++; }); }
   if(sysIs('luck')&&m.tier>=3) addLuck(isKing(m)?15:5,'擊殺強敵');
