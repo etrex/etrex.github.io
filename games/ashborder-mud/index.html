@@ -170,7 +170,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.36.1';
+const VERSION='2.37.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -286,8 +286,9 @@ function save(){ if(bootLock) return; clearTimeout(saveTimer); saveTimer=setTime
    ============================================================ */
 const SYSTEMS={
   checkin:{name:'簽到系統', skills:[
-    {n:'每日簽到', d:()=>'每現實日簽到一次。第 '+(soul.streak+1)+' 天的獎勵：'+ciGold()+' 金、'+ciCores()+' 枚裂谷核、攻擊力永久 +'+ciAtk()+'。連續簽到越久越多。'},
-    {n:'七日大獎', d:()=>'連續簽到第 7、14、21… 天，額外獲得三瓶回春藥與一件成長型裝備。'},
+    {n:'每日簽到', d:()=>{ const n=ciDay(); return '每現實日簽到一次。獎勵看你的能力總和（力量＋體力＋敏捷＋智力，目前 '+(body?ciS():0)+'）與連續天數。第 '+n+' 天：'+(body?fmt(ciGold(n))+' 金、'+ciCores(n)+' 枚裂谷核、攻擊力永久 +'+ciAtk(n):'—')+'。金幣 = 實力等級（(能力總和 − 39) ÷ 7）的三階魔物賞金 ×（20 + 天數）；攻擊力 = ⌊能力總和 ÷ 10⌋ ×（1 + 天數 ÷ 10）；裂谷核 = ⌊能力總和 ÷ 20⌋ ×（1 + 天數 ÷ 10）。'; }},
+    {n:'七日大獎', d:()=>'連續簽到第 7、14、21… 天，額外獲得三瓶回春藥、一件隨機裝備（連續越多週，越容易是稀有）與一項基本能力永久 +1。'},
+    {n:'里程碑', d:()=>{ const m=soul.ciMile||{}; return '連續 30 天：一件稀有裝備'+(m[30]?'（已領）':'')+'；100 天：一件傳說裝備'+(m[100]?'（已領）':'')+'；365 天：基本能力各 +1'+(m[365]?'（已領）':'')+'。各領一次。'; }},
     {n:'補簽券', d:()=>'漏簽不會斷連續，只是那天沒獎勵。'},
     {n:'勤勉', d:()=>'每休息一天，HP 上限永久 +1。每 18 秒一次，每日 100 次（'+growInfo('checkin')+'）。'}]},
   choice:{name:'神級選擇系統', skills:[
@@ -746,7 +747,27 @@ function hpBase(){ const V=stats().vit; return (24+2*V+hpFlat())*vitMul(V); }
 function baseHp(){ return Math.round(hpBase()); }
 const NUM={ hated:()=>Math.max(1,Math.round(3*levelMul(lv()))), frail:()=>Math.round(baseHp()*0.2), killGold:(t=2,f,mul)=>Math.round(5*t*(mul||floorMul(f||(body?body.floor:1)))) };
 // 各系統的累積換算
-function ciGold(){ return 100+100*soul.streak; } function ciCores(){ return 3+soul.streak; } function ciAtk(){ return 1; }
+/* 簽到：基底是能力總和 S（力量＋體力＋敏捷＋智力），n 是第幾天。
+   金幣 = 實力等級 (S − 39) ÷ 7 的三階魔物賞金 ×（20 + n）；攻擊 = ⌊S/10⌋ ×（1 + n/10）；核 = ⌊S/20⌋ ×（1 + n/10） */
+function ciS(){ const s=stats(); return s.str+s.vit+s.agi+s.int; }
+function ciDay(){ return (soul.lastCheck&&Date.now()-soul.lastCheck>2*D)?1:(soul.streak||0)+1; }
+function ciGold(n){ const Le=(ciS()-39)/7; return Math.max(1,Math.round(5*Math.pow(1.2,Le-1)*1.5*(20+n))); }
+function ciAtk(n){ return Math.floor(Math.floor(ciS()/10)*(1+n/10)); }
+function ciCores(n){ return Math.floor(Math.floor(ciS()/20)*(1+n/10)); }
+function ciStat(k){ soul.permStat=soul.permStat||{}; k=k||rnd(['str','vit','agi','int']); soul.permStat[k]=(soul.permStat[k]|0)+1; return STAT_N[k]+'永久 +1'; }
+function doCheckin(){
+  if(soul.lastCheck&&Date.now()-soul.lastCheck>2*D) soul.streak=0;
+  soul.streak++; soul.lastCheck=Date.now(); const n=soul.streak;
+  const g=ciGold(n), c=ciCores(n), a=ciAtk(n);
+  body.gold+=g; addRes('cores',c); soul.permAtk+=a;
+  say('gain','簽到成功。連續 '+n+' 天：金幣 +'+fmt(g)+'、裂谷核 +'+c+'、攻擊力永久 +'+a);
+  if(n%7===0){ const w=n/7; addItem('elixir',3); const eq=gachaEquip(chance(Math.min(.5,.05*w))?'稀有':'精良'); say('title','七日大獎（第 '+w+' 週）'); say('gain','回春藥 +3、'+(eq?'裝備「'+eq+'」、':'')+ciStat()); }
+  soul.ciMile=soul.ciMile||{};
+  if(n>=30&&!soul.ciMile[30]){ soul.ciMile[30]=1; const eq=gachaEquip('稀有'); say('title','連續簽到 30 天'); if(eq) say('gain','稀有裝備「'+eq+'」'); }
+  if(n>=100&&!soul.ciMile[100]){ soul.ciMile[100]=1; const eq=gachaEquip('傳說'); say('title','連續簽到 100 天'); if(eq){ say('gain','傳說裝備「'+eq+'」'); worldEvent(soul.name+' 連續簽到一百天，拿到了傳說裝備「'+eq+'」'); } }
+  if(n>=365&&!soul.ciMile[365]){ soul.ciMile[365]=1; ['str','vit','agi','int'].forEach(k=>ciStat(k)); say('title','連續簽到 365 天'); say('gain','力量、體力、敏捷、智力各永久 +1'); }
+  sysText('明天也要來。'); status();
+}
 function eatAtk(){ return 0; } function eatHp(){ return sysIs('devour')?soul.eats:0; }
 /* 吞噬進化：吃到某家族的魔物就得到牠的特質，效果依該家族吃過的最高階級按比例：一階 20%、二階 40%……五階 100% */
 const DEVOUR={
@@ -1200,7 +1221,7 @@ function peek(n){
   if(m.ex&&!body.facts['ex_'+m.ex]){ body.facts['ex_'+m.ex]=1; const e=EXCH.find(x=>x.id===m.ex); if(e) say('gain','情報：'+e.text); }
 }
 function townExtras(o,back){
-  if(sysIs('checkin')){ const t=timed('checkin'); o.unshift({t:'簽到（第 '+(soul.streak+1)+' 天：'+ciGold()+' 金、'+ciCores()+' 核、攻擊力 +'+ciAtk()+'）'+tlabel('checkin'), ab:1, dis:t.left<=0, f:()=>{ useTimed('checkin'); if(Date.now()-soul.lastCheck>2*D&&soul.lastCheck) { soul.streak=0; } soul.streak++; soul.lastCheck=Date.now(); body.gold+=ciGold(); addRes('cores',ciCores()); soul.permAtk+=ciAtk(); say('gain','簽到成功。連續 '+soul.streak+' 天：金幣 +'+ciGold()+'、裂谷核 +'+ciCores()+'、攻擊力永久 +'+ciAtk()); if(soul.streak%7===0){ body.age=Math.max(16,body.age-9); body.armor+=Math.round(2*levelMul(lv())); say('gain','七日大獎：三瓶回春藥（年齡 −9）、成長型護甲（防禦力 +'+Math.round(2*levelMul(lv()))+'）。'); } sysText('明天也要來。'); status(); back(); }}); }
+  if(sysIs('checkin')){ const t=timed('checkin'); const n=ciDay(); o.unshift({t:'簽到（第 '+n+' 天：'+fmt(ciGold(n))+' 金、'+ciCores(n)+' 核、攻擊力 +'+ciAtk(n)+'）'+tlabel('checkin'), ab:1, dis:t.left<=0, f:()=>{ useTimed('checkin'); doCheckin(); back(); }}); }
   if(sysIs('choice')){ o.unshift({t:'神級選擇（'+growInfo('choice')+'）', ab:1, dis:!growReady('choice'), f:()=>{ const g=NUM.killGold(2)*20; say('title','神級選擇'); sysText('選一個。'); setOptions([
       {t:'選項一：'+g+' 金幣', f:()=>{ grow('choice','金幣 +'+g,()=>{ body.gold+=g; }); back(); }},
       {t:'選項二：攻擊力永久 +1', f:()=>{ grow('choice','攻擊力永久 +1',()=>{ soul.permAtk++; }); back(); }},
