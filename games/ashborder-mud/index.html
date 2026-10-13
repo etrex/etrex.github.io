@@ -170,7 +170,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.36.0';
+const VERSION='2.36.1';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -874,7 +874,7 @@ function setOptions(list,hint,noExtras){
   opts.innerHTML=hint?'<div class="hint">'+hint+'</div>':'';
   const hasOver=body&&!inCombat&&!packing&&!body.autoHunt&&overList().length>0;
   if(hasOver){ const L0=list, H0=hint, X0=noExtras; const ret=L0.rb||(!noExtras&&curBuild)||(()=>setOptions(L0,H0,X0)); list=[{t:'背包滿了：還有'+overText()+'裝不下——整理背包，丟掉一些東西', ab:1, pack:1, f:()=>packMenu(ret)}].concat(list); }
-  if(body&&!inCombat&&!noExtras){ if(sysIs('panel')&&body.freePts>0) list=list.concat([{t:'分配屬性點（未分配 '+body.freePts+'）', ab:1, f:panelMenu}]); list=list.concat([{t:'裝備與道具', f:gearMenu},{t:'任務日誌', keep:true, side:1, f:showJournal},{t:'圖鑑與成就', keep:true, side:1, f:showAchs},{t:'數值說明', keep:true, f:showFormula},{t:'查看狀態與持有物', keep:true, side:1, f:showStatus},{t:'存檔字串（匯出／讀檔）', keep:true, side:1, f:saveIO}]); }
+  if(body&&!inCombat&&!noExtras){ if(sysIs('panel')&&body.freePts>0) list=list.concat([{t:'分配屬性點（未分配 '+body.freePts+'）', ab:1, f:panelMenu}]); list=list.concat([{t:'裝備與道具', f:gearMenu},{t:'任務日誌', keep:true, side:1, f:showJournal},{t:'圖鑑與成就', keep:true, side:1, f:showAchs},{t:'數值說明', keep:true, f:showFormula},{t:'查看狀態與持有物', keep:true, side:1, f:showStatus}]); }
   if(sysIs('omni')&&list.length){ const best=list.find(o=>o.ab&&!/^(窺探|調查)/.test(o.t))||list.find(o=>/裂谷|狩獵/.test(o.t)); if(best) best.t='★ '+best.t; }
   scrollBottom(); save();
   const isNav=o=>!o.ab&&/^(退回|返回|回大殿|回市集|回王都|回難民營|去市集|去裂谷|去王座廳|去王城市集|去騎士團|去神殿|去北門|去南方|出發|查看狀態|安全線|跟奧文去|關閉商城|先不分配|算了|走開|不碰|不賣|不賭|不買了|不了|離開|裝備與道具|任務日誌|圖鑑與成就|數值說明)/.test(o.t);
