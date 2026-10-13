@@ -76,6 +76,7 @@
   }
   button.opt:hover,button.opt:focus-visible{border-color:var(--gold);outline:none}
   button.opt.ab{border-left:3px solid var(--gold)}
+  button.opt.legend{border-color:var(--gold);color:var(--gold);font-weight:bold}
   button.opt.ab::after{content:" — 能力選項";color:var(--gold);font-size:.8rem}
   button.opt:disabled{opacity:.45;cursor:default}
   .qtyrow{display:flex;gap:.4rem;margin:0 0 .45rem}
@@ -170,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.37.0';
+const VERSION='2.38.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -292,8 +293,9 @@ const SYSTEMS={
     {n:'補簽券', d:()=>'漏簽不會斷連續，只是那天沒獎勵。'},
     {n:'勤勉', d:()=>'每休息一天，HP 上限永久 +1。每 18 秒一次，每日 100 次（'+growInfo('checkin')+'）。'}]},
   choice:{name:'神級選擇系統', skills:[
-    {n:'三選一', d:()=>'系統丟給你三個選項：金幣、攻擊力永久 +1、HP 上限永久 +2。每 18 秒一次，每日 100 次（'+growInfo('choice')+'）。'},
-    {n:'選擇即正義', d:()=>'選項的獎勵永遠掛在你的等級基準上，越晚越大。'}]},
+    {n:'三選一', d:()=>'系統丟給你三個套餐，每個套餐裝三個獎勵，選一包帶走。每 18 秒一次，沒有每日上限（'+growInfo('choice',GROW_CD,Infinity)+'）。每個獎勵跟抽獎同樣的機率：普通 65%（金幣、核、資源、道具）、稀有 25%（永久數值）、傳說 10%（基本能力 +1、稀有素材、裝備、十倍永久數值），另有萬分之一稀有裝備、十萬分之一傳說裝備。'},
+    {n:'選擇即正義', d:()=>'永久數值的份量看你的能力總和：每 100 點 +1（目前一份 = '+(body?chU():1)+'）；金幣看實力等級。越強，選項越大。'},
+    {n:'天命保底', d:()=>'每 10 次選擇，至少有一個套餐裡有傳說（保底計數 '+(soul.choicePity|0)+'/10）。'}]},
   devour:{name:'吞噬進化系統', skills:[
     {n:'捕食', d:()=>'吃掉你殺死的魔物，得到牠的家族特質。效果依該家族吃過的最高階級成長，吃到五階才是滿值。二十四個家族各一種，滿值例如：狼的速度（先手、攻速 −0.3）、蛛的毒（敵人每回合失去最大 HP 8%）、魔像的硬皮（防禦 +30%）、惡魔的心（攻擊 +15%）、魔王的力（攻擊 +30%）、各種免疫……'},
     {n:'已吃的家族', d:()=>{ const l=body&&body.eaten?Object.keys(body.eaten).filter(k=>DEVOUR[k]):[]; return l.length?l.map(k=>'<span class="line">・'+devText(k,body.eaten[k])+'</span>').join('')+'<span class="line">'+l.length+' / '+Object.keys(DEVOUR).length+' 種</span>':'還沒有吃過任何家族。'; }},
@@ -319,7 +321,7 @@ const SYSTEMS={
     {n:'商城', d:()=>'藥水 10 點、空間背包 40 點（背包 +50，最多十個）、回春藥 20 點、攻擊力永久 +1 30 點、HP 上限永久 +2 30 點、裂谷核 5 點、鳳凰之尾 50 點。永久提升每 18 秒買一次，每日 100 次（'+growInfo('shop')+'）。'},
     {n:'限時折扣', d:()=>'每現實日第一次購買半價。'}]},
   gacha:{name:'抽獎系統', skills:[
-    {n:'十連抽', d:()=>'每 60 秒一次十連抽，每日 30 次（'+growInfo('gacha',60000,30)+'）。R（65%）：金幣、核、資源、道具，偶爾稀有素材；SR（25%）：隨機一種永久數值；SSR（10%）：技能（重複的升星，無上限）或基本能力 +1。每抽另有萬分之一稀有裝備、十萬分之一傳說裝備。'},
+    {n:'十連抽', d:()=>'每 60 秒一次十連抽，沒有每日上限（'+growInfo('gacha',60000,Infinity)+'）。R（65%）：金幣、核、資源、道具，偶爾稀有素材；SR（25%）：隨機一種永久數值；SSR（10%）：技能（重複的升星，無上限）或基本能力 +1。每抽另有萬分之一稀有裝備、十萬分之一傳說裝備。'},
     {n:'保底', d:()=>'每 3 次十連必出 SSR。目前保底計數 '+soul.pity+'/3。'},
     {n:'技能池', d:()=>'共 '+Object.keys(SSR).length+' 種。已抽到：'+(soul.ssr.length?soul.ssr.filter(k=>SSR[k]).map(k=>SSR[k].n+' '+ssrStar(k)+'★（'+SSR[k].d(ssrF(k))+'）').join('、'):'無')+((soul.permStat&&Object.keys(soul.permStat).length)?'｜基本能力：'+Object.keys(soul.permStat).map(k=>STAT_N[k]+' +'+soul.permStat[k]).join('、'):'')+((soul.permMag||soul.permGold)?'｜魔力 +'+(soul.permMag||0)+'、金幣 +'+(soul.permGold||0)+'%':'')}]},
   panel:{name:'屬性面板系統', skills:[
@@ -387,8 +389,8 @@ function useTimed(k){ (soul.system.cd[k]||(soul.system.cd[k]=[])).push(Date.now(
 const GROW_CD=18000, GROW_CAP=100;
 function growRec(id){ soul.grow=soul.grow||{}; const g=soul.grow[id]||(soul.grow[id]={day:'',n:0,last:0}); const today=new Date().toDateString(); if(g.day!==today){ g.day=today; g.n=0; } return g; }
 function growReady(id,cd=GROW_CD,cap=GROW_CAP){ const g=growRec(id); return g.n<cap&&Date.now()-g.last>=cd; }
-function growInfo(id,cd=GROW_CD,cap=GROW_CAP){ const g=growRec(id); const left=Math.max(0,cd-(Date.now()-g.last)); return '今日 '+g.n+'/'+cap+(g.n>=cap?'，今天滿了':left>0?'，冷卻 '+Math.ceil(left/1000)+' 秒':'，可觸發'); }
-function grow(id,label,apply,cd=GROW_CD,cap=GROW_CAP,silent){ if(!growReady(id,cd,cap)) return false; const g=growRec(id); g.last=Date.now(); g.n++; apply(); if(!silent) say('gain',label+'（'+id2n(id)+' 今日 '+g.n+'/'+cap+'）'); status(); return true; }
+function growInfo(id,cd=GROW_CD,cap=GROW_CAP){ const g=growRec(id); const left=Math.max(0,cd-(Date.now()-g.last)); return (cap===Infinity?'今日 '+g.n+' 次':'今日 '+g.n+'/'+cap)+(g.n>=cap?'，今天滿了':left>0?'，冷卻 '+Math.ceil(left/1000)+' 秒':'，可觸發'); }
+function grow(id,label,apply,cd=GROW_CD,cap=GROW_CAP,silent){ if(!growReady(id,cd,cap)) return false; const g=growRec(id); g.last=Date.now(); g.n++; apply(); if(!silent) say('gain',label+'（'+id2n(id)+' 今日'+(cap===Infinity?'第 '+g.n+' 次':' '+g.n+'/'+cap)+'）'); status(); return true; }
 const GROW_NAME={choice:'神級選擇',gacha:'十連抽',forge:'煉化',shop:'商城',trader:'行商',ancestor:'閉關',checkin:'勤勉',reflect:'皮糙肉厚',devour:'血肉累積',shadow:'影之鍛',luck:'天命',infinite:'鍛骨',panel:'打磨',omni:'數據累積',rezero:'記憶',idle:'肌肉記憶'};
 function id2n(id){ return GROW_NAME[id]||id; }
 setInterval(()=>{ if(body&&!inCombat&&soul.system) renderSystem(); },1000);
@@ -900,7 +902,7 @@ function setOptions(list,hint,noExtras){
   scrollBottom(); save();
   const isNav=o=>!o.ab&&/^(退回|返回|回大殿|回市集|回王都|回難民營|去市集|去裂谷|去王座廳|去王城市集|去騎士團|去神殿|去北門|去南方|出發|查看狀態|安全線|跟奧文去|關閉商城|先不分配|算了|走開|不碰|不賣|不賭|不買了|不了|離開|裝備與道具|任務日誌|圖鑑與成就|數值說明)/.test(o.t);
   const mk=o=>{ if(o.input){ const d=document.createElement('div'); d.className='qtyrow'; const inp=document.createElement('input'); inp.type='number'; inp.min=1; inp.max=o.max; inp.value=Math.min(o.max,1); inp.className='name'; inp.placeholder='輸入數量'; const b=document.createElement('button'); b.className='opt'; const upd=()=>{ const n=Math.floor(Number(inp.value)||0); b.textContent='確定 '+n+' '+o.unit+(n>=1&&n<=o.max?'（'+o.cost(n)+'）':''); }; inp.oninput=upd; upd(); b.onclick=()=>{ if(!packing&&body&&body.over&&overList().length) overDrop(); opts.innerHTML=''; say('info','— 數量 '+inp.value); o.run(inp.value); }; inp.onkeydown=e=>{ if(e.key==='Enter') b.onclick(); }; d.appendChild(inp); d.appendChild(b); return d; }
-    const b=document.createElement('button'); b.className='opt'+(o.ab?' ab':'')+(o.side?' side':''); b.textContent=o.t; b.disabled=!!o.dis; b.onclick=()=>{ if(o.keep){o.f();return;} if(!o.pack&&!packing&&body&&body.over&&overList().length) overDrop(); opts.innerHTML=''; say('info','— '+o.t); o.f(); }; return b; };
+    const b=document.createElement('button'); b.className='opt'+(o.ab?' ab':'')+(o.side?' side':'')+(o.legend?' legend':''); b.textContent=o.t; b.disabled=!!o.dis; b.onclick=()=>{ if(o.keep){o.f();return;} if(!o.pack&&!packing&&body&&body.over&&overList().length) overDrop(); opts.innerHTML=''; say('info','— '+o.t); o.f(); }; return b; };
   list.filter(o=>!isNav(o)).forEach(o=>opts.appendChild(mk(o)));
   const nav=list.filter(isNav); if(nav.length){ const g=document.createElement('div'); g.className='grid'; nav.forEach(o=>g.appendChild(mk(o))); opts.appendChild(g); }
 }
@@ -1222,17 +1224,14 @@ function peek(n){
 }
 function townExtras(o,back){
   if(sysIs('checkin')){ const t=timed('checkin'); const n=ciDay(); o.unshift({t:'簽到（第 '+n+' 天：'+fmt(ciGold(n))+' 金、'+ciCores(n)+' 核、攻擊力 +'+ciAtk(n)+'）'+tlabel('checkin'), ab:1, dis:t.left<=0, f:()=>{ useTimed('checkin'); doCheckin(); back(); }}); }
-  if(sysIs('choice')){ o.unshift({t:'神級選擇（'+growInfo('choice')+'）', ab:1, dis:!growReady('choice'), f:()=>{ const g=NUM.killGold(2)*20; say('title','神級選擇'); sysText('選一個。'); setOptions([
-      {t:'選項一：'+g+' 金幣', f:()=>{ grow('choice','金幣 +'+g,()=>{ body.gold+=g; }); back(); }},
-      {t:'選項二：攻擊力永久 +1', f:()=>{ grow('choice','攻擊力永久 +1',()=>{ soul.permAtk++; }); back(); }},
-      {t:'選項三：HP 上限永久 +2，裂谷核 +3', f:()=>{ grow('choice','HP 上限 +2、裂谷核 +3',()=>{ soul.permHp+=2; addRes('cores',3); }); back(); }}]); }}); }
+  if(sysIs('choice')){ o.unshift({t:'神級選擇（'+growInfo('choice',GROW_CD,Infinity)+'）', ab:1, dis:!growReady('choice',GROW_CD,Infinity), f:()=>choiceMenu(back)}); }
   if(sysIs('shop')){ o.unshift({t:'打開系統商城（積分 '+soul.points+'）', ab:1, f:()=>shopMenu(back)}); }
   if(sysIs('trader')){ const t=timed('trader'); o.unshift({t:'點石：把一種資源全部一比一換成另一種'+tlabel('trader'), ab:1, dis:t.left<=0, f:()=>{
       const have=CARRY.filter(k=>body[k]>0);
       if(!have.length){ say('info','你身上沒有可以點的東西。'); back(); return; }
       setOptions(have.map(k=>({t:'拿出全部'+RES[k]+'（'+body[k]+'）', f:()=>{
         const n=body[k]; setOptions(CARRY.filter(x=>x!==k).map(x=>({t:'換成'+RES[x]+'（'+n+'）', f:()=>{ useTimed('trader'); body[k]=0; addRes(x,n); say('gain','點石：'+RES[k]+' '+n+' 化為 '+RES[x]+' '+n+'。商人看得目瞪口呆。'); status(); back(); }})).concat([{t:'算了', f:back}]),'換成什麼？'); }})).concat([{t:'算了', f:back}]),'拿出什麼？'); }}); }
-  if(sysIs('gacha')){ o.unshift({t:'十連抽（'+growInfo('gacha',60000,30)+'）', ab:1, dis:!growReady('gacha',60000,30), f:()=>{ grow('gacha','十連抽',()=>{},60000,30,true); doGacha(); back(); }}); }
+  if(sysIs('gacha')){ o.unshift({t:'十連抽（'+growInfo('gacha',60000,Infinity)+'）', ab:1, dis:!growReady('gacha',60000,Infinity), f:()=>{ grow('gacha','十連抽',()=>{},60000,Infinity,true); doGacha(); back(); }}); }
   if(sysIs('forge')){ o.unshift({t:'煉化：5 枚裂谷核 → 鋒利 +1（'+growInfo('forge')+'）', ab:1, dis:body.cores<5||!growReady('forge'), f:()=>{ grow('forge','裂谷核化為紅光，融進'+wDef(eqW()).n+'。鋒利 +1',()=>{ body.cores-=5; soul.forges++; eqW().sharp=(eqW().sharp||0)+1; if(soul.forges%5===0) say('gain','器靈覺醒：攻擊力 +1'); }); back(); }}); }
   if(sysIs('shadow')){ const t=timed('shadowq'); if(t.left>0&&body.flags.dailyKills>=5) o.unshift({t:'交付每日任務（擊殺 '+body.flags.dailyKills+'/5）', ab:1, f:()=>{ useTimed('shadowq'); body.flags.dailyKills=0; body.gold+=NUM.killGold()*20; addRes('cores',5); say('gain','每日任務完成：金幣 +'+NUM.killGold()*20+'、裂谷核 +5。'); status(); back(); }}); }
 }
@@ -1258,7 +1257,51 @@ function shopMenu(back){
    SSR：七成是技能（新的或升星，無上限）、三成是基本能力 +1（力量、體力、敏捷、智力隨機）。
    SR：隨機一種永久數值（攻擊 +1、HP +3、防禦 +1、魔力 +1、擊殺金幣 +1%）。
    R：金幣、裂谷核、資源、道具，偶爾稀有素材。每一抽另外有萬分之一抽到稀有裝備、十萬分之一抽到傳說裝備。 */
-function gachaEquip(g){ const ids=(AUC_GRADE[g]||[]).concat((W_GRADE[g]||[]).map(k=>'W:'+k)); const id=rnd(ids); if(!id) return null; const [t,k]=id.split(':'); if(t==='A') giveArmor(k); else if(t==='W') giveWeapon(k); else giveAcc(k); return eqName(t,k); }
+function eqPick(g){ return rnd((AUC_GRADE[g]||[]).concat((W_GRADE[g]||[]).map(k=>'W:'+k)))||null; }
+function eqGive(id){ const [t,k]=id.split(':'); if(t==='A') giveArmor(k); else if(t==='W') giveWeapon(k); else giveAcc(k); return eqName(t,k); }
+function eqIdName(id){ const [t,k]=id.split(':'); return eqName(t,k); }
+function gachaEquip(g){ const id=eqPick(g); return id?eqGive(id):null; }
+/* 神級選擇：三個套餐 × 三個獎勵。每個獎勵的稀有度跟抽獎一樣；永久數值的份量 = max(1, ⌊能力總和 ÷ 100⌋)。
+   套餐存在 soul.choiceSet，選了才換新的，不能靠關掉重開洗選項。 */
+function chU(){ return Math.max(1,Math.floor(ciS()/100)); }
+function chGoldUnit(){ const Le=(ciS()-39)/7; return Math.max(1,Math.round(5*Math.pow(1.2,Le-1)*1.5)); }
+const CH_PERM={atk:'攻擊力永久',hp:'HP 上限永久',def:'防禦力永久',mag:'魔力永久',gold:'擊殺金幣永久'};
+function chRoll(forceLegend){
+  const u=Math.random(), U=chU();
+  if(u<0.00001){ const id=eqPick('傳說'); if(id) return {k:'eq',id,r:'L'}; }
+  if(u<0.00011){ const id=eqPick('稀有'); if(id) return {k:'eq',id,r:'L'}; }
+  const r=forceLegend?0:Math.random();
+  if(r<0.1){ const p=Math.random();
+    if(p<.3) return {k:'stat',s:rnd(['str','vit','agi','int']),r:'L'};
+    if(p<.55) return {k:'rare',res:rnd(RARE4),n:1,r:'L'};
+    if(p<.75){ const id=eqPick('精良'); if(id) return {k:'eq',id,r:'L'}; }
+    const q=rnd(['atk','hp','def','mag']); return {k:'perm',p:q,n:(q==='hp'?3:1)*U*10,r:'L'}; }
+  if(r<0.35){ const q=rnd(['atk','atk','hp','hp','def','def','mag','gold']); return {k:'perm',p:q,n:q==='gold'?1:(q==='hp'?3:1)*U,r:'S'}; }
+  const p=Math.random();
+  if(p<.3) return {k:'gold',n:chGoldUnit()*3,r:'N'};
+  if(p<.55) return {k:'cores',n:2,r:'N'};
+  if(p<.75) return {k:'res',res:rnd(GATHER),n:3+Math.floor(Math.random()*6),r:'N'};
+  return {k:'item',i:rnd(['hpot','hpot','bandage','bomb','smoke','trap','whet','armoroil','coredust','torch','ration']),n:1+Math.floor(Math.random()*2),r:'N'};
+}
+function chText(x){ switch(x.k){
+  case 'gold': return '金幣 +'+fmt(x.n); case 'cores': return '裂谷核 +'+x.n; case 'res': return RES[x.res]+' +'+x.n; case 'item': return ITEMS[x.i].n+' +'+x.n;
+  case 'perm': return (x.r==='L'?'【傳說】':'')+CH_PERM[x.p]+' +'+x.n+(x.p==='gold'?'%':'');
+  case 'stat': return '【傳說】'+STAT_N[x.s]+'永久 +1'; case 'rare': return '【傳說】稀有素材 '+RES[x.res]+' +1'; case 'eq': return '【傳說】裝備「'+eqIdName(x.id)+'」'; } return '?'; }
+function chApply(x){ switch(x.k){
+  case 'gold': body.gold+=x.n; break; case 'cores': addRes('cores',x.n); break; case 'res': case 'rare': addRes(x.res,x.n); break; case 'item': addItem(x.i,x.n); break;
+  case 'perm': if(x.p==='atk') soul.permAtk=(soul.permAtk||0)+x.n; else if(x.p==='hp') soul.permHp=(soul.permHp||0)+x.n; else if(x.p==='def') soul.permDef=(soul.permDef||0)+x.n; else if(x.p==='mag') soul.permMag=(soul.permMag||0)+x.n; else soul.permGold=(soul.permGold||0)+x.n; break;
+  case 'stat': soul.permStat=soul.permStat||{}; soul.permStat[x.s]=(soul.permStat[x.s]|0)+1; break;
+  case 'eq': eqGive(x.id); if(/^(W:(fang|holylance|dragonlance|worldtree|bishopstaff|oldsword|giantaxe))$/.test(x.id)||(AUC_GRADE['傳說']||[]).includes(x.id)) worldEvent(soul.name+' 在神級選擇裡拿到了傳說裝備「'+eqIdName(x.id)+'」'); break; } }
+function chMake(){ soul.choicePity=(soul.choicePity|0)+1; const set=[0,1,2].map(()=>[0,1,2].map(()=>chRoll(false)));
+  let hasL=set.some(b=>b.some(x=>x.r==='L'));
+  if(!hasL&&soul.choicePity>=10){ set[Math.floor(Math.random()*3)][Math.floor(Math.random()*3)]=chRoll(true); hasL=true; }
+  if(hasL) soul.choicePity=0; soul.choiceSet=set; return set; }
+function choiceMenu(back){
+  const set=soul.choiceSet||chMake(); const N3=['套餐一','套餐二','套餐三'];
+  say('title','神級選擇'); sysText(rnd(['選一個。','只能拿一包。','想清楚。其他兩包會消失。']));
+  setOptions(set.map((b,i)=>({t:N3[i]+'：'+b.map(chText).join('、'), legend:b.some(x=>x.r==='L'), f:()=>{
+    if(!growReady('choice',GROW_CD,Infinity)){ say('info','還在冷卻。'+growInfo('choice',GROW_CD,Infinity)); back(); return; }
+    grow('choice',N3[i]+'：'+b.map(chText).join('、'),()=>{ b.forEach(chApply); soul.choiceSet=null; },GROW_CD,Infinity); back(); }})).concat([{t:'先不選', f:back}]),'三個套餐，選一包。沒選的話，套餐會留到下次。'); }
 function doGacha(){
   say('title','十連抽'); const out=[]; soul.pity++; soul.ssrStar=soul.ssrStar||{}; soul.permStat=soul.permStat||{};
   let ssrHit=false;
