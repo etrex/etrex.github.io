@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.48.1';
+const VERSION='2.49.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -351,11 +351,11 @@ const SYSTEMS={
     {n:'記憶累積', d:()=>'每回歸一次，你記住一種不被打中的方式：防禦力永久 + 能力總和 ÷ 100（至少 1，目前累積 +'+rzDef()+'）。'},
     {n:'記憶', d:()=>'每擊殺一隻，防禦力永久 + 能力總和 ÷ 100（至少 1）。每 18 秒一次，沒有每日上限（'+growInfo('rezero')+'）。'}]},
   idle:{name:'掛機系統', skills:[
-    {n:'離線狩獵', d:()=>'你離線時，戰鬥不會停。停在哪一層、用什麼模式，就照那樣打，最多結算 8 小時。會死。'},
-    {n:'安全線', d:()=>'HP低於你設定的安全線時，先逃一次再停手。背包滿了也停。'},
+    {n:'離線狩獵', d:()=>'你離線時，戰鬥不會停。停在哪一層、用什麼模式，就照那樣打，最多結算 '+idleCap()+' 小時（熟練每 50 小時多 1 小時，最多 24 小時）。道具、稀有戒指、魔物戰利品照樣會掉；背包滿了也照打，新撿到的東西放不下就丟掉價值低的，原本背包裡的不動。會死。'},
+    {n:'安全線', d:()=>'HP低於你設定的安全線時，先逃一次再停手。'},
     {n:'快手', d:()=>'攻擊間隔縮短 0.4 秒。可開啟連續狩獵。'},
     {n:'熟練', d:()=>'離線狩獵每滿一小時，攻擊間隔永久縮短 0.01 秒（目前 −'+((soul.idleHours||0)*0.01).toFixed(2)+' 秒）。'},
-    {n:'肌肉記憶', d:()=>'每擊殺一隻，攻擊力永久 +1。每 18 秒一次，沒有每日上限（'+growInfo('idle')+'）。'}]},
+    {n:'肌肉記憶', d:()=>'每擊殺一隻，攻擊力永久 + 能力總和 ÷ 100（至少 1，目前 +'+(body?chU():1)+'）。離線狩獵也算。每 18 秒一次，沒有每日上限（'+growInfo('idle')+'）。'}]},
   forge:{name:'煉化系統', skills:[
     {n:'煉化', d:()=>'把裂谷核煉進身上的一件裝備，強化 +1：武器、防具、鞋子、手套 5 枚；項鍊、戒指 '+FORGE_JEWEL+' 枚（每級效果 +10%）。每 18 秒一次，沒有每日上限（'+growInfo('forge')+'）。'},
     {n:'器靈', d:()=>'每煉化 5 次，器靈覺醒一次：攻擊力永久 + 能力總和 ÷ 100（至少 1，目前 +'+(body?chU():1)+'；累積 +'+forgeAtk()+'）。'}]},
@@ -641,6 +641,8 @@ function giveAcc(k){ body.accs=body.accs||[]; body.acc=body.acc||{}; body.accs.p
    火龍是頭目，第一次打倒必掉。掉寶加成（武器、職業、吃哥布林）照舊乘上去。 */
 const RAND_ACC=['luckring','thunderring'], RAND_P=1/5000, TROPHY_P=1/1000, REGION_TROPHY_P=1/10;
 function trophyRoll(m){ if(m.key==='firelizard'&&!body.flags['boss_'+m.key]){ body.flags['boss_'+m.key]=1; return true; } return lucky((m.region?REGION_TROPHY_P:TROPHY_P)*lootMul(),'drop',m); }
+const OFF_TROPHY={W:{gatekeeper:'giantaxe',firelizard:'dragonlance',shadowdog:'shadowblade'},A:{gatekeeper:'giantplate',firelizard:'dragonscale',leech:'shadowleather'},C:{beast:'ogregauntlet',wolf:'windboots',worm:'dragonboots',snowwolf:'fangneck',bonespider:'lifeneck',crab:'ironring'}};
+function idleCap(){ return Math.min(24,8+Math.floor((soul.idleHours||0)/50)); }
 function dropRare(){ const pool=RAND_ACC; say('narr','魔物的殘骸裡有東西在發光。'); giveAcc(rnd(pool)); }
 function lootUp(){ return !!(wDef(eqW()).loot||job().loot||accHas('loot')); }
 /* 環境：進得去，但沒有免疫就一直掉血。抗性減傷；有系統的人可以用別的方式付錢通過。 */
@@ -2957,7 +2959,7 @@ async function win(){
   if(sysIs('panel')) grow('panel','打磨',()=>{ body.flags.grind=(body.flags.grind|0)+1; if(body.flags.grind>=12){ body.flags.grind=0; body.freePts++; say('gain','打磨滿十二次：屬性點 +1'); } });
   if(sysIs('omni')) grow('omni','數據累積：攻擊力永久 +1',()=>{ soul.permAtk++; });
   if(sysIs('rezero')){ const u=chU(); grow('rezero','記憶：防禦力永久 +'+u,()=>{ soul.permDef=(soul.permDef||0)+u; }); }
-  if(sysIs('idle')) grow('idle','肌肉記憶：攻擊力永久 +1',()=>{ soul.permAtk++; });
+  if(sysIs('idle')){ const u=chU(); grow('idle','肌肉記憶：攻擊力永久 +'+u,()=>{ soul.permAtk+=u; }); }
   body.flags.killed=body.flags.killed||{}; body.flags.killed[m.key]=1;
   if(body.bounty) gqMigrate(); gqOnKill(m);
   { const first={gatekeeper:'giantaxe',firelizard:'dragonlance',shadowdog:'shadowblade'}[m.key]; if(first&&trophyRoll(m)){ say('narr',({gatekeeper:'獨眼巨人倒下的時候，手裡的斧頭砸出一個坑。',firelizard:'火龍的角斷了一根，還在發燙。',shadowdog:'地獄犬的影子沒有跟著牠消失。它凝成了一把刀。'})[m.key]); giveWeapon(first); } }
@@ -2999,8 +3001,8 @@ async function die(force){
    ============================================================ */
 function offlineHunt(saved){
   if(body.flags.ending) return;
-  const hrs=Math.min(8,(Date.now()-saved.savedAt)/H); if(hrs<0.05) return;
-  let t=hrs*3600; let kills=0, gold=0, cores=0, xp=0, fled=false, died=false, fights=0;
+  const hrs=Math.min(idleCap(),(Date.now()-saved.savedAt)/H); if(hrs<0.05) return;
+  let t=hrs*3600; let kills=0, gold=0, cores=0, xp=0, fled=false, died=false, fights=0; const loot=[];
   const stop=body.hpMax*body.stopHp;
   while(t>0){
     const m=makeMon(pickMon(body.floor), RIFT_LV[body.floor]||[1,4]); fights++;
@@ -3013,11 +3015,23 @@ function offlineHunt(saved){
       fled=true; break;
     }
     body.hp-=taken; t-=dur+1; kills++; gold+=killGoldLv(m); xp+=killXp(m);
-    if(ssr('loot')||chance(m.drop)){ if(space()-cores*WT.cores>=WT.cores) cores++; }
+    if(ssr('loot')||chance(Math.min(1,m.drop*lootMul()))) cores++;
+    if(chance(.25*lootMul())) loot.push({t:'I',k:rnd(['hpot','hpot','smoke','bomb','whet','bandage','bandage','coredust','trap','ration'])});
+    if(m.tier>=3&&chance(RAND_P*lootMul())) loot.push({t:'C',k:rnd(RAND_ACC)});
+    { const w=OFF_TROPHY.W[m.key], a=OFF_TROPHY.A[m.key], c=OFF_TROPHY.C[m.key]; if(w&&trophyRoll(m)) loot.push({t:'W',k:w}); if(a&&trophyRoll(m)) loot.push({t:'A',k:a}); if(c&&trophyRoll(m)) loot.push({t:'C',k:c}); }
   }
-  body.gold+=gold; addRes('cores',cores); soul.kills=(soul.kills||0)+kills; soul.idleHours=(soul.idleHours||0)+Math.floor(hrs);
+  for(let i=0;i<cores;i++) loot.push({t:'R',k:'cores'});
+  body.gold+=gold; soul.kills=(soul.kills||0)+kills; soul.idleHours=(soul.idleHours||0)+Math.floor(hrs);
+  /* 背包滿了也照打：新撿到的東西照「每格值多少錢」排，放得下的留下，放不下的丟掉；原本背包裡的東西不動 */
+  const val=x=>x.t==='R'?world.price:x.t==='I'?(ITEMS[x.k].price||1):eqSellPrice(x.t,x.k);
+  const wt=x=>x.t==='R'?WT[x.k]:x.t==='I'?iW(x.k):eqW8(x.t,x.k);
+  loot.sort((a,b)=>val(b)/wt(b)-val(a)/wt(a)); let room=space(); const kept={}, lost={}; const nm=x=>x.t==='R'?RES[x.k]:x.t==='I'?ITEMS[x.k].n:eqName(x.t,x.k);
+  loot.forEach(x=>{ const w=wt(x); const n=nm(x); if(w<=room){ room-=w; kept[n]=(kept[n]|0)+1; if(x.t==='R') body[x.k]+=1; else if(x.t==='I') body.items[x.k]=(body.items[x.k]|0)+1; else if(x.t==='W') giveWeapon(x.k); else if(x.t==='A') giveArmor(x.k); else giveAcc(x.k); } else lost[n]=(lost[n]|0)+1; });
+  const lst=o=>Object.keys(o).map(k=>k+' ×'+o[k]).join('、');
+  let mm=0; if(sysIs('idle')){ const u=chU(); const n=Math.min(kills,Math.floor(hrs*3600000/GROW_CD)); if(n>0){ mm=n*u; soul.permAtk+=mm; const g=growRec('idle'); g.n+=n; g.last=Date.now(); } }
   say('title','離線狩獵報告');
-  say('info','離線 '+hrs.toFixed(1)+' 小時，第 '+body.floor+' 層，模式：'+MODES[body.mode]+'。擊殺 '+kills+'｜金幣 +'+gold+'｜裂谷核 +'+cores+(fled?'｜HP低於安全線，逃了一次後停手':'')+(space()<WT.cores?'｜背包滿了，後來掉的核沒撿':''));
+  say('info','離線 '+hrs.toFixed(1)+' 小時，第 '+body.floor+' 層，模式：'+MODES[body.mode]+'。擊殺 '+kills+'｜金幣 +'+gold+'｜裂谷核 +'+cores+(mm?'｜肌肉記憶：攻擊力永久 +'+fmt(mm):'')+(fled?'｜HP低於安全線，逃了一次後停手':''));
+  if(Object.keys(kept).length) say('gain','留下：'+lst(kept)); if(Object.keys(lost).length) say('info','背包滿了，價值低的丟掉了：'+lst(lost));
   gainXp(xp); body.idleArmed=false;
   if(died){ say('hurt','最後一場沒逃掉。'); body.hp=0; die(true); return true; }
   return false;
