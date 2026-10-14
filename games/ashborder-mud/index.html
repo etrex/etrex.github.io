@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.43.1';
+const VERSION='2.43.2';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -2397,7 +2397,7 @@ function reincarnate(after){ inCombat=false; clearInterval(cTimer); story(after?
   worldEvent(soul.name+'（'+soul.system.name+'，'+body.age+' 歲）'+(after?'寫完了灰燼邊境的故事，放下了這一世。':'在教堂放下了這一世。'));
   soul.lives++; soul.memory={lastSys:soul.system.key};
   if(shTotal()>0) say('info','影子軍團 '+shTotal()+' 個跨世保留。下一世不管締結什麼系統，牠們都會跟著你出手。');
-  soul.ach=soul.ach||{}; soul.endings=soul.endings||[]; soul.permAtk=0; soul.permHp=0; soul.permDef=0; soul.eats=0; soul.eatHpN=0; soul.lvUps=0; soul.returns=0; soul.forges=0; soul.meditations=0; soul.points=0; soul.luck=0;
+  soul.ach=soul.ach||{}; soul.endings=soul.endings||[]; /* 轉生只留下抽獎的技能（含星數）與影子軍團；其他永久加成全部歸零 */ soul.permAtk=0; soul.permHp=0; soul.permDef=0; soul.permStat={}; soul.permMag=0; soul.permGold=0; soul.streak=0; soul.lastCheck=0; soul.ciMile={}; soul.choiceSet=null; soul.choicePity=0; soul.pity=0; soul.eats=0; soul.eatHpN=0; soul.lvUps=0; soul.returns=0; soul.forges=0; soul.meditations=0; soul.points=0; soul.luck=0;
   body=null; soul.system=null; mon=null; status(); save();
   setOptions([{t:'回到主神空間', f:()=>startQuestionnaire()}]);
 }
