@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.48.0';
+const VERSION='2.48.1';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -344,7 +344,7 @@ const SYSTEMS={
     {n:'三倍奉還', d:()=>'你受到的每一點傷害，敵人承受三倍。'},
     {n:'怒氣', d:()=>'每被打一次 +1 怒氣。5 點時可釋放「爆發」：'+Math.round(atkNow()*5)+' 傷害。目前 '+(body?body.rage:0)+'/5。'},
     {n:'不倒', d:()=>'HP低於一成時，該回合所受傷害歸零（每場一次）。'},
-    {n:'皮糙肉厚', d:()=>'每被打一次，防禦力永久 +1（目前 +'+refDef()+'）。每 18 秒一次，沒有每日上限（'+growInfo('reflect')+'）。'}]},
+    {n:'皮糙肉厚', d:()=>'每被打一次，防禦力永久 + 能力總和 ÷ 100（至少 1，目前一次 +'+(body?chU():1)+'，累積 +'+refDef()+'）。每 18 秒一次，沒有每日上限（'+growInfo('reflect')+'）。'}]},
   rezero:{name:'死亡回歸系統', skills:[
     {n:'死亡回歸', d:()=>'死亡時回到今天早上（最後一次休息醒來的那一刻）。除了記憶，一切都回到當時：等級、經驗、道具、裝備、金幣、資源、劇情、任務。留下來的只有記憶——知道的事、圖鑑、走過的路，還有記憶累積的防禦與既視感。無限次。'},
     {n:'既視感', d:()=>{ const D=soul.rzDeja||{}; const ks=Object.keys(D); return '每被一種魔物害死一次，牠對你的傷害永久 −10%（最多 −90%），而且你永遠看得見牠的弱點，可以用「弱點」模式打牠。這是記憶，轉生也帶得走。'+(ks.length?'記得的：'+ks.map(k=>dejaName(k)+' −'+Math.round(dejaCut(k)*100)+'%').join('、'):'還沒有被什麼害死過。'); }},
@@ -2918,7 +2918,7 @@ function monsterAttack(){
   if(sysIs('reflect')&&!body.unyield&&body.hp-d<=body.hpMax*.1&&body.hp>0){ body.unyield=true; say('gain','不倒：這一擊被你硬生生擋下。'); d=0; }
   if(d>0&&shFight.length) d=Math.round(d*shGuard(raw));
   if(body.shield>0&&d>0){ const ab=Math.min(body.shield,d); body.shield-=ab; d-=ab; say('info','護盾擋下 '+fmt(ab)+'（剩 '+fmt(body.shield)+'）'); }
-  body.hp-=d; soul.hitsTaken=(soul.hitsTaken||0)+1; say('hurt',mon.n+'的攻擊！受到了 '+d+' 點傷害。'); if(mon.leech&&d>0){ const h=Math.round(d*.5); mon.hp=Math.min(mon.hpMax,mon.hp+h); say('combat',mon.n+'吸了你的血，HP +'+h+'。'); } if(sysIs('reflect')) grow('reflect','皮糙肉厚：防禦力永久 +1',()=>{ soul.permDef=(soul.permDef||0)+1; });
+  body.hp-=d; soul.hitsTaken=(soul.hitsTaken||0)+1; say('hurt',mon.n+'的攻擊！受到了 '+d+' 點傷害。'); if(mon.leech&&d>0){ const h=Math.round(d*.5); mon.hp=Math.min(mon.hpMax,mon.hp+h); say('combat',mon.n+'吸了你的血，HP +'+h+'。'); } if(sysIs('reflect')){ const u=chU(); grow('reflect','皮糙肉厚：防禦力永久 +'+u,()=>{ soul.permDef=(soul.permDef||0)+u; }); }
   if(sysIs('reflect')&&d>0){ const r=d*3; mon.hp-=r; body.rage=Math.min(5,body.rage+1); say('combat','三倍奉還：'+r+' 傷害回到'+mon.n+'身上。怒氣 '+body.rage+'/5'); }
   if(ssr('reflect')&&d>0){ const rd=Math.round(d*ssrF('reflect')); mon.hp-=rd; say('combat','反彈：'+fmt(rd)+' 傷害。'); }
   if(mon.hp<=0&&body.hp>0){ win(); return; }
