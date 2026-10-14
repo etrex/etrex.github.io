@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.41.0';
+const VERSION='2.42.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -302,10 +302,10 @@ const SYSTEMS={
     {n:'血肉累積', d:()=>'每吃一隻，HP 上限永久 + 能力總和 ÷ 100（至少 1，目前一隻 +'+(body?chU():1)+'，累積 +'+eatHp()+'）。沒有冷卻，不限次數。'},
     {n:'進化', d:()=>'吃過 8 個家族：進化，攻擊與 HP ×1.5；16 個：超進化 ×2；24 個：究極進化 ×3。'+(body?'（目前 '+eatN()+' 種'+(evoStage()?'，'+EVO[evoStage()][1]:'')+'）':'')}]},
   infinite:{name:'無限升級系統', skills:[
-    {n:'經驗三倍', d:()=>'所有經驗值 ×3。'},
+    {n:'經驗五倍', d:()=>'所有經驗值 ×5。'},
     {n:'骨骼強化', d:()=>'每升一級，防禦力永久 +1（目前 +'+lvDef()+'）。'},
-    {n:'越級挑戰', d:()=>'擊殺比你強的敵人，經驗再 ×3。'},
-    {n:'鍛骨', d:()=>'每擊殺一隻，HP 上限永久 +1。每 18 秒一次，沒有每日上限（'+growInfo('infinite')+'）。'}]},
+    {n:'越級挑戰', d:()=>'擊殺等級比你高的敵人，經驗再 ×5（合計 ×25）。裂谷的魔物最高 Lv 50，過了 50 級就只剩 ×5。'},
+    {n:'鍛骨', d:()=>'每擊殺一隻，HP 上限永久 + 能力總和 ÷ 100（至少 1，目前 +'+(body?chU():1)+'）。每 18 秒一次，沒有每日上限（'+growInfo('infinite')+'）。'}]},
   shadow:{name:'影之君主系統', skills:[
     {n:'影子抽取', d:()=>'殺死的敵人有三分之一的機會變成你的影子，影子軍團沒有上限。影子就是那隻魔物：HP、攻擊、防禦、攻速都跟牠當魔物時一樣（看牠被你殺的時候是幾級）。你每次行動，影子們跟著出手。'+(body?'目前軍團 '+shTotal()+' 個，出戰 '+shDeployed().length+' 個'+(shDeployed().length?'，最強的是'+shLabel(shDeployed()[0])+'（Lv '+shMeta(shDeployed()[0]).lv+'，HP '+fmt(shMeta(shDeployed()[0]).hp)+'、攻擊 '+fmt(shMeta(shDeployed()[0]).atk)+'）':'')+'。':'')},
     {n:'意志', d:()=>'影子不是用力氣使喚的，是用意志維繫。同時出戰的影子數 = 智力 ÷ 5（目前 '+(body?shDeployN():0)+' 個），派出的是最強的那幾個。'},
@@ -2704,7 +2704,7 @@ function killGoldLv(m){ return Math.max(1,Math.round(5*Math.pow(1.2,m.lv-1)*(1+.
 /* 升級需求 = 同級三階魔物一隻的經驗值 × 所需隻數 x(L)；x(L) Lv 5 起 12 隻、每級 ×1.7，Lv 10 起 900 隻、每級 ×1.06 */
 function xpKills(L){ return L<10?12*Math.pow(1.7,Math.max(0,L-5)):900*Math.pow(1.06,L-10); }
 function xpNeed(L){ return Math.round(xpKills(L)*4*Math.pow(1.25,L-1)); }
-function gainXp(x){ if(sysIs('infinite')) x*=3; body.xp+=x; while(body.xp>=xpNeed(body.level)){ const a0=atkNow(), h0=body.hpMax; body.xp-=xpNeed(body.level); const s0=stats(); body.level++; if(sysIs('infinite')) soul.lvUps++; if(sysIs('panel')&&body.level%2===0) body.freePts+=1; body.hpMax=hpMaxNow(); body.hp=Math.min(body.hpMax,body.hp+(body.hpMax-h0)); say('title','等級提升！Lv '+body.level); { const s1=stats(); const d=k=>s1[k]>s0[k]?'（+'+(s1[k]-s0[k])+'）':'（這級沒長）'; say('gain','力量 '+s0.str+' → '+s1.str+d('str')+'｜體力 '+s0.vit+' → '+s1.vit+d('vit')+'｜敏捷 '+s0.agi+' → '+s1.agi+d('agi')+'｜智力 '+s0.int+' → '+s1.int+d('int')); } say('gain','攻擊 '+a0+' → '+atkNow()+'｜HP 上限 '+h0+' → '+body.hpMax+'｜攻速 '+pInterval().toFixed(2)+' 秒'+(sysIs('panel')&&body.level%2===0?'｜屬性點 +1':'')); sysText(rnd(['數字漲了。別高興太早，裂谷也在漲。','嗯，比剛來的時候像樣一點了。','你變強了。它們也是。'])); } }
+function gainXp(x){ if(sysIs('infinite')) x*=5; body.xp+=x; while(body.xp>=xpNeed(body.level)){ const a0=atkNow(), h0=body.hpMax; body.xp-=xpNeed(body.level); const s0=stats(); body.level++; if(sysIs('infinite')) soul.lvUps++; if(sysIs('panel')&&body.level%2===0) body.freePts+=1; body.hpMax=hpMaxNow(); body.hp=Math.min(body.hpMax,body.hp+(body.hpMax-h0)); say('title','等級提升！Lv '+body.level); { const s1=stats(); const d=k=>s1[k]>s0[k]?'（+'+(s1[k]-s0[k])+'）':'（這級沒長）'; say('gain','力量 '+s0.str+' → '+s1.str+d('str')+'｜體力 '+s0.vit+' → '+s1.vit+d('vit')+'｜敏捷 '+s0.agi+' → '+s1.agi+d('agi')+'｜智力 '+s0.int+' → '+s1.int+d('int')); } say('gain','攻擊 '+a0+' → '+atkNow()+'｜HP 上限 '+h0+' → '+body.hpMax+'｜攻速 '+pInterval().toFixed(2)+' 秒'+(sysIs('panel')&&body.level%2===0?'｜屬性點 +1':'')); sysText(rnd(['數字漲了。別高興太早，裂谷也在漲。','嗯，比剛來的時候像樣一點了。','你變強了。它們也是。'])); } }
 async function win(){
   if(!inCombat) return; inCombat=false; const m=curMonRef(); 
   say('gain','打倒了'+m.n+'！'); sys('kill');
@@ -2713,13 +2713,13 @@ async function win(){
   let nDrop=(ssr('loot')||chance(Math.min(1,m.drop*lootMul())))?1:0; if(ssr('loot')) nDrop+=Math.floor(ssrF('loot')-1+1e-9); if(isKing(m))nDrop+=2; if(sysIs('luck')) nDrop+=Math.floor(soul.luck/10);
   const got=addRes('cores',nDrop); if(got) say('gain','獲得了裂谷核 ×'+got+'！');
   if(!isKing(m)){ if(chance(.25*lootMul())){ const k=rnd(['hpot','hpot','smoke','bomb','whet','bandage','bandage','coredust','trap','ration']); if(addItem(k,1)>0) say('gain','你在牠身邊撿到一個'+ITEMS[k].n+'。'); } if(m.tier>=3&&chance(RAND_P*lootMul())) dropRare(); } else { addItem('hpot',2); say('gain','魔王的殘骸裡有兩瓶藥水。'); say('narr','魔王的牙還在發燙。'); giveWeapon('fang'); giveArmor('scale'); say('narr','魔王的指骨上套著一枚戒指。'); giveAcc('kingring'); }
-  let xp=killXp(m); if(ssr('xp')) xp=Math.round(xp*(1+.3*ssrF('xp'))); if(sysIs('infinite')&&m.hpMax>body.hpMax) xp*=3; gainXp(xp);
+  let xp=killXp(m); if(ssr('xp')) xp=Math.round(xp*(1+.3*ssrF('xp'))); if(sysIs('infinite')&&m.lv>body.level) xp*=5; gainXp(xp);
   if(sysIs('devour')){ if(m.fm&&DEVOUR[m.fm]&&(body.eaten[m.fm]|0)<m.tier){ const st0=evoStage(); const first=!body.eaten[m.fm]; body.eaten[m.fm]=m.tier; say('gain','捕食：'+devText(m.fm,m.tier)+'。'+(first?'（'+eatN()+'/'+Object.keys(DEVOUR).length+' 種）':'吃到更高階的了，效果升級。')); const st=evoStage(); if(st>st0){ body.evolved=true; say('title',EVO[st][1]); say('gain','攻擊與 HP 上限 ×'+EVO[st][2]+'。'); } } if(soul.eatHpN===undefined) soul.eatHpN=soul.eats; soul.eats++; soul.eatHpN+=chU(); if(soul.eats%10===0) say('gain','血肉累積：HP 上限 +'+fmt(soul.eatHpN)+'。'); }
   if(sysIs('shadow')){ shq().k++; if(chance(1/3)) shExtract(m); else say('info','影子從你指間散掉了。'); }
   if(sysIs('luck')&&m.tier>=3) addLuck(isKing(m)?15:5,'擊殺強敵');
   if(sysIs('shop')){ soul.points+=m.tier*10; say('gain','積分 +'+m.tier*10+'（'+soul.points+'）'); }
   if(sysIs('luck')) grow('luck','天命：氣運 +1',()=>{ soul.luck++; });
-  if(sysIs('infinite')) grow('infinite','鍛骨：HP 上限 +1',()=>{ soul.permHp++; });
+  if(sysIs('infinite')){ const u=chU(); grow('infinite','鍛骨：HP 上限 +'+u,()=>{ soul.permHp+=u; }); }
   if(sysIs('panel')) grow('panel','打磨',()=>{ body.flags.grind=(body.flags.grind|0)+1; if(body.flags.grind>=12){ body.flags.grind=0; body.freePts++; say('gain','打磨滿十二次：屬性點 +1'); } });
   if(sysIs('omni')) grow('omni','數據累積：攻擊力永久 +1',()=>{ soul.permAtk++; });
   if(sysIs('rezero')) grow('rezero','記憶：防禦力永久 +1',()=>{ soul.permDef=(soul.permDef||0)+1; });
