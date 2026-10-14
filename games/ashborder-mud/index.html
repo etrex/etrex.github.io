@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.49.0';
+const VERSION='2.49.1';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -339,7 +339,7 @@ const SYSTEMS={
     {n:'自動戰鬥', d:()=>'可開啟連續狩獵：打完自動下一隻。'},
     {n:'博聞', d:()=>'每知道一件新的事，背包永久 +1。'},
     {n:'洞悉存量', d:()=>'你看得見每個市場的真實存量。'},
-    {n:'數據累積', d:()=>'每擊殺一隻，攻擊力永久 +1。每 18 秒一次，沒有每日上限（'+growInfo('omni')+'）。'}]},
+    {n:'數據累積', d:()=>'每擊殺一隻，攻擊力永久 + 能力總和 ÷ 100（至少 1，目前 +'+(body?chU():1)+'）。每 18 秒一次，沒有每日上限（'+growInfo('omni')+'）。'}]},
   reflect:{name:'反傷系統', skills:[
     {n:'三倍奉還', d:()=>'你受到的每一點傷害，敵人承受三倍。'},
     {n:'怒氣', d:()=>'每被打一次 +1 怒氣。5 點時可釋放「爆發」：'+Math.round(atkNow()*5)+' 傷害。目前 '+(body?body.rage:0)+'/5。'},
@@ -2957,7 +2957,7 @@ async function win(){
   if(sysIs('luck')) grow('luck','天命：氣運 +1',()=>{ addLuck(1); });
   if(sysIs('infinite')){ const u=chU(); grow('infinite','鍛骨：HP 上限 +'+u,()=>{ soul.permHp+=u; }); }
   if(sysIs('panel')) grow('panel','打磨',()=>{ body.flags.grind=(body.flags.grind|0)+1; if(body.flags.grind>=12){ body.flags.grind=0; body.freePts++; say('gain','打磨滿十二次：屬性點 +1'); } });
-  if(sysIs('omni')) grow('omni','數據累積：攻擊力永久 +1',()=>{ soul.permAtk++; });
+  if(sysIs('omni')){ const u=chU(); grow('omni','數據累積：攻擊力永久 +'+u,()=>{ soul.permAtk+=u; }); }
   if(sysIs('rezero')){ const u=chU(); grow('rezero','記憶：防禦力永久 +'+u,()=>{ soul.permDef=(soul.permDef||0)+u; }); }
   if(sysIs('idle')){ const u=chU(); grow('idle','肌肉記憶：攻擊力永久 +'+u,()=>{ soul.permAtk+=u; }); }
   body.flags.killed=body.flags.killed||{}; body.flags.killed[m.key]=1;
