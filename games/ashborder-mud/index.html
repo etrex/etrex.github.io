@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.40.0';
+const VERSION='2.40.1';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -308,7 +308,7 @@ const SYSTEMS={
     {n:'鍛骨', d:()=>'每擊殺一隻，HP 上限永久 +1。每 18 秒一次，每日 100 次（'+growInfo('infinite')+'）。'}]},
   shadow:{name:'影之君主系統', skills:[
     {n:'影子抽取', d:()=>'殺死的敵人有三分之一的機會變成你的影子，影子軍團沒有上限。影子就是那隻魔物：HP、攻擊、防禦、攻速都跟牠當魔物時一樣（看牠被你殺的時候是幾級）。你每次行動，影子們跟著出手。'+(body?'目前軍團 '+shTotal()+' 個，出戰 '+shDeployed().length+' 個'+(shDeployed().length?'，最強的是'+shLabel(shDeployed()[0])+'（Lv '+shMeta(shDeployed()[0]).lv+'，HP '+fmt(shMeta(shDeployed()[0]).hp)+'、攻擊 '+fmt(shMeta(shDeployed()[0]).atk)+'）':'')+'。':'')},
-    {n:'意志', d:()=>'影子不是用力氣使喚的，是用意志維繫。同時出戰的影子數 = 智力 ÷ 4（目前 '+(body?shDeployN():0)+' 個），派出的是最強的那幾個。'},
+    {n:'意志', d:()=>'影子不是用力氣使喚的，是用意志維繫。同時出戰的影子數 = 智力 ÷ 5（目前 '+(body?shDeployN():0)+' 個），派出的是最強的那幾個。'},
     {n:'影衛', d:()=>'魔物出手時，每個出戰的影子各自有 2% 的機會跳出來擋，可能好幾個一起擋。跳出來的影子吃下整擊，弱的在前，各自用牠當魔物時的 HP 和防禦去扛。被打不一定會散，HP 歸零才散掉，擋不完的才打到你。散掉的影子這場戰鬥不再出手，打完就回來。'},
     {n:'影之鍛', d:()=>'每持有一個影子，攻擊力永久 +1（目前 +'+shForge()+'）。'},
     {n:'每日任務', d:()=>{ const q=shq(); return '每現實日：擊殺 5、50、200 隻各領一次獎勵，看你的能力總和。今日擊殺 '+q.k+'。'+(body?'獎勵：5 隻 '+fmt(chGoldUnit()*20)+' 金與 '+Math.floor(ciS()/20)+' 核；50 隻 '+fmt(chGoldUnit()*150)+' 金與 '+Math.floor(ciS()/20)*3+' 核；200 隻 '+fmt(chGoldUnit()*500)+' 金與 '+Math.floor(ciS()/20)*10+' 核。':''); }},
@@ -795,7 +795,7 @@ function eatAtkPct(){ return .05*eatF('fire')+.15*eatF('demon')+.05*eatF('orc')+
 function lootMul(){ return lootUp()?2:1+eatF('goblin'); }
 function lvAtk(){ return 0; } function lvHp(){ return 0; } function lvDef(){ return sysIs('infinite')?soul.lvUps:0; }
 /* 影之君主：soul.shadowBag = {'魔物key@等級': 數量}，soul.shadowMeta 記住牠當魔物時的數值（HP、攻擊、防禦、攻速），影子就是那隻魔物。跨世保留。
-   出戰數 = ⌊智力 ÷ 4⌋，派最強的（攻擊 ÷ 攻速 × HP 最大的）。舊存檔的 soul.shadows 轉成「無名影子」。 */
+   出戰數 = ⌊智力 ÷ 5⌋，派最強的（攻擊 ÷ 攻速 × HP 最大的）。舊存檔的 soul.shadows 轉成「無名影子」。 */
 function shBag(){ if(!soul.shadowBag){ soul.shadowBag={}; if(soul.shadows>0) soul.shadowBag._old=soul.shadows; } return soul.shadowBag; }
 function shMeta(k){ const M=soul.shadowMeta||(soul.shadowMeta={}); if(M[k]&&M[k].hp) return M[k];
   const [key,l]=k.split('@'); const d=key==='king'?KING:key==='_old'?MONSTERS[0]:MONSTERS.find(x=>x.key===key)||MONSTERS[0];
@@ -805,7 +805,7 @@ function shName(k){ return shMeta(k).n; }
 function shLabel(k){ const n=shName(k); return /影子$/.test(n)?n:n+'的影子'; }
 function shLabels(ks){ const c={}; ks.forEach(k=>{ const n=shLabel(k); c[n]=(c[n]|0)+1; }); return Object.keys(c).map(n=>n+(c[n]>1?'（'+c[n]+' 個）':'')).join('、'); }
 function shTotal(){ const b=shBag(); let n=0; for(const k in b) n+=b[k]; return n; }
-function shDeployN(){ return body?Math.floor(stats().int/4):0; }
+function shDeployN(){ return body?Math.floor(stats().int/5):0; }
 function shDeployed(){ const b=shBag(); const ks=Object.keys(b).filter(k=>b[k]>0).sort((x,y)=>shScore(y)-shScore(x)); const out=[]; let N=shDeployN(); for(const k of ks){ for(let i=0;i<b[k]&&N>0;i++,N--) out.push(k); if(N<=0) break; } return out; }
 /* 影子出手：每次你行動，每個影子打出牠當魔物時的傷害（魔物傷害公式：攻擊² ÷（攻擊 + 對方防禦）），再乘上這段時間牠能出手幾次（你的攻擊間隔 ÷ 牠的攻速）。 */
 function shDmgOf(list,D){ if(!body||!list.length) return 0; const T=pInterval(); return Math.max(1,Math.round(list.reduce((t,x)=>{ const m=shMeta(typeof x==='string'?x:x.k); return t+monDamage(m.atk*(0.85+Math.random()*.3),D||0)*T/m.iv; },0))); }
