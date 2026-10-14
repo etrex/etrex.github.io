@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.44.0';
+const VERSION='2.45.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -357,8 +357,8 @@ const SYSTEMS={
     {n:'熟練', d:()=>'離線狩獵每滿一小時，攻擊間隔永久縮短 0.01 秒（目前 −'+((soul.idleHours||0)*0.01).toFixed(2)+' 秒）。'},
     {n:'肌肉記憶', d:()=>'每擊殺一隻，攻擊力永久 +1。每 18 秒一次，沒有每日上限（'+growInfo('idle')+'）。'}]},
   forge:{name:'煉化系統', skills:[
-    {n:'煉化', d:()=>'5 枚裂谷核煉進武器，鋒利永久 +1。每 18 秒一次，沒有每日上限（'+growInfo('forge')+'）。目前'+(body?wDef(eqW()).n+'鋒利 +'+eqW().sharp:'鋒利 +0')+'。'},
-    {n:'器靈', d:()=>'武器每煉化 5 次，覺醒一次：攻擊力 +1。'}]},
+    {n:'煉化', d:()=>'把裂谷核煉進身上的一件裝備，強化 +1：武器、防具、鞋子、手套 5 枚；項鍊、戒指 '+FORGE_JEWEL+' 枚（每級效果 +10%）。每 18 秒一次，沒有每日上限（'+growInfo('forge')+'）。'},
+    {n:'器靈', d:()=>'每煉化 5 次，器靈覺醒一次：攻擊力永久 + 能力總和 ÷ 100（至少 1，目前 +'+(body?chU():1)+'；累積 +'+forgeAtk()+'）。'}]},
   trader:{name:'萬物交易系統', skills:[
     {n:'行情', d:()=>'所有交換管道和每個地方的存量對你透明。別人只看得出「缺貨」「貨很多」，你看得到數字。'},
     {n:'抽成', d:()=>'每一筆交換，你多拿一半。訊息裡會標「抽成 +N」。'},
@@ -833,7 +833,10 @@ function shExtract(m){ const k=m.key+'@'+m.lv; soul.shadowMeta=soul.shadowMeta||
 function rzAtk(){ return 0; } function rzDef(){ return sysIs('rezero')?soul.returns:0; }
 function medAtk(){ return sysIs('ancestor')?soul.meditations:0; } function medHp(){ return 0; }
 
-function forgeAtk(){ return sysIs('forge')?Math.floor(soul.forges/5):0; }
+const FORGE_JEWEL=50;
+function forgeAtk(){ if(!sysIs('forge')) return 0; if(soul.forgeAtkN===undefined) soul.forgeAtkN=Math.floor((soul.forges|0)/5); return soul.forgeAtkN; }
+function forgeMenu(back){ const L=[]; const W=eqW(), A=eqA(); L.push({n:wDef(W).n,x:W,c:5,t:'武器'}); L.push({n:aDef(A).n,x:A,c:5,t:'防具'}); accWornInst().forEach(x=>{ const D=ACCS[x.key]; if(D) L.push({n:D.n,x,c:(D.slot==='neck'||D.slot==='ring')?FORGE_JEWEL:5,t:ASLOT[D.slot]}); });
+  setOptions(L.map(e=>({t:e.t+'：'+e.n+'（+'+(e.x.sharp||0)+' → +'+((e.x.sharp||0)+1)+'，裂谷核 '+e.c+' 枚）', ab:1, dis:body.cores<e.c||!growReady('forge'), f:()=>{ grow('forge','裂谷核化為紅光，融進'+e.n+'。強化 +1（+'+((e.x.sharp||0)+1)+'）',()=>{ body.cores-=e.c; soul.forges=(soul.forges|0)+1; e.x.sharp=(e.x.sharp||0)+1; forgeAtk(); if(soul.forges%5===0){ const u=chU(); soul.forgeAtkN+=u; say('gain','器靈覺醒：攻擊力永久 +'+u); } }); forgeMenu(back); }})).concat([{t:'不煉了', f:back}]),'煉化　裂谷核 '+body.cores+' 枚｜'+growInfo('forge'),true); }
 function atkNow(){ if(!body||!soul.system) return 0; let a=baseAtk()*evoMul()*(1+eatAtkPct()); return Math.round(a*(sysIs('ancestor')?1:ageFactor(body.age))); }
 function refDef(){ return soul.permDef||0; }
 /* 防禦 =（防具 + 加固 + 永久加成 + 職業 + 飾品）× 體力倍率（跟 HP 同一條：1.15^(0.8 ×(體力 − 18) ÷ 2)），所以防禦會跟著魔物一起長 */
@@ -1272,7 +1275,7 @@ function townExtras(o,back){
       setOptions(have.map(k=>({t:'拿出全部'+RES[k]+'（'+body[k]+'）', f:()=>{
         const n=body[k]; setOptions(CARRY.filter(x=>x!==k).map(x=>({t:'換成'+RES[x]+'（'+n+'）', f:()=>{ useTimed('trader'); body[k]=0; addRes(x,n); say('gain','點石：'+RES[k]+' '+n+' 化為 '+RES[x]+' '+n+'。商人看得目瞪口呆。'); status(); back(); }})).concat([{t:'算了', f:back}]),'換成什麼？'); }})).concat([{t:'算了', f:back}]),'拿出什麼？'); }}); }
   if(sysIs('gacha')){ o.unshift({t:'十連抽（'+growInfo('gacha',60000,Infinity)+'）', ab:1, dis:!growReady('gacha',60000,Infinity), f:()=>{ grow('gacha','十連抽',()=>{},60000,Infinity,true); doGacha(); back(); }}); }
-  if(sysIs('forge')){ o.unshift({t:'煉化：5 枚裂谷核 → 鋒利 +1（'+growInfo('forge')+'）', ab:1, dis:body.cores<5||!growReady('forge'), f:()=>{ grow('forge','裂谷核化為紅光，融進'+wDef(eqW()).n+'。鋒利 +1',()=>{ body.cores-=5; soul.forges++; eqW().sharp=(eqW().sharp||0)+1; if(soul.forges%5===0) say('gain','器靈覺醒：攻擊力 +1'); }); back(); }}); }
+  if(sysIs('forge')){ o.unshift({t:'煉化：把裂谷核煉進裝備（'+growInfo('forge')+'）', ab:1, f:()=>forgeMenu(back)}); }
   if(sysIs('shadow')){ const q=shq(); const ok=SHQ.filter(([n])=>q.k>=n&&!q.got[n]); if(ok.length) o.unshift({t:'交付每日任務（今日擊殺 '+q.k+'：'+ok.map(([n])=>n+' 隻').join('、')+'）', ab:1, f:()=>{ ok.forEach(([n,gm,cm])=>{ q.got[n]=1; const g=chGoldUnit()*gm, c=Math.floor(ciS()/20)*cm; body.gold+=g; addRes('cores',c); say('gain','每日任務（擊殺 '+n+' 隻）完成：金幣 +'+fmt(g)+'、裂谷核 +'+c+'。'); }); status(); back(); }}); }
 }
 /* ============================================================
@@ -2563,7 +2566,7 @@ function reincarnate(after){ inCombat=false; clearInterval(cTimer); story(after?
   worldEvent(soul.name+'（'+soul.system.name+'，'+body.age+' 歲）'+(after?'寫完了灰燼邊境的故事，放下了這一世。':'在教堂放下了這一世。'));
   soul.lives++; soul.memory={lastSys:soul.system.key};
   if(shTotal()>0) say('info','影子軍團 '+shTotal()+' 個跨世保留。下一世不管締結什麼系統，牠們都會跟著你出手。');
-  soul.ach=soul.ach||{}; soul.endings=soul.endings||[]; /* 轉生只留下抽獎的技能（含星數）與影子軍團；其他永久加成全部歸零 */ soul.permAtk=0; soul.permHp=0; soul.permDef=0; soul.permStat={}; soul.idleHours=0; soul.permMag=0; soul.permGold=0; soul.streak=0; soul.lastCheck=0; soul.ciMile={}; soul.choiceSet=null; soul.choicePity=0; soul.pity=0; soul.eats=0; soul.eatHpN=0; soul.lvUps=0; soul.returns=0; soul.forges=0; soul.meditations=0; soul.points=0; soul.luck=0;
+  soul.ach=soul.ach||{}; soul.endings=soul.endings||[]; /* 轉生只留下抽獎的技能（含星數）與影子軍團；其他永久加成全部歸零 */ soul.permAtk=0; soul.permHp=0; soul.permDef=0; soul.permStat={}; soul.idleHours=0; soul.permMag=0; soul.permGold=0; soul.streak=0; soul.lastCheck=0; soul.ciMile={}; soul.choiceSet=null; soul.choicePity=0; soul.pity=0; soul.eats=0; soul.eatHpN=0; soul.lvUps=0; soul.returns=0; soul.forges=0; soul.forgeAtkN=0; soul.meditations=0; soul.points=0; soul.luck=0;
   body=null; soul.system=null; mon=null; status(); save();
   setOptions([{t:'回到主神空間', f:()=>startQuestionnaire()}]);
 }
