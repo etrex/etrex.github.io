@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.40.1';
+const VERSION='2.41.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -291,7 +291,7 @@ const SYSTEMS={
     {n:'七日大獎', d:()=>'連續簽到第 7、14、21… 天，額外獲得三瓶回春藥、一件隨機裝備（連續越多週，越容易是稀有）與一項基本能力永久 +1。'},
     {n:'里程碑', d:()=>{ const m=soul.ciMile||{}; return '連續 30 天：一件稀有裝備'+(m[30]?'（已領）':'')+'；100 天：一件傳說裝備'+(m[100]?'（已領）':'')+'；365 天：基本能力各 +1'+(m[365]?'（已領）':'')+'。各領一次。'; }},
     {n:'補簽券', d:()=>'漏簽不會斷連續，只是那天沒獎勵。'},
-    {n:'勤勉', d:()=>'每休息一天，HP 上限永久 +1。每 18 秒一次，每日 100 次（'+growInfo('checkin')+'）。'}]},
+    {n:'勤勉', d:()=>'每休息一天，HP 上限永久 +1。每 18 秒一次，沒有每日上限（'+growInfo('checkin')+'）。'}]},
   choice:{name:'神級選擇系統', skills:[
     {n:'三選一', d:()=>'系統丟給你三個套餐，每個套餐裝三個獎勵，選一包帶走。每 18 秒一次，沒有每日上限（'+growInfo('choice',GROW_CD,Infinity)+'）。每個獎勵跟抽獎同樣的機率：普通 65%（金幣、核、資源、道具）、稀有 25%（永久數值）、傳說 10%（基本能力 +1、稀有素材、裝備、十倍永久數值），另有萬分之一稀有裝備、十萬分之一傳說裝備。'},
     {n:'選擇即正義', d:()=>'永久數值的份量看你的能力總和：每 100 點 +1（目前一份 = '+(body?chU():1)+'）；金幣看實力等級。越強，選項越大。'},
@@ -305,7 +305,7 @@ const SYSTEMS={
     {n:'經驗三倍', d:()=>'所有經驗值 ×3。'},
     {n:'骨骼強化', d:()=>'每升一級，防禦力永久 +1（目前 +'+lvDef()+'）。'},
     {n:'越級挑戰', d:()=>'擊殺比你強的敵人，經驗再 ×3。'},
-    {n:'鍛骨', d:()=>'每擊殺一隻，HP 上限永久 +1。每 18 秒一次，每日 100 次（'+growInfo('infinite')+'）。'}]},
+    {n:'鍛骨', d:()=>'每擊殺一隻，HP 上限永久 +1。每 18 秒一次，沒有每日上限（'+growInfo('infinite')+'）。'}]},
   shadow:{name:'影之君主系統', skills:[
     {n:'影子抽取', d:()=>'殺死的敵人有三分之一的機會變成你的影子，影子軍團沒有上限。影子就是那隻魔物：HP、攻擊、防禦、攻速都跟牠當魔物時一樣（看牠被你殺的時候是幾級）。你每次行動，影子們跟著出手。'+(body?'目前軍團 '+shTotal()+' 個，出戰 '+shDeployed().length+' 個'+(shDeployed().length?'，最強的是'+shLabel(shDeployed()[0])+'（Lv '+shMeta(shDeployed()[0]).lv+'，HP '+fmt(shMeta(shDeployed()[0]).hp)+'、攻擊 '+fmt(shMeta(shDeployed()[0]).atk)+'）':'')+'。':'')},
     {n:'意志', d:()=>'影子不是用力氣使喚的，是用意志維繫。同時出戰的影子數 = 智力 ÷ 5（目前 '+(body?shDeployN():0)+' 個），派出的是最強的那幾個。'},
@@ -315,12 +315,12 @@ const SYSTEMS={
     {n:'君主的軍勢', d:()=>'影子是靈魂的東西：轉生後不管締結什麼系統，影子軍團都跟著你出手，只是不再增加。可開啟連續狩獵：影子會替你找下一個獵物。'}]},
   luck:{name:'氣運掠奪系統', skills:[
     {n:'奪運', d:()=>'揭露一個秘密、擊殺強敵、完成任務都會奪得氣運。目前氣運 '+soul.luck+'。'},
-    {n:'天命', d:()=>'每擊殺一隻，氣運 +1。每 18 秒一次，每日 100 次（'+growInfo('luck')+'）。'},
+    {n:'天命', d:()=>'每擊殺一隻，氣運 +1。每 18 秒一次，沒有每日上限（'+growInfo('luck')+'）。'},
     {n:'天命所歸', d:()=>'金幣獎勵 ×(1 + 氣運/10)，每 10 點氣運每殺多掉一枚裂谷核。目前金幣 ×'+(1+soul.luck/10).toFixed(1)+'、多掉 '+Math.floor(soul.luck/10)+' 枚。'},
     {n:'氣運稱號', d:()=>'氣運 30：「福星」；60：「天選」；100：「氣運之子」，NPC 主動獻上東西。'}]},
   shop:{name:'系統商城', skills:[
     {n:'積分', d:()=>'每次擊殺獲得積分（tier×10）。目前 '+soul.points+' 點。'},
-    {n:'商城', d:()=>'藥水 10 點、空間背包 40 點（背包 +50，最多十個）、回春藥 20 點、攻擊力永久 +1 30 點、HP 上限永久 +2 30 點、裂谷核 5 點、鳳凰之尾 50 點。永久提升每 18 秒買一次，每日 100 次（'+growInfo('shop')+'）。'},
+    {n:'商城', d:()=>'藥水 10 點、空間背包 40 點（背包 +50，最多十個）、回春藥 20 點、攻擊力永久 +1 30 點、HP 上限永久 +2 30 點、裂谷核 5 點、鳳凰之尾 50 點。永久提升每 18 秒買一次，沒有每日上限（'+growInfo('shop')+'）。'},
     {n:'限時折扣', d:()=>'每現實日第一次購買半價。'}]},
   gacha:{name:'抽獎系統', skills:[
     {n:'十連抽', d:()=>'每 60 秒一次十連抽，沒有每日上限（'+growInfo('gacha',60000,Infinity)+'）。R（65%）：金幣、核、資源、道具，偶爾稀有素材；SR（25%）：隨機一種永久數值；SSR（10%）：技能（重複的升星，無上限）或基本能力 +1。每抽另有萬分之一稀有裝備、十萬分之一傳說裝備。'},
@@ -329,7 +329,7 @@ const SYSTEMS={
   panel:{name:'屬性面板系統', skills:[
     {n:'自由屬性點', d:()=>'每升兩級 1 點，加在基本能力上：力量 +1、體力 +1、敏捷 +2（力量體力是指數效果，一點很值錢），或幸運：每點每殺多拿十二份這一層小魔物的賞金（目前每點 +'+12*NUM.killGold(1)+' 金）。未分配 '+(body?body.freePts:0)+' 點。'},
     {n:'數值透視', d:()=>'看見自己與敵人的所有數值。'},
-    {n:'打磨', d:()=>'每擊殺一隻，屬性點 +1。每 18 秒一次，每日 100 次（'+growInfo('panel')+'）。'}]},
+    {n:'打磨', d:()=>'每擊殺一隻，屬性點 +1。每 18 秒一次，沒有每日上限（'+growInfo('panel')+'）。'}]},
   omni:{name:'全知系統', skills:[
     {n:'窺探', d:()=>'在有人的地方，讀出一個人此刻藏在最上面的念頭。念頭一層一層剝，剝到底就沒有了。'},
     {n:'調查', d:()=>'看穿一個地方沒說出口的事實。每個地方一件。'},
@@ -338,25 +338,25 @@ const SYSTEMS={
     {n:'自動戰鬥', d:()=>'可開啟連續狩獵：打完自動下一隻。'},
     {n:'博聞', d:()=>'每知道一件新的事，背包永久 +1。'},
     {n:'洞悉存量', d:()=>'你看得見每個市場的真實存量。'},
-    {n:'數據累積', d:()=>'每擊殺一隻，攻擊力永久 +1。每 18 秒一次，每日 100 次（'+growInfo('omni')+'）。'}]},
+    {n:'數據累積', d:()=>'每擊殺一隻，攻擊力永久 +1。每 18 秒一次，沒有每日上限（'+growInfo('omni')+'）。'}]},
   reflect:{name:'反傷系統', skills:[
     {n:'三倍奉還', d:()=>'你受到的每一點傷害，敵人承受三倍。'},
     {n:'怒氣', d:()=>'每被打一次 +1 怒氣。5 點時可釋放「爆發」：'+Math.round(atkNow()*5)+' 傷害。目前 '+(body?body.rage:0)+'/5。'},
     {n:'不倒', d:()=>'HP低於一成時，該回合所受傷害歸零（每場一次）。'},
-    {n:'皮糙肉厚', d:()=>'每被打一次，防禦力永久 +1（目前 +'+refDef()+'）。每 18 秒一次，每日 100 次（'+growInfo('reflect')+'）。'}]},
+    {n:'皮糙肉厚', d:()=>'每被打一次，防禦力永久 +1（目前 +'+refDef()+'）。每 18 秒一次，沒有每日上限（'+growInfo('reflect')+'）。'}]},
   rezero:{name:'死亡回歸系統', skills:[
     {n:'死亡回歸', d:()=>'死亡時回到今天早上：HP、金幣、裂谷核回到當時，記憶與所有永久累積保留。無限次。'},
     {n:'既視感', d:()=>'回歸後，害死你的敵人下次對你的傷害減半。'},
     {n:'記憶累積', d:()=>'每回歸一次，你記住一種不被打中的方式：防禦力永久 +1（目前 +'+rzDef()+'）。'},
-    {n:'記憶', d:()=>'每擊殺一隻，防禦力永久 +1。每 18 秒一次，每日 100 次（'+growInfo('rezero')+'）。'}]},
+    {n:'記憶', d:()=>'每擊殺一隻，防禦力永久 +1。每 18 秒一次，沒有每日上限（'+growInfo('rezero')+'）。'}]},
   idle:{name:'掛機系統', skills:[
     {n:'離線狩獵', d:()=>'你離線時，戰鬥不會停。停在哪一層、用什麼模式，就照那樣打，最多結算 8 小時。會死。'},
     {n:'安全線', d:()=>'HP低於你設定的安全線時，先逃一次再停手。背包滿了也停。'},
     {n:'快手', d:()=>'攻擊間隔縮短 0.4 秒。可開啟連續狩獵。'},
     {n:'熟練', d:()=>'離線狩獵每滿一小時，攻擊間隔永久縮短 0.01 秒（目前 −'+((soul.idleHours||0)*0.01).toFixed(2)+' 秒）。'},
-    {n:'肌肉記憶', d:()=>'每擊殺一隻，攻擊力永久 +1。每 18 秒一次，每日 100 次（'+growInfo('idle')+'）。'}]},
+    {n:'肌肉記憶', d:()=>'每擊殺一隻，攻擊力永久 +1。每 18 秒一次，沒有每日上限（'+growInfo('idle')+'）。'}]},
   forge:{name:'煉化系統', skills:[
-    {n:'煉化', d:()=>'5 枚裂谷核煉進武器，鋒利永久 +1。每 18 秒一次，每日 100 次（'+growInfo('forge')+'）。目前'+(body?wDef(eqW()).n+'鋒利 +'+eqW().sharp:'鋒利 +0')+'。'},
+    {n:'煉化', d:()=>'5 枚裂谷核煉進武器，鋒利永久 +1。每 18 秒一次，沒有每日上限（'+growInfo('forge')+'）。目前'+(body?wDef(eqW()).n+'鋒利 +'+eqW().sharp:'鋒利 +0')+'。'},
     {n:'器靈', d:()=>'武器每煉化 5 次，覺醒一次：攻擊力 +1。'}]},
   trader:{name:'萬物交易系統', skills:[
     {n:'行情', d:()=>'所有交換管道和每個地方的存量對你透明。別人只看得出「缺貨」「貨很多」，你看得到數字。'},
@@ -365,7 +365,7 @@ const SYSTEMS={
     {n:'行商', d:()=>'每做成一筆交換，背包 +1、HP 上限永久 +1，沒有次數限制。一次換很多份也只算一筆。（已做成 '+(soul.trades||0)+' 筆）'}]},
   ancestor:{name:'老祖系統', skills:[
     {n:'壽元無盡', d:()=>'你不會老。年齡永遠停在 25。'},
-    {n:'閉關', d:()=>'休息一天等於修煉：攻擊力永久 +1（目前 +'+medAtk()+'）。每 18 秒一次，每日 100 次（'+growInfo('ancestor')+'）。'},
+    {n:'閉關', d:()=>'休息一天等於修煉：攻擊力永久 +1（目前 +'+medAtk()+'）。每 18 秒一次，沒有每日上限（'+growInfo('ancestor')+'）。'},
     {n:'威壓', d:()=>'弱於你的敵人第一回合不敢動。'}]},
 };
 const SYS_KEYS=Object.keys(SYSTEMS);
@@ -387,8 +387,8 @@ function lv(){ return body?body.level:5; }
 function timedSpec(k){ switch(k){ case 'trader': return {win:5*M,n:1}; case 'checkin': return {win:D,n:1}; case 'choice': return {win:H,n:1}; case 'gacha': return {win:H,n:1}; case 'idle': return {win:H,n:1}; case 'shadowq': return {win:D,n:1}; } return null; }
 function timed(k){ const sp=timedSpec(k); const cd=soul.system.cd||(soul.system.cd={}); const now=Date.now(); const st=(cd[k]||[]).filter(t=>now-t<sp.win); cd[k]=st; const left=sp.n-st.length; const next=st.length?Math.min(...st)+sp.win-now:0; return {left,next}; }
 function useTimed(k){ (soul.system.cd[k]||(soul.system.cd[k]=[])).push(Date.now()); save(); }
-/* 成長冷卻：每做一次某件事 → 永久 +1，每 18 秒一次，每現實日上限 100 次（30 分鐘可刷滿） */
-const GROW_CD=18000, GROW_CAP=100;
+/* 成長冷卻：每做一次某件事 → 永久 +1，每 18 秒一次，只靠冷卻，沒有每日上限 */
+const GROW_CD=18000, GROW_CAP=Infinity;
 function growRec(id){ soul.grow=soul.grow||{}; const g=soul.grow[id]||(soul.grow[id]={day:'',n:0,last:0}); const today=new Date().toDateString(); if(g.day!==today){ g.day=today; g.n=0; } return g; }
 function growReady(id,cd=GROW_CD,cap=GROW_CAP){ const g=growRec(id); return g.n<cap&&Date.now()-g.last>=cd; }
 function growInfo(id,cd=GROW_CD,cap=GROW_CAP){ const g=growRec(id); const left=Math.max(0,cd-(Date.now()-g.last)); return (cap===Infinity?'今日 '+g.n+' 次':'今日 '+g.n+'/'+cap)+(g.n>=cap?'，今天滿了':left>0?'，冷卻 '+Math.ceil(left/1000)+' 秒':'，可觸發'); }
