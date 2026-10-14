@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.50.0';
+const VERSION='2.51.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -1366,7 +1366,7 @@ function dimBuyPerm(k){ body.dim=body.dim||{}; const D=DIMP[k]; body.dim[k]=1;
   else if(k==='hylian') giveAcc('hylian');
   else say('gain','獲得'+D.n+'。'+D.d.replace(/【[^】]*】/g,'')); }
 /* ---------- 時光機：重大劇情發生前自動記下節點 ---------- */
-const TM_KEEP=['level','xp','gold','cores','items','weapons','wpn','armors','arm','armorPlus','armor','accs','acc','bags','capBonus','freePts','pts','ptsV','statAdd','eaten','evolved','home','dim','dbBought','dbHave','balls','revive','floor','maxFloor','job','hpMax','hp','herbs','pelts','relics','ore','grain','salt','timber','fish','ink','coal','worldleaf','frostcrystal','pearl','starmetal','over','mode','autoAct','autoHunt','stopHp','idleArmed','tm'];
+const TM_KEEP=['level','xp','gold','cores','items','weapons','wpn','armors','arm','armorPlus','armor','accs','acc','bags','capBonus','freePts','pts','ptsV','statAdd','eaten','evolved','home','dim','dbBought','dbHave','balls','revive','floor','maxFloor','job','hpMax','hp','herbs','pelts','relics','ore','grain','salt','timber','fish','ink','coal','worldleaf','frostcrystal','pearl','starmetal','over','mode','autoAct','autoSkill','autoHunt','stopHp','idleArmed','tm'];
 const TM_KEEP_FLAGS=['owned','seen','killed','rareFound','terrain','used','grind','wisteria','metalNext','whet','oiled','torch','rift10'];
 function tmSave(id,label){ if(!body) return; const snap=JSON.parse(JSON.stringify(body,(k,v)=>(k==='tm'||k==='daySnap')?undefined:v)); body.tm=body.tm||{}; body.tm[id]={label,day:body.day,snap}; }
 function tmRestore(id){ const t=body.tm&&body.tm[id]; if(!t) return false; const cur=body; const nb=JSON.parse(JSON.stringify(t.snap));
@@ -2802,6 +2802,7 @@ N.rift=()=>{ lastNode=N.rift;
   o.push({t:'安全線 '+Math.round(body.stopHp*100)+'%（切換）', f:()=>{ body.stopHp=({0.5:0.3,0.3:0.1,0.1:0.5})[body.stopHp]||0.3; say('info','安全線設為 '+Math.round(body.stopHp*100)+'%。'+(sysIs('idle')?'離線狩獵也用這條線。':'')); N.rift(); }});
   if(canChain()) o.push({t:(body.autoHunt?'● ':'○ ')+'連續狩獵（'+(sysIs('idle')||sysIs('omni')||sysIs('shadow')?'你的能力':'影子軍團替你找下一隻')+'：打完自動下一隻）', ab:1, f:()=>{ body.autoHunt=!body.autoHunt; save(); N.rift(); }});
   o.push({t:(body.autoAct?'● ':'○ ')+'自動戰鬥（輪到你時重複上一次行動）', f:()=>{ body.autoAct=!body.autoAct; save(); N.rift(); }});
+  o.push({t:(body.autoSkill!==false?'● ':'○ ')+'自動戰鬥時使用技能（'+jobSkill().n+'冷卻好了就放）', f:()=>{ body.autoSkill=body.autoSkill===false; save(); N.rift(); }});
   if(sysIs('idle')) o.push({t:'離線狩獵：'+(body.idleArmed?'已布置（離線後在第 '+body.floor+' 層繼續打，最多 8 小時）':'未布置'), ab:1, f:()=>{ body.idleArmed=!body.idleArmed; say('info',body.idleArmed?'你把劍插在地上，坐了下來。離線後它會自己動。':'你收起了劍。'); save(); N.rift(); }});
   if(body.floor<TOP_FLOOR){ const g=GATES[body.floor]; o.push({t:'往更深處走（第 '+(body.floor+1)+' 層）'+(body.flags['gate'+body.floor]?'：'+g.name:'')+(body.maxFloor>body.floor?'（已通過）':''), f:()=>{ body.flags['gate'+body.floor]=1; if(body.maxFloor>body.floor){ body.floor++; say('info','你走過已經打開的門。'); N.rift(); return; } say('title',g.name); story(g.text); setOptions([{t:'先退回去', f:N.rift},{t:'硬闖', f:()=>{ const r=g.check(); if(r.ok){ say('gain',r.why); if(body.flags.escort){ body.flags.escort--; say('npc',body.flags.escort?'布蘭德：「再一道。」':'布蘭德：「到這裡為止。下一道門自己想辦法。」'); } body.floor++; body.maxFloor=Math.max(body.maxFloor,body.floor); sysText('過了。這一關跟你的攻擊沒關係，你知道吧。'); status(); N.rift(); } else { say('hurt',r.why); say('info',g.hint); if(r.lethal){ body.hp=0; die(true); } else N.rift(); } }}],'門在前面。過不過，你決定。',true); }}); }
   for(let f=body.floor-1;f>=1;f--){ o.push({t:'退回第 '+f+' 層 '+FLOORS[f], f:()=>{ body.floor=f; N.rift(); }}); break; }
@@ -2857,6 +2858,7 @@ function renderCombat(){
   Object.keys(ITEMS).filter(k=>ITEMS[k].fight&&itemN(k)>0).forEach(k=>o.push({t:(pending==='item:'+k?'● ':'')+'用'+ITEMS[k].n+' ×'+itemN(k)+'（'+(ITEMS[k].dim?'0':itemT(k).toFixed(1))+' 秒）：'+ITEMS[k].d, ab:!!ITEMS[k].dim, keep:true, f:()=>fightItem(k)}));
   if(ssr('exec')&&(execUsed|0)<Math.floor(ssrF('exec'))&&!isKing(mon)) o.push({t:'秒殺（SSR，這場還有 '+(Math.floor(ssrF('exec'))-(execUsed|0))+' 次）', ab:1, keep:true, f:()=>{ execUsed=(execUsed|0)+1; mon.hp=0; say('combat','一劍。'+mon.n+'還沒明白發生什麼事。'); win(); }});
   o.push({t:(body.autoAct?'● ':'○ ')+'自動行動（輪到你時自動重複上一次）', keep:true, f:()=>{ body.autoAct=!body.autoAct; if(body.autoAct&&ready){ ready=false; lastTick=Date.now(); playerAct(); if(inCombat) pT=pInterval(); } renderCombat(); save(); }});
+  o.push({t:(body.autoSkill!==false?'● ':'○ ')+'自動行動時使用技能（'+jobSkill().n+'冷卻好了就放）', keep:true, f:()=>{ body.autoSkill=body.autoSkill===false; renderCombat(); save(); }});
   if(canChain()) o.push({t:(body.autoHunt?'● ':'○ ')+'連續狩獵（打完自動下一隻）', keep:true, f:()=>{ body.autoHunt=!body.autoHunt; renderCombat(); save(); }});
   setOptions(o,hint);
 }
@@ -2866,7 +2868,7 @@ function tick(){
   if(ready) return;   // 等玩家出手：時間凍結，敵人也不動
   pT-=dt; mT-=dt; if(skillCD>0) skillCD=Math.max(0,skillCD-dt);
   if(pT<=0&&!ready&&casting) casting=null;
-  if(pT<=0&&!ready){ if(pending&&pending.startsWith('item:')){ const k=pending.slice(5); pending=null; if(itemN(k)>0){ startCast(k); if(!inCombat) return; renderCombat(); } else { playerAct(body.mode); if(!inCombat) return; pT+=pInterval(); } } else if(pending==='skill'){ pending=null; if(skillReady()) doSkill(); else playerAct(body.mode); if(!inCombat) return; pT+=pInterval(); } else if(pending){ const k=pending; pending=null; playerAct(k); if(!inCombat) return; pT+=pInterval(); } else if(body.autoAct){ if(skillReady()&&(body.mode==='attack'||body.mode==='weak')) doSkill(); else playerAct(body.mode); if(!inCombat) return; pT+=pInterval(); } else { ready=true; pT=0; renderCombat(); say('info','輪到你了！'); } }
+  if(pT<=0&&!ready){ if(pending&&pending.startsWith('item:')){ const k=pending.slice(5); pending=null; if(itemN(k)>0){ startCast(k); if(!inCombat) return; renderCombat(); } else { playerAct(body.mode); if(!inCombat) return; pT+=pInterval(); } } else if(pending==='skill'){ pending=null; if(skillReady()) doSkill(); else playerAct(body.mode); if(!inCombat) return; pT+=pInterval(); } else if(pending){ const k=pending; pending=null; playerAct(k); if(!inCombat) return; pT+=pInterval(); } else if(body.autoAct){ if(body.autoSkill!==false&&skillReady()&&(body.mode==='attack'||body.mode==='weak')) doSkill(); else playerAct(body.mode); if(!inCombat) return; pT+=pInterval(); } else { ready=true; pT=0; renderCombat(); say('info','輪到你了！'); } }
   if(mT<=0){ monsterAttack(); if(!inCombat) return; mT+=mInterval(mon); }
   if(body.hp<body.hpMax*.3 && !body.flags.warned){ body.flags.warned=1; sys('lowhp'); }
   const h=opts.querySelector('.hint'); if(h) h.textContent=combatHint();
