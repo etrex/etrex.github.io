@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.45.0';
+const VERSION='2.46.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -366,8 +366,9 @@ const SYSTEMS={
     {n:'行商', d:()=>'每做成一筆交換，背包 +1、HP 上限永久 +1，沒有次數限制。一次換很多份也只算一筆。（已做成 '+(soul.trades||0)+' 筆）'}]},
   ancestor:{name:'老祖系統', skills:[
     {n:'壽元無盡', d:()=>'你不會老。年齡永遠停在 25。'},
-    {n:'閉關', d:()=>'休息一天等於修煉：攻擊力永久 +1（目前 +'+medAtk()+'）。每 18 秒一次，沒有每日上限（'+growInfo('ancestor')+'）。'},
-    {n:'威壓', d:()=>'弱於你的敵人第一回合不敢動。'}]},
+    {n:'閉關', d:()=>'閉關一天，攻擊力永久 +1（目前 +'+medAtk()+'）。可以一次閉關 1、10、100 天，外面出事會提早出關。每 18 秒一次（'+growInfo('ancestor')+'）。'},
+    {n:'修為', d:()=>{ const r=realm(); return '閉關的天數累積到一定程度就突破一境：練氣、築基、金丹、元嬰、化神、煉虛、合體、大乘、渡劫，之後是仙人一重、二重……沒有盡頭。每一境攻擊與 HP ×1.1。目前「'+realmName(r)+'」（×'+realmMul().toFixed(2)+'），下一境還要閉關 '+fmt(Math.max(0,realmNeed(r+1)-(soul.meditations|0)))+' 天。'; }},
+    {n:'威壓', d:()=>'弱於你的敵人（HP 不到你攻擊的三倍）不敢動：一開場就呆住 '+(1+Math.floor(realm()/3))+' 次（每三境多一次），而且整場閃避減半。'}]},
 };
 const SYS_KEYS=Object.keys(SYSTEMS);
 /* SSR 技能：抽到重複的就升星，沒有上限。效果倍率 = 1 + 0.5 × ln(星數)：一星 ×1、十星 ×2.15、百星 ×3.3，越後面越慢 */
@@ -444,7 +445,7 @@ function spNow(){ return SP(stats().agi); }
    標準成長打同級、普通速度的魔物，雙方都是 0%。 */
 function monAgi(m){ if(!m) return 16; const q=Math.max(-10,Math.min(10,Math.round((1.8-(m.iv||1.8))*10))); return 15+(m.lv||1)+q; }
 function dodgeP(m){ if(!body||!m) return 0; let p=Math.min(0.9,Math.max(0,(stats().agi-monAgi(m))*0.01)+accSum('dodge')+(ssr('evade')?.05*ssrF('evade'):0)); if(isKing(m)) p*=0.5; return p; }
-function monDodgeP(m){ if(!body||!m||monSkipN>0) return 0; let p=Math.min(0.9,Math.max(0,(monAgi(m)-stats().agi)*0.01)); if(isKing(m)) p*=0.5; return p; }
+function monDodgeP(m){ if(!body||!m||monSkipN>0) return 0; let p=Math.min(0.9,Math.max(0,(monAgi(m)-stats().agi)*0.01)); if(isKing(m)) p*=0.5; if(m.awed) p*=0.5; return p; }
 /* 智力：魔物有聰明笨拙之分。魔物智力 = 8 + 等級 × 2 + 心智 × 2（心智：笨 −8 ～ 聰明 +8，魔王 +10）；玩家標準成長智力 = 8 + 等級 × 2。 */
 const WIT_RULES=[[/薩滿|法師|巫妖|魔女|祭司|惡魔|領主|公爵|君主|影魔|密探|刺客|船長|總督|墮落勇者|夜魔|蛛后/,8],[/哥布林|半獸人|盜賊|海盜|傭兵|騎士|衛兵|處刑人|打手|狼首領|狼王|三頭犬|獵犬|地獄犬|石像鬼|雪豹|龍|酋長|軍閥|穴居人/,4],[/史萊姆|魔像|殭屍|骷髏|泥|蟲|焦屍|巨像|礦鼠|雪兔/,-8],[/食人魔|巨魔|米諾陶|巨人|泰坦|雪人|蝠|蜘蛛|蜂|蠍|蜥/,-4]];
 function monWit(m){ if(!m) return 0; if(isKing(m)) return 10; for(const [re,w] of WIT_RULES) if(re.test(m.n)) return w; return 0; }
@@ -831,18 +832,32 @@ function shExtract(m){ const k=m.key+'@'+m.lv; soul.shadowMeta=soul.shadowMeta||
   if(full&&weak&&shScore(k)>shScore(weak)) say('gain',shLabel(k)+'（Lv '+m.lv+'）取代了'+shLabel(weak)+'（Lv '+shMeta(weak).lv+'）。（'+shLabel(weak)+'退回軍團）');
   else say('gain','影子抽取成功：'+shLabel(k)+'（Lv '+m.lv+'，HP '+fmt(m.hpMax)+'、攻擊 '+fmt(m.atk)+'）。軍團 '+shTotal()+' 個，出戰 '+after.length+' 個。'); }
 function rzAtk(){ return 0; } function rzDef(){ return sysIs('rezero')?soul.returns:0; }
-function medAtk(){ return sysIs('ancestor')?soul.meditations:0; } function medHp(){ return 0; }
+function medAtk(){ return sysIs('ancestor')?soul.meditations:0; }
+/* 老祖的修為：第 n 境需要累積閉關 20 ×（1.5^n − 1）天（10、25、47.5……），每境攻擊與 HP ×1.1 */
+const REALMS=['凡人','練氣','築基','金丹','元嬰','化神','煉虛','合體','大乘','渡劫'];
+const CN_NUM=['','一','二','三','四','五','六','七','八','九','十'];
+function realmNeed(n){ return Math.ceil(20*(Math.pow(1.5,n)-1)); }
+function realm(){ if(!sysIs('ancestor')) return 0; const m=soul.meditations|0; let n=0; while(realmNeed(n+1)<=m) n++; return n; }
+function realmName(n){ if(n<REALMS.length) return REALMS[n]; const k=n-REALMS.length+1; return '仙人'+(k<=10?CN_NUM[k]:k)+'重'; }
+function realmMul(){ return Math.pow(1.1,realm()); }
+function meditate(days,back){ if(!growReady('ancestor')){ say('info','閉關要靜下心。'+growInfo('ancestor')); back(); return; }
+  const r0=realm(); let n=0; grow('ancestor','閉關',()=>{},GROW_CD,GROW_CAP,true); say('narr',rnd(['你在屋裡盤腿坐下，關上門。','你把自己封在洞裡。外面的聲音一層一層淡下去。','你閉上眼睛。']));
+  for(;n<days;n++){ body.day++; soul.meditations=(soul.meditations|0)+1; worldTick(); if(body.pending) { n++; break; } }
+  status(); body.hp=body.hpMax;
+  say('gain','閉關 '+n+' 天：攻擊力永久 +'+n+'。第 '+body.day+' 天。'+(n<days?'外面出事了，你提早出關。':''));
+  const r1=realm(); if(r1>r0){ for(let r=r0+1;r<=r1;r++) say('title','突破：'+realmName(r)); say('gain','攻擊與 HP ×'+realmMul().toFixed(2)+'。'); worldEvent(soul.name+' 閉關出來，修為突破到「'+realmName(r1)+'」'); }
+  save(); back(); } function medHp(){ return 0; }
 
 const FORGE_JEWEL=50;
 function forgeAtk(){ if(!sysIs('forge')) return 0; if(soul.forgeAtkN===undefined) soul.forgeAtkN=Math.floor((soul.forges|0)/5); return soul.forgeAtkN; }
 function forgeMenu(back){ const L=[]; const W=eqW(), A=eqA(); L.push({n:wDef(W).n,x:W,c:5,t:'武器'}); L.push({n:aDef(A).n,x:A,c:5,t:'防具'}); accWornInst().forEach(x=>{ const D=ACCS[x.key]; if(D) L.push({n:D.n,x,c:(D.slot==='neck'||D.slot==='ring')?FORGE_JEWEL:5,t:ASLOT[D.slot]}); });
   setOptions(L.map(e=>({t:e.t+'：'+e.n+'（+'+(e.x.sharp||0)+' → +'+((e.x.sharp||0)+1)+'，裂谷核 '+e.c+' 枚）', ab:1, dis:body.cores<e.c||!growReady('forge'), f:()=>{ grow('forge','裂谷核化為紅光，融進'+e.n+'。強化 +1（+'+((e.x.sharp||0)+1)+'）',()=>{ body.cores-=e.c; soul.forges=(soul.forges|0)+1; e.x.sharp=(e.x.sharp||0)+1; forgeAtk(); if(soul.forges%5===0){ const u=chU(); soul.forgeAtkN+=u; say('gain','器靈覺醒：攻擊力永久 +'+u); } }); forgeMenu(back); }})).concat([{t:'不煉了', f:back}]),'煉化　裂谷核 '+body.cores+' 枚｜'+growInfo('forge'),true); }
-function atkNow(){ if(!body||!soul.system) return 0; let a=baseAtk()*evoMul()*(1+eatAtkPct()); return Math.round(a*(sysIs('ancestor')?1:ageFactor(body.age))); }
+function atkNow(){ if(!body||!soul.system) return 0; let a=baseAtk()*evoMul()*(1+eatAtkPct())*realmMul(); return Math.round(a*(sysIs('ancestor')?1:ageFactor(body.age))); }
 function refDef(){ return soul.permDef||0; }
 /* 防禦 =（防具 + 加固 + 永久加成 + 職業 + 飾品）× 體力倍率（跟 HP 同一條：1.15^(0.8 ×(體力 − 18) ÷ 2)），所以防禦會跟著魔物一起長 */
 function defBase(){ return aDef(eqA()).def+(eqA().sharp||0)+(body.armorPlus||0)+lvDef()+rzDef()+refDef()+(job().def||0)+accSum('def'); }
 function defNow(){ if(!body) return 0; const d=defBase()*vitMul(stats().vit)*(1+.3*eatF('golem')+.1*eatF('tunnel')); return Math.round(body.flags.oiled?d*2:d); }
-function hpMaxNow(){ let m=baseHp()*evoMul()*(1+.2*eatF('giant'))*(inCombat&&fx.hpMul||1); if(soul.system.weak==='frail') m-=NUM.frail(); return Math.max(10,Math.round(m)); }
+function hpMaxNow(){ let m=baseHp()*evoMul()*realmMul()*(1+.2*eatF('giant'))*(inCombat&&fx.hpMul||1); if(soul.system.weak==='frail') m-=NUM.frail(); return Math.max(10,Math.round(m)); }
 function weakDesc(w){ const d=WEAK[w].desc; return typeof d==='function'?d():d; }
 
 /* ============================================================
@@ -1276,6 +1291,7 @@ function townExtras(o,back){
         const n=body[k]; setOptions(CARRY.filter(x=>x!==k).map(x=>({t:'換成'+RES[x]+'（'+n+'）', f:()=>{ useTimed('trader'); body[k]=0; addRes(x,n); say('gain','點石：'+RES[k]+' '+n+' 化為 '+RES[x]+' '+n+'。商人看得目瞪口呆。'); status(); back(); }})).concat([{t:'算了', f:back}]),'換成什麼？'); }})).concat([{t:'算了', f:back}]),'拿出什麼？'); }}); }
   if(sysIs('gacha')){ o.unshift({t:'十連抽（'+growInfo('gacha',60000,Infinity)+'）', ab:1, dis:!growReady('gacha',60000,Infinity), f:()=>{ grow('gacha','十連抽',()=>{},60000,Infinity,true); doGacha(); back(); }}); }
   if(sysIs('forge')){ o.unshift({t:'煉化：把裂谷核煉進裝備（'+growInfo('forge')+'）', ab:1, f:()=>forgeMenu(back)}); }
+  if(sysIs('ancestor')){ o.unshift({t:'閉關修煉（「'+realmName(realm())+'」，'+growInfo('ancestor')+'）', ab:1, f:()=>setOptions([1,10,100].map(n=>({t:'閉關 '+n+' 天', ab:1, f:()=>meditate(n,back)})).concat([{t:'算了', f:back}]),'閉關的日子，外面的世界照樣在走。出了事會提早出關。',true)}); }
   if(sysIs('shadow')){ const q=shq(); const ok=SHQ.filter(([n])=>q.k>=n&&!q.got[n]); if(ok.length) o.unshift({t:'交付每日任務（今日擊殺 '+q.k+'：'+ok.map(([n])=>n+' 隻').join('、')+'）', ab:1, f:()=>{ ok.forEach(([n,gm,cm])=>{ q.got[n]=1; const g=chGoldUnit()*gm, c=Math.floor(ciS()/20)*cm; body.gold+=g; addRes('cores',c); say('gain','每日任務（擊殺 '+n+' 隻）完成：金幣 +'+fmt(g)+'、裂谷核 +'+c+'。'); }); status(); back(); }}); }
 }
 /* ============================================================
@@ -2814,7 +2830,7 @@ function encounter(force,lv,ret){
   const seeStats=sysIs('omni')||sysIs('panel')||dimHas('scouter');
   say('combat',m.n+'｜Lv '+m.lv+'｜HP '+fmt(m.hp)+'｜攻速 '+mInterval(m).toFixed(1)+' 秒'+(seeStats?'｜攻擊力 '+m.atk+'｜防禦力 '+m.def:'')+((sysIs('omni')||dimHas('scouter'))?'｜<span class="reveal w">弱點：'+m.weak+'</span>':''));
   monSkipN=0;
-  if(sysIs('ancestor')&&m.hp<atkNow()*3){ monSkip=true; say('info','威壓：'+m.n+'第一擊不敢出手。'); }
+  if(sysIs('ancestor')&&m.hp<atkNow()*3){ const k=1+Math.floor(realm()/3); monSkip=true; monSkipN=k-1; m.awed=1; say('info','威壓：'+m.n+'被你的修為壓得動彈不得'+(k>1?'，呆了 '+k+' 次':'')+'。'); }
   else if(wDef(eqW()).calm&&!isKing(m)){ monSkip=true; say('info',m.n+'看見了那把劍，退了半步。第一擊不敢出手。'); }
   pT = (ssr('first')||eatT('wolf')>=5) ? 0.05 : pInterval(); mT = mInterval(m);
   lastTick=Date.now(); clearInterval(cTimer); cTimer=setInterval(tick,100);
