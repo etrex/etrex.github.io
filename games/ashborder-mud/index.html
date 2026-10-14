@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.42.0';
+const VERSION='2.43.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -316,8 +316,9 @@ const SYSTEMS={
   luck:{name:'氣運掠奪系統', skills:[
     {n:'奪運', d:()=>'揭露一個秘密、擊殺強敵、完成任務都會奪得氣運。目前氣運 '+soul.luck+'。'},
     {n:'天命', d:()=>'每擊殺一隻，氣運 +1。每 18 秒一次，沒有每日上限（'+growInfo('luck')+'）。'},
-    {n:'天命所歸', d:()=>'金幣獎勵 ×(1 + 氣運/10)，每 10 點氣運每殺多掉一枚裂谷核。目前金幣 ×'+(1+soul.luck/10).toFixed(1)+'、多掉 '+Math.floor(soul.luck/10)+' 枚。'},
-    {n:'氣運稱號', d:()=>'氣運 30：「福星」；60：「天選」；100：「氣運之子」，NPC 主動獻上東西。'}]},
+    {n:'天命所歸', d:()=>'幸運率 = 氣運 ÷（氣運 + 1000），目前 '+(luckF()*100).toFixed(1)+'%。凡是對你有利、卻沒有成功的機率——閃避、會心、看穿技能、逃跑、掉寶、魔物閃你、陷阱被看穿、賭博……——都再擲一次幸運率。氣運無限大時，所有攻擊都閃得開，所有好事都會發生。'},
+    {n:'撿到好康', d:()=>'每次擊殺：幸運率的機會金幣翻倍、幸運率的機會多撿 1～3 枚裂谷核、幸運率 × 2% 的機會遇上奇遇（稀有或傳說的獎勵）。'},
+    {n:'氣運稱號', d:()=>'氣運 '+LUCK_T.slice(0,9).map(([t,n])=>fmt(t)+'「'+n+'」').join('、')+'，之後每 ×3 一個，沒有盡頭。三百起每個稱號都有一次大獎。'+(soul.luck?'目前：'+(luckTitle()||'無'):'')}]},
   shop:{name:'系統商城', skills:[
     {n:'積分', d:()=>'每次擊殺獲得積分（tier×10）。目前 '+soul.points+' 點。'},
     {n:'商城', d:()=>'藥水 10 點、空間背包 40 點（背包 +50，最多十個）、回春藥 20 點、攻擊力永久 +1 30 點、HP 上限永久 +2 30 點、裂谷核 5 點、鳳凰之尾 50 點。永久提升每 18 秒買一次，沒有每日上限（'+growInfo('shop')+'）。'},
@@ -467,7 +468,7 @@ function monSkills(m){ if(isKing(m)) return [{n:'裂地',chk:'agi',eff:'dmg',mul
 function skillAvoidP(sk,m){ const st=stats(); const diff=sk.chk==='agi'?(st.agi-monAgi(m))*0.02:(st.int-monInt(m))*0.01; return Math.min(0.9,Math.max(0.1,0.5+diff)); }
 /* 陷阱：笨的會直接踩，聰明的會繞開。繞開機率 = 20% +（魔物智力 − 你的智力）× 2%，介於 0% 到 90%。 */
 function trapAvoidP(m){ return Math.min(0.9,Math.max(0,0.2+(monInt(m)-stats().int)*0.02)); }
-function monDodged(){ if(chance(monDodgeP(mon))){ say('info',mon.n+'閃開了你的攻擊。'); return true; } return false; }
+function monDodged(){ if(unlucky(monDodgeP(mon),'mdodge',mon)){ say('info',mon.n+'閃開了你的攻擊。'); return true; } return false; }
 function growText(){ const L=lv(); const a=statsAt(L); const rows=[]; for(let i=1;i<=5;i++){ const n=statsAt(L+i), m=statsAt(L+i-1); rows.push('Lv'+(L+i)+' 力+'+(n.str-m.str)+' 體+'+(n.vit-m.vit)+' 敏+'+(n.agi-m.agi)+' 智+'+(n.int-m.int)); } return '接下來：'+rows.join('、'); }
 function atkFlat(){ return (body?wAtk():2)+(soul.permAtk||0)+medAtk()+forgeAtk()+eatAtk()+shForge()+(body?(job().atk||0)+accSum('atk'):0); }
 function atkBase(){ const S=stats().str; return (S+atkFlat())*strMul(S); }
@@ -636,7 +637,7 @@ function giveAcc(k){ body.accs=body.accs||[]; body.acc=body.acc||{}; body.accs.p
    地區魔物（野狼、白狼、沙蟲）只在探索途中遇得到，不能掛機，每隻 1/10，打二十來隻有九成。
    火龍是頭目，第一次打倒必掉。掉寶加成（武器、職業、吃哥布林）照舊乘上去。 */
 const RAND_ACC=['luckring','thunderring'], RAND_P=1/5000, TROPHY_P=1/1000, REGION_TROPHY_P=1/10;
-function trophyRoll(m){ if(m.key==='firelizard'&&!body.flags['boss_'+m.key]){ body.flags['boss_'+m.key]=1; return true; } return chance((m.region?REGION_TROPHY_P:TROPHY_P)*lootMul()); }
+function trophyRoll(m){ if(m.key==='firelizard'&&!body.flags['boss_'+m.key]){ body.flags['boss_'+m.key]=1; return true; } return lucky((m.region?REGION_TROPHY_P:TROPHY_P)*lootMul(),'drop',m); }
 function dropRare(){ const pool=RAND_ACC; say('narr','魔物的殘骸裡有東西在發光。'); giveAcc(rnd(pool)); }
 function lootUp(){ return !!(wDef(eqW()).loot||job().loot||accHas('loot')); }
 /* 環境：進得去，但沒有免疫就一直掉血。抗性減傷；有系統的人可以用別的方式付錢通過。 */
@@ -705,7 +706,7 @@ function useItem(k){
   if(k==='bandage'){ const h=Math.round(body.hpMax*.25); body.hp=Math.min(body.hpMax,body.hp+h); say('gain','藥草：HP +'+h+'（'+body.hp+'/'+body.hpMax+'）'); }
   if(k==='ration'){ const h=Math.round(body.hpMax*.3); body.hp=Math.min(body.hpMax,body.hp+h); say('gain','帳篷：HP +'+h+'（'+body.hp+'/'+body.hpMax+'）'); }
   if(k==='coredust'){ mon.def=0; say('combat','破甲粉撒在'+mon.n+'身上，皮開始冒煙。這一場牠的防禦歸零。'); }
-  if(k==='trap'){ const av=trapAvoidP(mon); if(chance(av)){ say('info',mon.n+'看了陷阱一眼，繞開了。（'+witWord(mon)+'，繞開機率 '+Math.round(av*100)+'%）'); } else { monSkipN=(monSkipN||0)+2; say('combat','陷阱絆住了'+mon.n+'的腿。接下來兩次攻擊會落空。'); } }
+  if(k==='trap'){ const av=trapAvoidP(mon); if(unlucky(av,'trap',mon)){ say('info',mon.n+'看了陷阱一眼，繞開了。（'+witWord(mon)+'，繞開機率 '+Math.round(av*100)+'%）'); } else { monSkipN=(monSkipN||0)+2; say('combat','陷阱絆住了'+mon.n+'的腿。接下來兩次攻擊會落空。'); } }
   if(k==='armoroil'){ body.flags.oiled=1; say('gain','喝下守護之藥。'+(inCombat?'這一場':'下一場')+'防禦加倍。'); }
   if(k==='torch'){ body.flags.torch=1; say('gain','灑下聖水。魔物不敢靠近，下一次探索不會遇敵。'); }
   if(k==='elixir'){ if(sysIs('ancestor')){ body.items[k]++; say('info','你不會老。這瓶留著吧。'); return; } body.age=Math.max(16,body.age-3); say('gain','年齡 −3。'); }
@@ -1369,7 +1370,34 @@ function panelMenu(){
     {t:'幸運 +1（每殺金幣 +'+12*NUM.killGold(1)+'）', ab:1, f:put('luck','幸運',1)},
     {t:'先不分配', f:back}], '未分配 '+body.freePts+' 點');
 }
-function addLuck(n,why){ if(!sysIs('luck')) return; const b=soul.luck; soul.luck+=n; say('gain','奪運：氣運 +'+n+'（'+why+'）目前 '+soul.luck); [30,60,100].forEach((th,i)=>{ if(b<th&&soul.luck>=th){ say('title',['福星','天選','氣運之子'][i]); if(i===2){ body.gold+=2000; say('gain','NPC 主動獻上 2000 金。'); } } }); }
+function addLuck(n,why){ if(!sysIs('luck')) return; const b=soul.luck; soul.luck+=n; if(why) say('gain','奪運：氣運 +'+n+'（'+why+'）目前 '+soul.luck); luckTitles(b); }
+/* 氣運：幸運率 = 氣運 ÷（氣運 + 1000）。對你有利的機率沒成功時，再擲一次幸運率；對你不利的機率成功時，也再擲一次幸運率把它擋掉。 */
+const LUCK_T=[[30,'福星'],[60,'天選'],[100,'氣運之子'],[300,'鴻運當頭'],[1000,'天命之人'],[3000,'萬中選一'],[10000,'天道寵兒'],[30000,'氣運化身'],[100000,'運之神']];
+function luckTh(i){ if(i<LUCK_T.length) return LUCK_T[i]; const k=i-LUCK_T.length+2; return [100000*Math.pow(3,k-1),'運之神·'+k+'重']; }
+function luckTitle(){ let t=''; for(let i=0;;i++){ const [th,n]=luckTh(i); if(soul.luck>=th) t=n; else break; } return t; }
+function luckTitles(b){ for(let i=0;;i++){ const [th,n]=luckTh(i); if(th>soul.luck) break; if(b>=th) continue; say('title',n);
+  if(i===2){ const g=chGoldUnit()*50; body.gold+=g; say('gain','NPC 主動獻上 '+fmt(g)+' 金。'); }
+  else if(i>=3){ const r=(i-3)%3; if(r===0) say('gain','天賜：'+ciStat()); else { const eq=gachaEquip(r===1?'稀有':'傳說'); if(eq) say('gain','天賜：'+(r===1?'稀有':'傳說')+'裝備「'+eq+'」'); } } } }
+function luckF(){ return sysIs('luck')&&soul.luck>0?soul.luck/(soul.luck+1000):0; }
+const LUCK_MSG={
+  dodge:['{m}撲到一半，被地上的碎石絆了一下，擦著你的耳邊過去。','一隻飛蛾撲到{m}眼前，牠偏了頭，這一擊落空了。','{m}踩到一灘自己的血，腳下一滑，撲了個空。','遠處傳來一聲巨響，{m}分了神，攻擊歪到一邊。','你的鞋帶鬆了。你彎腰的那一瞬間，{m}的攻擊從你頭頂掠過。','{m}的攻擊卡進岩縫，拔出來的時候你已經不在那裡了。','一陣風捲起沙塵，{m}瞇了眼，打在你旁邊的地上。','你打了個噴嚏，身子一縮，剛好躲過{m}的攻擊。','頭頂掉下一塊石頭砸在{m}頭上，牠的攻擊停在半空。','{m}看見你身後有什麼東西在發光，愣了一下。等牠回神，機會已經過去了。','一隻老鼠從{m}腳邊竄過去，牠下意識去踩，這一擊就歪了。','{m}一個踉蹌，自己把自己絆倒了。'],
+  skill:['{m}的「{s}」才剛蓄好力，頭頂的岩壁塌了一角，砸散了牠的架勢。','{m}要放「{s}」的時候嗆到了，咳得停不下來。','{m}的「{s}」偏了，打中了牠自己的影子。','你腳下一滑，整個人往旁邊倒——「{s}」從你剛才站的地方掃過去。','一隻蝙蝠撞進{m}嘴裡，「{s}」放了一半就斷了。'],
+  mdodge:['{m}想閃，腳下的石頭鬆了，你這一擊結結實實打中。','{m}閃身的時候撞上了岩壁。','{m}往旁邊一跳，正好跳進你的攻擊裡。','{m}想躲，可是牠踩到了自己剛才吐的黏液。'],
+  crit:['你的武器剛好卡進{m}鱗甲的縫隙。','{m}正好轉身，把要害送到你眼前。','你腳下一滑，這一擊歪打正著，正中要害。','{m}打了個哈欠，你的攻擊直接灌進牠喉嚨。'],
+  trap:['{m}明明看見了陷阱，卻被你踢起的石子嚇了一跳，一腳踩了進去。','{m}繞開了陷阱，結果被旁邊的樹根絆倒，滾了進去。'],
+  resist:['{m}想撐住聖光，偏偏這時候打了個噴嚏。'],
+  flee:['你轉身就跑，{m}追了兩步，被地上的屍骨絆倒了。','一陣煙從岩縫裡噴出來，{m}看不見你了。'],
+  drop:['你本來要走了，眼角瞥見{m}的殘骸裡有東西在發光。','{m}倒下時撞翻了一塊石頭，底下壓著東西。','一陣風把落葉吹開，下面躺著東西。'],
+  stun:['你的攻擊剛好打在{m}的膝蓋上，牠腿一軟。'],
+  gold:['{m}身上掉出一個不屬於牠的錢袋。','你在{m}的巢穴裡踢到一個生鏽的鐵盒，裡面全是金幣。','{m}的胃裡有一袋沒消化的金幣。前一個冒險者的。'],
+  cores:['一枚裂谷核從岩縫裡滾到你腳邊。','{m}倒下的地方，地面裂開，露出幾枚核。'],
+  gamble:['骰子在桌上轉了很久，最後停在你要的那一面。莊家的臉綠了。','對面的人手一抖，牌掉在地上。是你贏了。'],
+  any:['運氣站在你這邊。']};
+function luckSay(kind,m,extra){ const l=LUCK_MSG[kind]||LUCK_MSG.any; say('gain','【好運】'+rnd(l).replace(/\{m\}/g,m&&m.n?m.n:'牠').replace(/\{s\}/g,extra||'')); }
+/* 對你有利：p 沒中時再擲幸運率。 */
+function lucky(p,kind,m,extra){ if(chance(p)) return true; const F=luckF(); if(F>0&&chance(F)){ luckSay(kind,m,extra); return true; } return false; }
+/* 對你不利：p 中了時再擲幸運率擋掉；回傳壞事是否發生。 */
+function unlucky(p,kind,m,extra){ if(!chance(p)) return false; const F=luckF(); if(F>0&&chance(F)){ luckSay(kind,m,extra); return false; } return true; }
 
 /* ============================================================
    世界節點
@@ -1804,7 +1832,7 @@ const REGIONS={
         {t:'賣裂谷核', req:()=>body.cores>0, q:()=>{ const p=Math.round(world.price*2); return {unit:'枚', max:body.cores, cost:n=>'+'+fmt(p*n)+' 金', f:n=>{ body.cores-=n; body.gold+=p*n; say('gain','賣出 '+n+' 枚，金幣 +'+fmt(p*n)); }}; }},
         {t:'不賣', f:()=>{}}]},
       {t:'賭場的門開著。莊家笑得很客氣。', o:[
-        {t:'賭 200 金', req:()=>body.gold>=200, f:()=>{ const win=sysIs('luck')?chance(.5+Math.min(.4,soul.luck/200)):chance(.4); if(win){ body.gold+=200; say('gain','贏了。金幣 +200'); } else { body.gold-=200; say('hurt','輸了。金幣 −200'); } }},
+        {t:'賭 200 金', req:()=>body.gold>=200, f:()=>{ const win=lucky(.4,'gamble'); if(win){ body.gold+=200; say('gain','贏了。金幣 +200'); } else { body.gold-=200; say('hurt','輸了。金幣 −200'); } }},
         {t:'不賭', f:()=>{}}]},
       {t:'一個走私販想買你的遺物，一件 150 金。', o:[
         {t:'賣遺物', req:()=>body.relics>0, q:()=>({unit:'件', max:body.relics, cost:n=>'+'+fmt(150*n)+' 金', f:n=>{ body.relics-=n; body.gold+=150*n; body.rep.temple-=5; say('gain','遺物 −'+n+'，金幣 +'+fmt(150*n)+'，神殿聲望 −5'); }})},
@@ -1933,8 +1961,8 @@ function tripChoices(){ const T=body.trip; const D=TRIP[T.r]; const rng=seedRng(
   const pool=ids.map(id=>D.t.find(x=>x.id===id)); const n=Math.min(pool.length,rng()<.5?2:3); const out=[];
   const pickV=a=>a[Math.floor(rng()*a.length)];
   while(out.length<n&&pool.length){ const c=pool.splice(Math.floor(rng()*pool.length),1)[0]; out.push(Object.assign({},c,{n:pickV((cur&&c.via&&c.via[cur])||c.n)})); }
-  const p=(.15+.02*T.d)*(tripGatherer()?1.5:1)*(sysIs('luck')?1+soul.luck/100:1);
-  if(T.prev===D.pre&&!T.rareUsed&&rng()<p) out[Math.floor(rng()*out.length)]={id:'_rare', n:pickV(D.special.n), out:D.special.out, rare:D.rare};
+  const p=(.15+.02*T.d)*(tripGatherer()?1.5:1);
+  if(T.prev===D.pre&&!T.rareUsed&&(rng()<p||rng()<luckF())) out[Math.floor(rng()*out.length)]={id:'_rare', n:pickV(D.special.n), out:D.special.out, rare:D.rare};
   return out; }
 function tripNode(){ const T=body.trip; if(!T) return; lastNode=tripNode;
   if(T.step>=T.max){ tripEnd(); return; }
@@ -2547,8 +2575,8 @@ function jobSkill(){ return JSKILL[(body&&body.job)||'swordsman']||JSKILL.swords
 function skillReady(){ return skillCD<=0; }
 function doSkill(){ const S=jobSkill(); skillCD=S.cd; turnNo++; let tot=0;
   const hit=(mul,ignDef)=>{ const d=Math.max(1,Math.round(playerAtk()*mul-(ignDef===true?0:mon.def*(ignDef||1)))); mon.hp-=d; tot+=d; return d; };
-  if(S.id==='flurry'){ let n=0; for(let i=0;i<3;i++){ if(chance(monDodgeP(mon))){ continue; } hit(0.5); n++; } say('combat','連刺！'+n+' / 3 下命中，共 '+fmt(tot)+' 傷害。'); }
-  else if(S.id==='holy'){ const rs=Math.min(0.4,Math.max(0,(monInt(mon)-stats().int)*0.01)); if(chance(rs)){ say('info',mon.n+'抵抗了聖光。'); } else { const d=Math.max(1,Math.round(magNow()*1.2*(0.85+Math.random()*.3))); mon.hp-=d; tot+=d; const h=Math.round(body.hpMax*.08); body.hp=Math.min(body.hpMax,body.hp+h); say('combat','聖光！'+fmt(tot)+' 神聖傷害，HP +'+h+'。'); } }
+  if(S.id==='flurry'){ let n=0; for(let i=0;i<3;i++){ if(unlucky(monDodgeP(mon),'mdodge',mon)){ continue; } hit(0.5); n++; } say('combat','連刺！'+n+' / 3 下命中，共 '+fmt(tot)+' 傷害。'); }
+  else if(S.id==='holy'){ const rs=Math.min(0.4,Math.max(0,(monInt(mon)-stats().int)*0.01)); if(unlucky(rs,'resist',mon)){ say('info',mon.n+'抵抗了聖光。'); } else { const d=Math.max(1,Math.round(magNow()*1.2*(0.85+Math.random()*.3))); mon.hp-=d; tot+=d; const h=Math.round(body.hpMax*.08); body.hp=Math.min(body.hpMax,body.hp+h); say('combat','聖光！'+fmt(tot)+' 神聖傷害，HP +'+h+'。'); } }
   else if(S.id==='snipe'){ hit(1.6); say('combat','狙擊！'+fmt(tot)+' 傷害。'); }
   else { if(monDodged()){ status(); return; } if(S.id==='cleave'){ hit(1.6,0.5); say('combat','斬鐵！'+fmt(tot)+' 傷害。'); } else { hit(1.3); monSkip=true; say('combat','盾擊！'+fmt(tot)+' 傷害，'+mon.n+'被震暈了。'); } }
   if(tot>0) afterHit(tot);
@@ -2646,8 +2674,8 @@ function tick(){
   const h=opts.querySelector('.hint'); if(h) h.textContent=combatHint();
 }
 let lastCrit=false; let shFight=[];
-function playerAtk(){ let a=atkNow()*(0.85+Math.random()*.3); if(ssr('first')&&turnNo<=1) a*=1+.2*(ssrF('first')-1); if(body.flags.whet) a*=1.5; const D=wDef(eqW()); { const cr=(D.crit||0)+accSum('crit')+(ssr('crit')?.05*ssrF('crit'):0); lastCrit=cr>0&&chance(cr); } if(lastCrit) a*=2; return Math.round(a); }
-function afterHit(d){ const D=wDef(eqW()); if(ssr('leech')&&d>0&&body.hp<body.hpMax){ const h=Math.max(1,Math.round(d*.05*ssrF('leech'))); body.hp=Math.min(body.hpMax,body.hp+h); } if(ssr('mana')&&d>0&&mon){ const md=Math.max(1,Math.round(magNow()*.1*ssrF('mana'))); mon.hp-=md; say('combat','魔力爆發：'+fmt(md)+' 傷害。'); } if(eat('ash')&&d>0){ const bd=Math.max(1,Math.round(atkNow()*.1*eatF('ash'))); mon.hp-=bd; say('combat','餘燼：'+fmt(bd)+' 傷害。'); } if(eat('bat')&&d>0&&body.hp<body.hpMax){ const h=Math.max(1,Math.round(d*.05*eatF('bat'))); body.hp=Math.min(body.hpMax,body.hp+h); say('gain','吸血：HP +'+h); } if(D.poison){ const p=Math.max(1,Math.round(mon.hpMax*D.poison)); mon.hp-=p; say('combat','毒：'+mon.n+'失去 '+p+' HP。'); } if(D.stun&&chance(D.stun)){ monSkipN=(monSkipN||0)+1; say('combat','震：'+mon.n+'被打得站不穩，下一擊會落空。'); } { const rg=(D.regen||0)+(job().regen||0)+(aDef(eqA()).regen||0)+accSum('regen')+.02*eatF('slime'); if(rg>0){ const h=Math.max(1,Math.round(body.hpMax*rg)); if(h>0&&body.hp<body.hpMax){ body.hp=Math.min(body.hpMax,body.hp+h); say('gain','回復：HP +'+h); } } } if(D.burn){ const b=Math.round(atkNow()*D.burn); mon.hp-=b; say('combat','餘熱：'+b+' 傷害。'); } if(D.leech&&d>0){ const h=Math.round(d*D.leech); if(h>0){ body.hp=Math.min(body.hpMax,body.hp+h); say('gain','吸血：HP +'+h); } } }
+function playerAtk(){ let a=atkNow()*(0.85+Math.random()*.3); if(ssr('first')&&turnNo<=1) a*=1+.2*(ssrF('first')-1); if(body.flags.whet) a*=1.5; const D=wDef(eqW()); { const cr=(D.crit||0)+accSum('crit')+(ssr('crit')?.05*ssrF('crit'):0); lastCrit=(cr>0||luckF()>0)&&lucky(Math.max(0,cr),'crit',mon); } if(lastCrit) a*=2; return Math.round(a); }
+function afterHit(d){ const D=wDef(eqW()); if(ssr('leech')&&d>0&&body.hp<body.hpMax){ const h=Math.max(1,Math.round(d*.05*ssrF('leech'))); body.hp=Math.min(body.hpMax,body.hp+h); } if(ssr('mana')&&d>0&&mon){ const md=Math.max(1,Math.round(magNow()*.1*ssrF('mana'))); mon.hp-=md; say('combat','魔力爆發：'+fmt(md)+' 傷害。'); } if(eat('ash')&&d>0){ const bd=Math.max(1,Math.round(atkNow()*.1*eatF('ash'))); mon.hp-=bd; say('combat','餘燼：'+fmt(bd)+' 傷害。'); } if(eat('bat')&&d>0&&body.hp<body.hpMax){ const h=Math.max(1,Math.round(d*.05*eatF('bat'))); body.hp=Math.min(body.hpMax,body.hp+h); say('gain','吸血：HP +'+h); } if(D.poison){ const p=Math.max(1,Math.round(mon.hpMax*D.poison)); mon.hp-=p; say('combat','毒：'+mon.n+'失去 '+p+' HP。'); } if(D.stun&&lucky(D.stun,'stun',mon)){ monSkipN=(monSkipN||0)+1; say('combat','震：'+mon.n+'被打得站不穩，下一擊會落空。'); } { const rg=(D.regen||0)+(job().regen||0)+(aDef(eqA()).regen||0)+accSum('regen')+.02*eatF('slime'); if(rg>0){ const h=Math.max(1,Math.round(body.hpMax*rg)); if(h>0&&body.hp<body.hpMax){ body.hp=Math.min(body.hpMax,body.hp+h); say('gain','回復：HP +'+h); } } } if(D.burn){ const b=Math.round(atkNow()*D.burn); mon.hp-=b; say('combat','餘熱：'+b+' 傷害。'); } if(D.leech&&d>0){ const h=Math.round(d*D.leech); if(h>0){ body.hp=Math.min(body.hpMax,body.hp+h); say('gain','吸血：HP +'+h); } } }
 function playerAct(k){
   turnNo++; if(!k) k=body.mode;
   if(eat('bug')){ const p=Math.max(1,Math.round(mon.hpMax*0.08*eatF('bug'))); mon.hp-=p; say('combat','蛛毒：'+mon.n+'失去 '+p+' HP。'); }
@@ -2662,7 +2690,7 @@ function playerAct(k){
   if(k==='weak'){ const d=playerAtk()*2; mon.hp-=d; say('combat',wDef(eqW()).n+'命中弱點'+mon.weak+'！'+(lastCrit?'會心一擊！':'')+'造成了 '+d+' 點傷害。'); afterHit(d); }
   if(k==='burst'){ body.rage=0; const d=Math.round(atkNow()*5); mon.hp-=d; say('combat','怒氣爆發：'+d+' 傷害。'); }
   if(k==='guard'){ guard=true; say('combat','你舉起劍格擋。'); }
-  if(k==='flee'){ if(chance(.6)){ say('info','順利逃走了！'); leaveFight(); return; } say('hurt','沒能逃掉！'); }
+  if(k==='flee'){ if(lucky(.6,'flee',mon)){ say('info','順利逃走了！'); leaveFight(); return; } say('hurt','沒能逃掉！'); }
   if(mon.hp<=0){ win(); return; }
   status();
 }
@@ -2674,11 +2702,12 @@ function monsterAttack(){
   if(monSkipN>0){ monSkipN--; say('info',mon.n+'被陷阱絆住，這一擊落空了。'); return; }
   let skMul=1; const sk=chance(0.15)?rnd(monSkills(mon)):null;
   if(sk){ const pa=skillAvoidP(sk,mon); say('combat',mon.n+'使出「'+sk.n+'」！（'+(sk.chk==='agi'?'敏捷':'智力')+'檢定，躲開 '+Math.round(pa*100)+'%）');
-    if(chance(pa)){ say('info',sk.chk==='agi'?'你閃開了。':'你看穿了。'); return; }
+    if(chance(pa)){ say('info',sk.chk==='agi'?'你閃開了。':'你看穿了。'); return; } if(luckF()>0&&chance(luckF())){ luckSay('skill',mon,sk.n); return; }
     if(sk.eff==='daze'){ pT+=pInterval(); say('hurt','你被'+sk.n+'擾亂，失去一次行動。'); return; }
     if(sk.eff==='slow'){ pT+=1.0; say('hurt','你被'+sk.n+'纏住，下一次行動慢 1 秒。'); return; }
     skMul=sk.mul||2; }
   else if(chance(dodgeP(mon))){ soul.dodges=(soul.dodges||0)+1; say('info','你閃開了'+mon.n+'的攻擊。'); return; }
+  else if(luckF()>0&&chance(luckF())){ soul.dodges=(soul.dodges||0)+1; luckSay('dodge',mon); return; }
   const raw=mon.atk*(0.85+Math.random()*.3)*skMul; let d=monDamage(raw/skMul,defNow())*skMul;
   { const wd=Math.min(.6,(wDef(eqW()).ward||0)+(aDef(eqA()).ward||0)+accSum('ward')+(body.blessFight?.2:0)+.1*eatF('frozen')); if(wd>0) d*=1-wd; }
   if(soul.system.weak==='hated') d+=NUM.hated(); if(body.flags.seal) d*=.8; if(guard){d*=.5;guard=false;}
@@ -2708,17 +2737,18 @@ function gainXp(x){ if(sysIs('infinite')) x*=5; body.xp+=x; while(body.xp>=xpNee
 async function win(){
   if(!inCombat) return; inCombat=false; const m=curMonRef(); 
   say('gain','打倒了'+m.n+'！'); sys('kill');
-  const luckMul=sysIs('luck')?(1+soul.luck/10):1;
+  const luckMul=(luckF()>0&&chance(luckF()))?(luckSay('gold',m),2):1;
   const luckBonus=sysIs('panel')?ptsFix().luck*12*NUM.killGold(1):0; const gold=Math.round(killGoldLv(m)*luckMul*(1+accSum('gold')+.25*eatF('dock')+(soul.permGold||0)/100)*(ssr('fortune')?1+.3*ssrF('fortune'):1))+luckBonus; body.gold+=gold; say('gain','金幣 +'+gold+(luckBonus?'（幸運 +'+luckBonus+'）':''));
-  let nDrop=(ssr('loot')||chance(Math.min(1,m.drop*lootMul())))?1:0; if(ssr('loot')) nDrop+=Math.floor(ssrF('loot')-1+1e-9); if(isKing(m))nDrop+=2; if(sysIs('luck')) nDrop+=Math.floor(soul.luck/10);
+  let nDrop=(ssr('loot')||lucky(Math.min(1,m.drop*lootMul()),'drop',m))?1:0; if(ssr('loot')) nDrop+=Math.floor(ssrF('loot')-1+1e-9); if(isKing(m))nDrop+=2; if(luckF()>0&&chance(luckF())){ luckSay('cores',m); nDrop+=1+Math.floor(Math.random()*3); }
+  if(luckF()>0&&chance(luckF()*.02)){ let x; do{ x=chRoll(chance(.3)); }while(x.r==='N'); chApply(x); say('title','奇遇'); say('gain','你在'+m.n+'的殘骸裡踢到一個東西……'+chText(x)); }
   const got=addRes('cores',nDrop); if(got) say('gain','獲得了裂谷核 ×'+got+'！');
-  if(!isKing(m)){ if(chance(.25*lootMul())){ const k=rnd(['hpot','hpot','smoke','bomb','whet','bandage','bandage','coredust','trap','ration']); if(addItem(k,1)>0) say('gain','你在牠身邊撿到一個'+ITEMS[k].n+'。'); } if(m.tier>=3&&chance(RAND_P*lootMul())) dropRare(); } else { addItem('hpot',2); say('gain','魔王的殘骸裡有兩瓶藥水。'); say('narr','魔王的牙還在發燙。'); giveWeapon('fang'); giveArmor('scale'); say('narr','魔王的指骨上套著一枚戒指。'); giveAcc('kingring'); }
+  if(!isKing(m)){ if(lucky(.25*lootMul(),'drop',m)){ const k=rnd(['hpot','hpot','smoke','bomb','whet','bandage','bandage','coredust','trap','ration']); if(addItem(k,1)>0) say('gain','你在牠身邊撿到一個'+ITEMS[k].n+'。'); } if(m.tier>=3&&lucky(RAND_P*lootMul(),'drop',m)) dropRare(); } else { addItem('hpot',2); say('gain','魔王的殘骸裡有兩瓶藥水。'); say('narr','魔王的牙還在發燙。'); giveWeapon('fang'); giveArmor('scale'); say('narr','魔王的指骨上套著一枚戒指。'); giveAcc('kingring'); }
   let xp=killXp(m); if(ssr('xp')) xp=Math.round(xp*(1+.3*ssrF('xp'))); if(sysIs('infinite')&&m.lv>body.level) xp*=5; gainXp(xp);
   if(sysIs('devour')){ if(m.fm&&DEVOUR[m.fm]&&(body.eaten[m.fm]|0)<m.tier){ const st0=evoStage(); const first=!body.eaten[m.fm]; body.eaten[m.fm]=m.tier; say('gain','捕食：'+devText(m.fm,m.tier)+'。'+(first?'（'+eatN()+'/'+Object.keys(DEVOUR).length+' 種）':'吃到更高階的了，效果升級。')); const st=evoStage(); if(st>st0){ body.evolved=true; say('title',EVO[st][1]); say('gain','攻擊與 HP 上限 ×'+EVO[st][2]+'。'); } } if(soul.eatHpN===undefined) soul.eatHpN=soul.eats; soul.eats++; soul.eatHpN+=chU(); if(soul.eats%10===0) say('gain','血肉累積：HP 上限 +'+fmt(soul.eatHpN)+'。'); }
   if(sysIs('shadow')){ shq().k++; if(chance(1/3)) shExtract(m); else say('info','影子從你指間散掉了。'); }
   if(sysIs('luck')&&m.tier>=3) addLuck(isKing(m)?15:5,'擊殺強敵');
   if(sysIs('shop')){ soul.points+=m.tier*10; say('gain','積分 +'+m.tier*10+'（'+soul.points+'）'); }
-  if(sysIs('luck')) grow('luck','天命：氣運 +1',()=>{ soul.luck++; });
+  if(sysIs('luck')) grow('luck','天命：氣運 +1',()=>{ addLuck(1); });
   if(sysIs('infinite')){ const u=chU(); grow('infinite','鍛骨：HP 上限 +'+u,()=>{ soul.permHp+=u; }); }
   if(sysIs('panel')) grow('panel','打磨',()=>{ body.flags.grind=(body.flags.grind|0)+1; if(body.flags.grind>=12){ body.flags.grind=0; body.freePts++; say('gain','打磨滿十二次：屬性點 +1'); } });
   if(sysIs('omni')) grow('omni','數據累積：攻擊力永久 +1',()=>{ soul.permAtk++; });
