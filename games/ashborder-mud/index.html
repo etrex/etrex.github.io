@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.43.0';
+const VERSION='2.43.1';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -316,7 +316,7 @@ const SYSTEMS={
   luck:{name:'氣運掠奪系統', skills:[
     {n:'奪運', d:()=>'揭露一個秘密、擊殺強敵、完成任務都會奪得氣運。目前氣運 '+soul.luck+'。'},
     {n:'天命', d:()=>'每擊殺一隻，氣運 +1。每 18 秒一次，沒有每日上限（'+growInfo('luck')+'）。'},
-    {n:'天命所歸', d:()=>'幸運率 = 氣運 ÷（氣運 + 1000），目前 '+(luckF()*100).toFixed(1)+'%。凡是對你有利、卻沒有成功的機率——閃避、會心、看穿技能、逃跑、掉寶、魔物閃你、陷阱被看穿、賭博……——都再擲一次幸運率。氣運無限大時，所有攻擊都閃得開，所有好事都會發生。'},
+    {n:'天命所歸', d:()=>'幸運率 = log₁₀(1 + 氣運) ÷ 7：氣運每多 10 倍，幸運率 +14.3%，1,000 萬時 100%。目前 '+(luckF()*100).toFixed(1)+'%。凡是對你有利、卻沒有成功的機率——閃避、會心、看穿技能、逃跑、掉寶、魔物閃你、陷阱被看穿、賭博……——都再擲一次幸運率。氣運到 1,000 萬時，所有攻擊都閃得開，所有好事都會發生。'},
     {n:'撿到好康', d:()=>'每次擊殺：幸運率的機會金幣翻倍、幸運率的機會多撿 1～3 枚裂谷核、幸運率 × 2% 的機會遇上奇遇（稀有或傳說的獎勵）。'},
     {n:'氣運稱號', d:()=>'氣運 '+LUCK_T.slice(0,9).map(([t,n])=>fmt(t)+'「'+n+'」').join('、')+'，之後每 ×3 一個，沒有盡頭。三百起每個稱號都有一次大獎。'+(soul.luck?'目前：'+(luckTitle()||'無'):'')}]},
   shop:{name:'系統商城', skills:[
@@ -1371,14 +1371,14 @@ function panelMenu(){
     {t:'先不分配', f:back}], '未分配 '+body.freePts+' 點');
 }
 function addLuck(n,why){ if(!sysIs('luck')) return; const b=soul.luck; soul.luck+=n; if(why) say('gain','奪運：氣運 +'+n+'（'+why+'）目前 '+soul.luck); luckTitles(b); }
-/* 氣運：幸運率 = 氣運 ÷（氣運 + 1000）。對你有利的機率沒成功時，再擲一次幸運率；對你不利的機率成功時，也再擲一次幸運率把它擋掉。 */
+/* 氣運：幸運率 = log₁₀(1 + 氣運) ÷ 7，氣運每多 10 倍 +14.3%，1000 萬封頂 100%。對你有利的機率沒成功時，再擲一次幸運率；對你不利的機率成功時，也再擲一次幸運率把它擋掉。 */
 const LUCK_T=[[30,'福星'],[60,'天選'],[100,'氣運之子'],[300,'鴻運當頭'],[1000,'天命之人'],[3000,'萬中選一'],[10000,'天道寵兒'],[30000,'氣運化身'],[100000,'運之神']];
 function luckTh(i){ if(i<LUCK_T.length) return LUCK_T[i]; const k=i-LUCK_T.length+2; return [100000*Math.pow(3,k-1),'運之神·'+k+'重']; }
 function luckTitle(){ let t=''; for(let i=0;;i++){ const [th,n]=luckTh(i); if(soul.luck>=th) t=n; else break; } return t; }
 function luckTitles(b){ for(let i=0;;i++){ const [th,n]=luckTh(i); if(th>soul.luck) break; if(b>=th) continue; say('title',n);
   if(i===2){ const g=chGoldUnit()*50; body.gold+=g; say('gain','NPC 主動獻上 '+fmt(g)+' 金。'); }
   else if(i>=3){ const r=(i-3)%3; if(r===0) say('gain','天賜：'+ciStat()); else { const eq=gachaEquip(r===1?'稀有':'傳說'); if(eq) say('gain','天賜：'+(r===1?'稀有':'傳說')+'裝備「'+eq+'」'); } } } }
-function luckF(){ return sysIs('luck')&&soul.luck>0?soul.luck/(soul.luck+1000):0; }
+function luckF(){ return sysIs('luck')&&soul.luck>0?Math.min(1,Math.log10(1+soul.luck)/7):0; }
 const LUCK_MSG={
   dodge:['{m}撲到一半，被地上的碎石絆了一下，擦著你的耳邊過去。','一隻飛蛾撲到{m}眼前，牠偏了頭，這一擊落空了。','{m}踩到一灘自己的血，腳下一滑，撲了個空。','遠處傳來一聲巨響，{m}分了神，攻擊歪到一邊。','你的鞋帶鬆了。你彎腰的那一瞬間，{m}的攻擊從你頭頂掠過。','{m}的攻擊卡進岩縫，拔出來的時候你已經不在那裡了。','一陣風捲起沙塵，{m}瞇了眼，打在你旁邊的地上。','你打了個噴嚏，身子一縮，剛好躲過{m}的攻擊。','頭頂掉下一塊石頭砸在{m}頭上，牠的攻擊停在半空。','{m}看見你身後有什麼東西在發光，愣了一下。等牠回神，機會已經過去了。','一隻老鼠從{m}腳邊竄過去，牠下意識去踩，這一擊就歪了。','{m}一個踉蹌，自己把自己絆倒了。'],
   skill:['{m}的「{s}」才剛蓄好力，頭頂的岩壁塌了一角，砸散了牠的架勢。','{m}要放「{s}」的時候嗆到了，咳得停不下來。','{m}的「{s}」偏了，打中了牠自己的影子。','你腳下一滑，整個人往旁邊倒——「{s}」從你剛才站的地方掃過去。','一隻蝙蝠撞進{m}嘴裡，「{s}」放了一半就斷了。'],
