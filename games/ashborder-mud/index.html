@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.51.0';
+const VERSION='2.51.1';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -2769,7 +2769,10 @@ const JSKILL={
 let skillCD=0;
 function jobSkill(){ return JSKILL[(body&&body.job)||'swordsman']||JSKILL.swordsman; }
 function skillReady(){ return skillCD<=0; }
+/* 影子跟著你出手：普通行動和技能都算 */
+function shAct(){ if(shFight.length&&mon){ const d=shDmgOf(shFight,mon.def); mon.hp-=d; say('combat','影子軍團（'+shFight.length+'）合擊：'+fmt(d)+' 傷害。'); } }
 function doSkill(){ const S=jobSkill(); skillCD=S.cd; turnNo++; let tot=0;
+  shAct(); if(mon.hp<=0){ win(); return; }
   const hit=(mul,ignDef)=>{ const d=Math.max(1,Math.round(playerAtk()*mul-(ignDef===true?0:mon.def*(ignDef||1)))); mon.hp-=d; tot+=d; return d; };
   if(S.id==='flurry'){ let n=0; for(let i=0;i<3;i++){ if(unlucky(monDodgeP(mon),'mdodge',mon)){ continue; } hit(0.5); n++; } say('combat','連刺！'+n+' / 3 下命中，共 '+fmt(tot)+' 傷害。'); }
   else if(S.id==='holy'){ const rs=Math.min(0.4,Math.max(0,(monInt(mon)-stats().int)*0.01)); if(unlucky(rs,'resist',mon)){ say('info',mon.n+'抵抗了聖光。'); } else { const d=Math.max(1,Math.round(magNow()*1.2*(0.85+Math.random()*.3))); mon.hp-=d; tot+=d; const h=Math.round(body.hpMax*.08); body.hp=Math.min(body.hpMax,body.hp+h); say('combat','聖光！'+fmt(tot)+' 神聖傷害，HP +'+h+'。'); } }
@@ -2803,7 +2806,7 @@ N.rift=()=>{ lastNode=N.rift;
   if(canChain()) o.push({t:(body.autoHunt?'● ':'○ ')+'連續狩獵（'+(sysIs('idle')||sysIs('omni')||sysIs('shadow')?'你的能力':'影子軍團替你找下一隻')+'：打完自動下一隻）', ab:1, f:()=>{ body.autoHunt=!body.autoHunt; save(); N.rift(); }});
   o.push({t:(body.autoAct?'● ':'○ ')+'自動戰鬥（輪到你時重複上一次行動）', f:()=>{ body.autoAct=!body.autoAct; save(); N.rift(); }});
   o.push({t:(body.autoSkill!==false?'● ':'○ ')+'自動戰鬥時使用技能（'+jobSkill().n+'冷卻好了就放）', f:()=>{ body.autoSkill=body.autoSkill===false; save(); N.rift(); }});
-  if(sysIs('idle')) o.push({t:'離線狩獵：'+(body.idleArmed?'已布置（離線後在第 '+body.floor+' 層繼續打，最多 8 小時）':'未布置'), ab:1, f:()=>{ body.idleArmed=!body.idleArmed; say('info',body.idleArmed?'你把劍插在地上，坐了下來。離線後它會自己動。':'你收起了劍。'); save(); N.rift(); }});
+  if(sysIs('idle')) o.push({t:'離線狩獵：'+(body.idleArmed?'已布置（離線後在第 '+body.floor+' 層繼續打，最多 '+idleCap()+' 小時）':'未布置'), ab:1, f:()=>{ body.idleArmed=!body.idleArmed; say('info',body.idleArmed?'你把劍插在地上，坐了下來。離線後它會自己動。':'你收起了劍。'); save(); N.rift(); }});
   if(body.floor<TOP_FLOOR){ const g=GATES[body.floor]; o.push({t:'往更深處走（第 '+(body.floor+1)+' 層）'+(body.flags['gate'+body.floor]?'：'+g.name:'')+(body.maxFloor>body.floor?'（已通過）':''), f:()=>{ body.flags['gate'+body.floor]=1; if(body.maxFloor>body.floor){ body.floor++; say('info','你走過已經打開的門。'); N.rift(); return; } say('title',g.name); story(g.text); setOptions([{t:'先退回去', f:N.rift},{t:'硬闖', f:()=>{ const r=g.check(); if(r.ok){ say('gain',r.why); if(body.flags.escort){ body.flags.escort--; say('npc',body.flags.escort?'布蘭德：「再一道。」':'布蘭德：「到這裡為止。下一道門自己想辦法。」'); } body.floor++; body.maxFloor=Math.max(body.maxFloor,body.floor); sysText('過了。這一關跟你的攻擊沒關係，你知道吧。'); status(); N.rift(); } else { say('hurt',r.why); say('info',g.hint); if(r.lethal){ body.hp=0; die(true); } else N.rift(); } }}],'門在前面。過不過，你決定。',true); }}); }
   for(let f=body.floor-1;f>=1;f--){ o.push({t:'退回第 '+f+' 層 '+FLOORS[f], f:()=>{ body.floor=f; N.rift(); }}); break; }
   if(fact('sixth_path')&&!body.flags.sixthPath) o.push({t:'走上小徑，尋找第六勇者', ab:1, f:()=>{ { body.flags.sixthPath=1; story(TXT.sixth_path); talk(TXT.sixth_talk); learn('truth','你知道了裂谷的真相。'); body.rep.temple-=30; if(!body.flags.seal){ body.flags.seal=1; say('gain','裂谷之印：所受傷害減少。'); } addLuck(10,'真相'); } body.flags.riftVisits--; N.rift(); }});
@@ -2879,7 +2882,7 @@ function afterHit(d){ const D=wDef(eqW()); if(fx.fire&&mon&&d>0){ const fd=Math.
 function playerAct(k){
   turnNo++; if(!k) k=body.mode;
   if(eat('bug')){ const p=Math.max(1,Math.round(mon.hpMax*0.08*eatF('bug'))); mon.hp-=p; say('combat','蛛毒：'+mon.n+'失去 '+p+' HP。'); }
-  if(shFight.length){ const d=shDmgOf(shFight,mon.def); mon.hp-=d; say('combat','影子軍團（'+shFight.length+'）合擊：'+fmt(d)+' 傷害。'); }
+  shAct();
   if(ssr('regen')){ const h=Math.round(body.hpMax*Math.min(.5,.05*ssrF('regen'))); body.hp=Math.min(body.hpMax,body.hp+h); }
   if(mon.hp<=0){ win(); return; }
   // 安全線：低於就自動切撤退
