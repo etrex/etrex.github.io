@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.47.0';
+const VERSION='2.48.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -346,7 +346,7 @@ const SYSTEMS={
     {n:'不倒', d:()=>'HP低於一成時，該回合所受傷害歸零（每場一次）。'},
     {n:'皮糙肉厚', d:()=>'每被打一次，防禦力永久 +1（目前 +'+refDef()+'）。每 18 秒一次，沒有每日上限（'+growInfo('reflect')+'）。'}]},
   rezero:{name:'死亡回歸系統', skills:[
-    {n:'死亡回歸', d:()=>'死亡時回到今天早上：HP、金幣、裂谷核回到當時，記憶與所有永久累積保留。無限次。'},
+    {n:'死亡回歸', d:()=>'死亡時回到今天早上（最後一次休息醒來的那一刻）。除了記憶，一切都回到當時：等級、經驗、道具、裝備、金幣、資源、劇情、任務。留下來的只有記憶——知道的事、圖鑑、走過的路，還有記憶累積的防禦與既視感。無限次。'},
     {n:'既視感', d:()=>{ const D=soul.rzDeja||{}; const ks=Object.keys(D); return '每被一種魔物害死一次，牠對你的傷害永久 −10%（最多 −90%），而且你永遠看得見牠的弱點，可以用「弱點」模式打牠。這是記憶，轉生也帶得走。'+(ks.length?'記得的：'+ks.map(k=>dejaName(k)+' −'+Math.round(dejaCut(k)*100)+'%').join('、'):'還沒有被什麼害死過。'); }},
     {n:'記憶累積', d:()=>'每回歸一次，你記住一種不被打中的方式：防禦力永久 + 能力總和 ÷ 100（至少 1，目前累積 +'+rzDef()+'）。'},
     {n:'記憶', d:()=>'每擊殺一隻，防禦力永久 + 能力總和 ÷ 100（至少 1）。每 18 秒一次，沒有每日上限（'+growInfo('rezero')+'）。'}]},
@@ -834,6 +834,12 @@ function shExtract(m){ const k=m.key+'@'+m.lv; soul.shadowMeta=soul.shadowMeta||
 function rzAtk(){ return 0; } function rzDef(){ if(!sysIs('rezero')) return 0; if(soul.rzDefN===undefined) soul.rzDefN=soul.returns|0; return soul.rzDefN; }
 function dejaCut(k){ return sysIs('rezero')?Math.min(.9,.1*((soul.rzDeja||{})[k]|0)):0; }
 function dejaName(k){ const d=k==='king'?KING:MONSTERS.find(x=>x.key===k); return d?d.n:k; }
+/* 死亡回歸：最後一次休息醒來時，把整個肉身記下來。死了就整個回到那時候，只有記憶留著：知道的事、圖鑑、走過的地形，以及靈魂上的記憶累積與既視感。 */
+function rzSnap(){ const s=JSON.parse(JSON.stringify(body,(k,v)=>k==='daySnap'?undefined:v)); s._full=1; body.daySnap=s; }
+const RZ_MEM_FLAGS=['owned','seen','killed','rareFound','terrain','used','been'];
+function rzRewind(){ const sn=body.daySnap; if(!sn||!sn._full) return false; const cur=body; const nb=JSON.parse(JSON.stringify(sn)); delete nb._full; nb.daySnap=sn;
+  nb.facts=Object.assign({},nb.facts||{},cur.facts||{}); nb.flags=nb.flags||{}; RZ_MEM_FLAGS.forEach(k=>{ if(cur.flags&&cur.flags[k]) nb.flags[k]=Object.assign({},nb.flags[k]||{},cur.flags[k]); });
+  body=nb; body.hp=body.hpMax; body.autoHunt=false; return true; }
 function dejaKnown(m){ return !!(m&&sysIs('rezero')&&(soul.rzDeja||{})[m.key]); }
 function medAtk(){ return sysIs('ancestor')?soul.meditations:0; }
 /* 老祖的修為：第 n 境需要累積閉關 20 ×（1.5^n − 1）天（10、25、47.5……），每境攻擊與 HP ×1.1 */
@@ -1360,7 +1366,7 @@ function dimBuyPerm(k){ body.dim=body.dim||{}; const D=DIMP[k]; body.dim[k]=1;
 /* ---------- 時光機：重大劇情發生前自動記下節點 ---------- */
 const TM_KEEP=['level','xp','gold','cores','items','weapons','wpn','armors','arm','armorPlus','armor','accs','acc','bags','capBonus','freePts','pts','ptsV','statAdd','eaten','evolved','home','dim','dbBought','dbHave','balls','revive','floor','maxFloor','job','hpMax','hp','herbs','pelts','relics','ore','grain','salt','timber','fish','ink','coal','worldleaf','frostcrystal','pearl','starmetal','over','mode','autoAct','autoHunt','stopHp','idleArmed','tm'];
 const TM_KEEP_FLAGS=['owned','seen','killed','rareFound','terrain','used','grind','wisteria','metalNext','whet','oiled','torch','rift10'];
-function tmSave(id,label){ if(!body) return; const snap=JSON.parse(JSON.stringify(body,(k,v)=>k==='tm'?undefined:v)); body.tm=body.tm||{}; body.tm[id]={label,day:body.day,snap}; }
+function tmSave(id,label){ if(!body) return; const snap=JSON.parse(JSON.stringify(body,(k,v)=>(k==='tm'||k==='daySnap')?undefined:v)); body.tm=body.tm||{}; body.tm[id]={label,day:body.day,snap}; }
 function tmRestore(id){ const t=body.tm&&body.tm[id]; if(!t) return false; const cur=body; const nb=JSON.parse(JSON.stringify(t.snap));
   TM_KEEP.forEach(k=>{ if(cur[k]!==undefined) nb[k]=cur[k]; else delete nb[k]; });
   nb.flags=nb.flags||{}; TM_KEEP_FLAGS.forEach(k=>{ if(cur.flags[k]!==undefined) nb.flags[k]=cur.flags[k]; else delete nb.flags[k]; });
@@ -2589,7 +2595,7 @@ function reincarnate(after){ inCombat=false; clearInterval(cTimer); story(after?
   body=null; soul.system=null; mon=null; status(); save();
   setOptions([{t:'回到主神空間', f:()=>startQuestionnaire()}]);
 }
-function rest(){ body.day++; body.hp=body.hpMax; if(body.day%3===0) growOld(1,true); worldTick(); say('info','第 '+body.day+' 天。HP回滿。'); if(sysIs('ancestor')){ if(!grow('ancestor','閉關：攻擊力永久 +1',()=>{ soul.meditations++; })) say('info','閉關要靜下心。'+growInfo('ancestor')); } if(sysIs('checkin')) grow('checkin','勤勉：HP 上限 +1',()=>{ soul.permHp++; }); if(sysIs('rezero')) body.daySnap={hp:body.hp,gold:body.gold,cores:body.cores,day:body.day,age:body.age}; body.unyield=false; status(); }
+function rest(){ body.day++; body.hp=body.hpMax; if(body.day%3===0) growOld(1,true); worldTick(); say('info','第 '+body.day+' 天。HP回滿。'); if(sysIs('ancestor')){ if(!grow('ancestor','閉關：攻擊力永久 +1',()=>{ soul.meditations++; })) say('info','閉關要靜下心。'+growInfo('ancestor')); } if(sysIs('checkin')) grow('checkin','勤勉：HP 上限 +1',()=>{ soul.permHp++; }); if(sysIs('rezero')) rzSnap(); body.unyield=false; status(); }
 
 /* ============================================================
    戰鬥
@@ -2977,7 +2983,7 @@ function endCombat(){ fx={}; inCombat=false; body.flags.warned=0; body.flags.lin
 async function die(force){
   if(!inCombat&&!force) return; inCombat=false; clearInterval(cTimer); body.autoHunt=false;
   if(body.revive>0){ body.revive--; body.hp=body.hpMax; say('gain','鳳凰之尾碎了。你站了起來，HP全滿。'); if(force){ status(); N.rift(); } else { inCombat=true; lastTick=Date.now(); } return; }
-  if(sysIs('rezero')){ const sn=body.daySnap||{hp:body.hpMax,gold:body.gold,cores:body.cores,day:body.day,age:body.age}; soul.returns++; rzDef(); soul.rzDefN+=chU(); if(mon){ soul.rzDeja=soul.rzDeja||{}; soul.rzDeja[mon.key]=(soul.rzDeja[mon.key]|0)+1; } body.raidFight=0; body.nemesis=mon?mon.key:null; body.hp=body.hpMax; body.gold=sn.gold; body.cores=sn.cores; body.day=sn.day; body.age=sn.age; say('title','死亡回歸'); story(TXT.rezero); say('gain','記憶累積：防禦力永久 +'+chU()+'。'+(mon?'既視感：你記住了'+mon.n+'——牠對你的傷害永久 −'+Math.round(dejaCut(mon.key)*100)+'%，弱點在'+mon.weak+'。':'')); sysText('又死了一次。不過你記得。'); mon=null; status(); N.market(); return; }
+  if(sysIs('rezero')){ const sn=body.daySnap||{hp:body.hpMax,gold:body.gold,cores:body.cores,day:body.day,age:body.age}; const killer=mon; const lv0=body.level; const u=chU(); soul.returns++; rzDef(); soul.rzDefN+=u; if(mon){ soul.rzDeja=soul.rzDeja||{}; soul.rzDeja[mon.key]=(soul.rzDeja[mon.key]|0)+1; } if(!rzRewind()){ body.hp=body.hpMax; body.gold=sn.gold; body.cores=sn.cores; body.day=sn.day; body.age=sn.age; } body.raidFight=0; body.nemesis=killer?killer.key:null; say('title','死亡回歸'); story(TXT.rezero); say('info','你回到了第 '+body.day+' 天的早上。'+(body.level<lv0?'身體回到 Lv '+body.level+'，':'')+'背包、金幣、發生過的事都回到那時候。只有你記得。'); say('gain','記憶累積：防禦力永久 +'+u+'。'+(mon?'既視感：你記住了'+mon.n+'——牠對你的傷害永久 −'+Math.round(dejaCut(mon.key)*100)+'%，弱點在'+mon.weak+'。':'')); sysText('又死了一次。不過你記得。'); mon=null; status(); N.market(); return; }
   say('title','勇者倒下了……');
   soul.deaths=(soul.deaths||0)+1; const lost=Math.round(body.gold*.1*(1-eatF('altar'))); body.gold-=lost;
   worldEvent(soul.name+' 倒在外面，被人抬回了教堂。');
@@ -3051,7 +3057,7 @@ async function contractWith(s){ s.cd={}; s.idleFrom=Date.now();
   worldEvent(soul.name+' 締結了「'+s.name+'」，降生於灰燼邊境');
   setOptions([{t:'以勇者召喚的方式降生', f:()=>{ say('narr','光點問了最後一個問題：「你在上一個世界，握的是什麼？」'); setOptions(Object.keys(JOBS).map(k=>({t:JOBS[k].n+'：'+JOBS[k].desc, f:()=>birth(k)})),'職業決定你能用哪幾種武器。'+(allWeapons()?'你的系統讓你不受這個限制。':'銅之劍、勇者之劍、魔劍誰都能用。'),true); }}]);
 }
-function birth(jobKey){ body=newBody(); body.job=jobKey; JOB_START[jobKey].forEach(k=>body.weapons.push({key:k,sharp:0})); if(sysIs('ancestor')) body.age=25; body.hpMax=hpMaxNow(); body.hp=body.hpMax; if(sysIs('rezero')) body.daySnap={hp:body.hp,gold:body.gold,cores:0,day:1,age:body.age}; clearLog(); status(); N.hall(); }
+function birth(jobKey){ body=newBody(); body.job=jobKey; JOB_START[jobKey].forEach(k=>body.weapons.push({key:k,sharp:0})); if(sysIs('ancestor')) body.age=25; body.hpMax=hpMaxNow(); body.hp=body.hpMax; if(sysIs('rezero')) rzSnap(); clearLog(); status(); N.hall(); }
 
 /* 記住最後一個主畫面怎麼重畫：整理背包之後回到那裡（重畫才會拿到最新的數量） */
 let curBuild=null;
