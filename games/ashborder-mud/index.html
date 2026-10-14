@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.39.0';
+const VERSION='2.39.1';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -309,7 +309,7 @@ const SYSTEMS={
   shadow:{name:'影之君主系統', skills:[
     {n:'影子抽取', d:()=>'殺死的敵人有三分之一的機會變成你的影子，影子軍團沒有上限。每個出戰的影子每回合造成你攻擊 3% × 牠原本的強度（一階 0.44、二階 0.67、三階 1、四階 1.5、五階 2.25、魔王 5）。'+(body?'目前軍團 '+shTotal()+' 個，出戰 '+shDeployed().length+' 個，每回合約 '+fmt(shDmgOf(shDeployed()))+'。':'')},
     {n:'意志', d:()=>'影子不是用力氣使喚的，是用意志維繫。同時出戰的影子數 = 智力 ÷ 4（目前 '+(body?shDeployN():0)+' 個），派出的是最強的那幾個。'},
-    {n:'影衛', d:()=>'魔物出手時，有機會由一個出戰的影子跳出來擋：機率 = 剩下的出戰影子數 × 2%（最多 50%），由最弱的先擋。影子能吃下你 HP 上限 10% × 牠的強度，多的照樣打到你。擋過的影子這場戰鬥散掉，打完就回來。'},
+    {n:'影衛', d:()=>'魔物出手時，每個出戰的影子各自有 2% 的機會跳出來擋，可能好幾個一起擋。跳出來的影子吃下整擊，弱的在前；影子 HP = 你的 HP 上限 20% × 牠的強度'+(body?'（三階影子 '+fmt(Math.round(body.hpMax*.2))+'）':'')+'。被打不一定會散，HP 歸零才散掉，擋不完的才打到你。散掉的影子這場戰鬥不再出手，打完就回來。'},
     {n:'影之鍛', d:()=>'每持有一個影子，攻擊力永久 +1（目前 +'+shForge()+'）。'},
     {n:'每日任務', d:()=>{ const q=shq(); return '每現實日：擊殺 5、50、200 隻各領一次獎勵，看你的能力總和。今日擊殺 '+q.k+'。'+(body?'獎勵：5 隻 '+fmt(chGoldUnit()*20)+' 金與 '+Math.floor(ciS()/20)+' 核；50 隻 '+fmt(chGoldUnit()*150)+' 金與 '+Math.floor(ciS()/20)*3+' 核；200 隻 '+fmt(chGoldUnit()*500)+' 金與 '+Math.floor(ciS()/20)*10+' 核。':''); }},
     {n:'君主的軍勢', d:()=>'影子是靈魂的東西：轉生後不管締結什麼系統，影子軍團都跟著你出手，只是不再增加。可開啟連續狩獵：影子會替你找下一個獵物。'}]},
@@ -797,19 +797,30 @@ function lvAtk(){ return 0; } function lvHp(){ return 0; } function lvDef(){ ret
 /* 影之君主：soul.shadowBag = {魔物 key: 數量}，跨世保留。舊存檔的 soul.shadows 轉成「無名影子」（強度 1）。
    出戰數 = ⌊智力 ÷ 4⌋，派最強的；每個影子每回合 攻擊 × 3% × 強度；強度 = 1.5^(階級−3)，魔王 5。 */
 function shBag(){ if(!soul.shadowBag){ soul.shadowBag={}; if(soul.shadows>0) soul.shadowBag._old=soul.shadows; } return soul.shadowBag; }
-function shStr(k){ if(k==='_old') return 1; if(k==='king') return 5; return tierMul(MON(k).tier); }
-function shName(k){ return k==='_old'?'無名':MON(k).n; }
+function shMeta(k){ const m=(soul.shadowMeta||{})[k]; if(m) return m; const d=k==='king'?KING:MONSTERS.find(x=>x.key===k); return d?{n:d.n,t:d.tier}:{n:'無名',t:3}; }
+function shStr(k){ if(k==='_old') return 1; if(k==='king') return 5; return tierMul(shMeta(k).t); }
+function shName(k){ return k==='_old'?'無名':shMeta(k).n; }
+function shLabel(k){ const n=shName(k); return /影子$/.test(n)?n:n+'的影子'; }
+function shLabels(ks){ const c={}; ks.forEach(k=>c[k]=(c[k]|0)+1); return Object.keys(c).map(k=>shLabel(k)+(c[k]>1?'（'+c[k]+' 個）':'')).join('、'); }
 function shTotal(){ const b=shBag(); let n=0; for(const k in b) n+=b[k]; return n; }
 function shDeployN(){ return body?Math.floor(stats().int/4):0; }
 function shDeployed(){ const b=shBag(); const ks=Object.keys(b).filter(k=>b[k]>0).sort((x,y)=>shStr(y)-shStr(x)); const out=[]; let N=shDeployN(); for(const k of ks){ for(let i=0;i<b[k]&&N>0;i++,N--) out.push(k); if(N<=0) break; } return out; }
-function shDmgOf(list){ if(!body||!list.length) return 0; const a=atkNow()*0.03; return Math.max(1,Math.round(list.reduce((t,k)=>t+a*shStr(k),0))); }
+function shDmgOf(list){ if(!body||!list.length) return 0; const a=atkNow()*0.03; return Math.max(1,Math.round(list.reduce((t,k)=>t+a*shStr(typeof k==='string'?k:k.k),0))); }
+function shHp(k){ return Math.max(1,Math.round(body.hpMax*.2*shStr(k))); }
+/* 影衛：每個出戰影子獨立 2% 跳出來；跳出來的一起吃下整擊（弱的在前），HP 歸零才散。回傳剩下打到玩家的傷害。 */
+function shGuard(d){ const g=shFight.filter(()=>chance(.02)); if(!g.length) return d; g.sort((x,y)=>shStr(x.k)-shStr(y.k));
+  const names=shLabels(g.map(x=>x.k)); let left=d, dead=[];
+  for(const x of g){ if(left<=0) break; const t=Math.min(left,x.hp); x.hp-=t; left-=t; if(x.hp<=0) dead.push(x); }
+  shFight=shFight.filter(x=>x.hp>0);
+  say('info',names+'撲上去，替你吃下 '+fmt(d-left)+' 點傷害。'+(dead.length?shLabels(dead.map(x=>x.k))+'散成黑霧。':'影子晃了一下，還站著。'));
+  return left; }
 function shForge(){ return sysIs('shadow')?shTotal():0; }
 function shq(){ const today=new Date().toDateString(); if(!soul.shq||soul.shq.day!==today) soul.shq={day:today,k:0,got:{}}; return soul.shq; }
 const SHQ=[[5,20,1],[50,150,3],[200,500,10]];
-function shExtract(m){ const b=shBag(); const before=shDeployed(); b[m.key]=(b[m.key]|0)+1; soul.shadows=shTotal(); const after=shDeployed();
+function shExtract(m){ soul.shadowMeta=soul.shadowMeta||{}; soul.shadowMeta[m.key]={n:m.n,t:m.tier}; const b=shBag(); const before=shDeployed(); b[m.key]=(b[m.key]|0)+1; soul.shadows=shTotal(); const after=shDeployed();
   const full=before.length>=shDeployN(); const weak=before[before.length-1];
-  if(full&&weak&&shStr(m.key)>shStr(weak)) say('gain',m.n+'的影子取代了'+shName(weak)+'的影子。（'+shName(weak)+'的影子退回軍團）');
-  else say('gain','影子抽取成功：'+m.n+'的影子。軍團 '+shTotal()+' 個，出戰 '+after.length+' 個。'); }
+  if(full&&weak&&shStr(m.key)>shStr(weak)) say('gain',shLabel(m.key)+'取代了'+shLabel(weak)+'。（'+shLabel(weak)+'退回軍團）');
+  else say('gain','影子抽取成功：'+shLabel(m.key)+'。軍團 '+shTotal()+' 個，出戰 '+after.length+' 個。'); }
 function rzAtk(){ return 0; } function rzDef(){ return sysIs('rezero')?soul.returns:0; }
 function medAtk(){ return sysIs('ancestor')?soul.meditations:0; } function medHp(){ return 0; }
 
@@ -2594,7 +2605,7 @@ function makeMon(pick,lv){
 function encounter(force,lv,ret){
   body.fightRet=ret||null;
   const m=makeMon(force||pickMon(body.floor), lv||RIFT_LV[body.floor]||[1,4]);
-  shFight=shDeployed(); body.shield=ssr('shield')?Math.round(body.hpMax*Math.min(.9,.1*ssrF('shield'))):0;
+  shFight=shDeployed().map(k=>({k,hp:shHp(k)})); body.shield=ssr('shield')?Math.round(body.hpMax*Math.min(.9,.1*ssrF('shield'))):0;
   mon=m; inCombat=true; guard=false; turnNo=0; execUsed=false; monSkip=false; pending=null; casting=null; skillCD=0; ready=false; body.blessFight=!!body.flags.blessed; body.flags.blessed=0; if(!body.mode||!modeList().includes(body.mode)) body.mode='attack';
   say('title',m.n+'出現了！'+(body.floor>1&&!force?'（第 '+body.floor+' 層）':''));
   body.flags.seen=body.flags.seen||{}; if(!body.flags.seen[m.key]&&m.desc){ body.flags.seen[m.key]=1; say('narr',m.desc); }
@@ -2669,7 +2680,7 @@ function monsterAttack(){
   if(soul.system.weak==='hated') d+=NUM.hated(); if(body.flags.seal) d*=.8; if(guard){d*=.5;guard=false;}
   d=Math.round(d);
   if(sysIs('reflect')&&!body.unyield&&body.hp-d<=body.hpMax*.1&&body.hp>0){ body.unyield=true; say('gain','不倒：這一擊被你硬生生擋下。'); d=0; }
-  if(d>0&&shFight.length&&chance(Math.min(.5,shFight.length*.02))){ const k=shFight.pop(); const ab=Math.min(d,Math.round(body.hpMax*.1*shStr(k))); d-=ab; say('info',shName(k)+'的影子撲上去，替你吃下 '+fmt(ab)+' 點傷害，散成黑霧。'); }
+  if(d>0&&shFight.length) d=shGuard(d);
   if(body.shield>0&&d>0){ const ab=Math.min(body.shield,d); body.shield-=ab; d-=ab; say('info','護盾擋下 '+fmt(ab)+'（剩 '+fmt(body.shield)+'）'); }
   body.hp-=d; soul.hitsTaken=(soul.hitsTaken||0)+1; say('hurt',mon.n+'的攻擊！受到了 '+d+' 點傷害。'); if(mon.leech&&d>0){ const h=Math.round(d*.5); mon.hp=Math.min(mon.hpMax,mon.hp+h); say('combat',mon.n+'吸了你的血，HP +'+h+'。'); } if(sysIs('reflect')) grow('reflect','皮糙肉厚：防禦力永久 +1',()=>{ soul.permDef=(soul.permDef||0)+1; });
   if(sysIs('reflect')&&d>0){ const r=d*3; mon.hp-=r; body.rage=Math.min(5,body.rage+1); say('combat','三倍奉還：'+r+' 傷害回到'+mon.n+'身上。怒氣 '+body.rage+'/5'); }
