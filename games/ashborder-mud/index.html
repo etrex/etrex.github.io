@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.49.2';
+const VERSION='2.50.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -324,7 +324,7 @@ const SYSTEMS={
     {n:'商城', d:()=>'系統商品：永久攻擊、HP、防禦、魔力（份量看能力總和）、基本能力 +1、藥水、核、空間背包、鳳凰之尾、系統飾品；每日特賣三格；還有只有你買得到的異次元道具（'+Object.keys(DIM).length+' 種道具＋'+Object.keys(DIMP).length+' 種永久道具，來自別的世界的經典道具）。永久提升每 18 秒買一次，沒有每日上限（'+growInfo('shop')+'）。'},
     {n:'限時折扣', d:()=>'每現實日第一次購買半價。'}]},
   gacha:{name:'抽獎系統', skills:[
-    {n:'十連抽', d:()=>'每 60 秒一次十連抽，沒有每日上限（'+growInfo('gacha',60000,Infinity)+'）。R（65%）：金幣、核、資源、道具，偶爾稀有素材；SR（25%）：隨機一種永久數值；SSR（10%）：技能（重複的升星，無上限）或基本能力 +1。每抽另有萬分之一稀有裝備、十萬分之一傳說裝備。'},
+    {n:'十連抽', d:()=>'每 60 秒一次十連抽，沒有每日上限（'+growInfo('gacha',60000,Infinity)+'）。R（65%）：金幣、核、資源、道具，偶爾稀有素材；SR（25%）：隨機一種永久數值（份量看能力總和，每 100 點 +1，目前 +'+(body?chU():1)+'）；SSR（10%）：技能（重複的升星，無上限）或基本能力 +1。每抽另有萬分之一稀有裝備、十萬分之一傳說裝備。'},
     {n:'保底', d:()=>'每 3 次十連必出 SSR。目前保底計數 '+soul.pity+'/3。'},
     {n:'技能池', d:()=>'共 '+Object.keys(SSR).length+' 種。已抽到：'+(soul.ssr.length?soul.ssr.filter(k=>SSR[k]).map(k=>SSR[k].n+' '+ssrStar(k)+'★（'+SSR[k].d(ssrF(k))+'）').join('、'):'無')+((soul.permStat&&Object.keys(soul.permStat).length)?'｜基本能力：'+Object.keys(soul.permStat).map(k=>STAT_N[k]+' +'+soul.permStat[k]).join('、'):'')+((soul.permMag||soul.permGold)?'｜魔力 +'+(soul.permMag||0)+'、金幣 +'+(soul.permGold||0)+'%':'')}]},
   panel:{name:'屬性面板系統', skills:[
@@ -1477,7 +1477,7 @@ function dimOwned(k){ if(k==='master') return eqCount('W','mastersword')>0; if(k
 const METAL={n:'金屬史萊姆',key:'metalslime',fm:'slime',fam:'dog',hp:4,atk:6,def:2,gh:1,ga:1.15,gd:1,iv:1.0,tier:1,drop:0,weak:'背上那一點沒有發亮的地方',desc:'一團亮晶晶的金屬。牠看見你，抖了一下。',metal:1};
 /* 十連抽：SSR 10%、SR 25%、R 65%，每 3 次十連保底一個 SSR。
    SSR：七成是技能（新的或升星，無上限）、三成是基本能力 +1（力量、體力、敏捷、智力隨機）。
-   SR：隨機一種永久數值（攻擊 +1、HP +3、防禦 +1、魔力 +1、擊殺金幣 +1%）。
+   SR：隨機一種永久數值（攻擊、防禦、魔力各 +份量，HP +份量×3，份量 = max(1, ⌊能力總和 ÷ 100⌋)；或擊殺金幣 +1%）。
    R：金幣、裂谷核、資源、道具，偶爾稀有素材。每一抽另外有萬分之一抽到稀有裝備、十萬分之一抽到傳說裝備。 */
 function eqPick(g){ return rnd((AUC_GRADE[g]||[]).concat((W_GRADE[g]||[]).map(k=>'W:'+k)))||null; }
 function eqGive(id){ const [t,k]=id.split(':'); if(t==='A') giveArmor(k); else if(t==='W') giveWeapon(k); else giveAcc(k); return eqName(t,k); }
@@ -1536,7 +1536,7 @@ function doGacha(){
       if(chance(.3)){ const k=rnd(['str','vit','agi','int']); soul.permStat[k]=(soul.permStat[k]|0)+1; out.push('<b>SSR</b> '+STAT_N[k]+'永久 +1'); }
       else { const k=rnd(Object.keys(SSR)); if(!soul.ssr.includes(k)){ soul.ssr.push(k); soul.ssrStar[k]=1; out.push('<b>SSR</b> 新技能「'+SSR[k].n+'」：'+SSR[k].d(ssrF(k))); } else { soul.ssrStar[k]=(soul.ssrStar[k]||1)+1; out.push('<b>SSR</b> 「'+SSR[k].n+'」升到 '+soul.ssrStar[k]+' 星：'+SSR[k].d(ssrF(k))); } } }
     else if(r<0.35){ const p=Math.random();
-      if(p<.3){ soul.permAtk=(soul.permAtk||0)+1; out.push('SR 攻擊力永久 +1'); } else if(p<.55){ soul.permHp=(soul.permHp||0)+3; out.push('SR HP 上限永久 +3'); } else if(p<.75){ soul.permDef=(soul.permDef||0)+1; out.push('SR 防禦力永久 +1'); } else if(p<.9){ soul.permMag=(soul.permMag||0)+1; out.push('SR 魔力永久 +1'); } else { soul.permGold=(soul.permGold||0)+1; out.push('SR 擊殺金幣永久 +1%'); } }
+      const U=chU(); if(p<.3){ soul.permAtk=(soul.permAtk||0)+U; out.push('SR 攻擊力永久 +'+U); } else if(p<.55){ soul.permHp=(soul.permHp||0)+3*U; out.push('SR HP 上限永久 +'+3*U); } else if(p<.75){ soul.permDef=(soul.permDef||0)+U; out.push('SR 防禦力永久 +'+U); } else if(p<.9){ soul.permMag=(soul.permMag||0)+U; out.push('SR 魔力永久 +'+U); } else { soul.permGold=(soul.permGold||0)+1; out.push('SR 擊殺金幣永久 +1%'); } }
     else { const p=Math.random();
       if(p<.3){ const g=NUM.killGold()*3; body.gold+=g; out.push('R 金幣 +'+g); }
       else if(p<.55){ addRes('cores',2); out.push('R 裂谷核 +2'); }
