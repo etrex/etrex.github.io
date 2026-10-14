@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.46.0';
+const VERSION='2.47.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -347,9 +347,9 @@ const SYSTEMS={
     {n:'皮糙肉厚', d:()=>'每被打一次，防禦力永久 +1（目前 +'+refDef()+'）。每 18 秒一次，沒有每日上限（'+growInfo('reflect')+'）。'}]},
   rezero:{name:'死亡回歸系統', skills:[
     {n:'死亡回歸', d:()=>'死亡時回到今天早上：HP、金幣、裂谷核回到當時，記憶與所有永久累積保留。無限次。'},
-    {n:'既視感', d:()=>'回歸後，害死你的敵人下次對你的傷害減半。'},
-    {n:'記憶累積', d:()=>'每回歸一次，你記住一種不被打中的方式：防禦力永久 +1（目前 +'+rzDef()+'）。'},
-    {n:'記憶', d:()=>'每擊殺一隻，防禦力永久 +1。每 18 秒一次，沒有每日上限（'+growInfo('rezero')+'）。'}]},
+    {n:'既視感', d:()=>{ const D=soul.rzDeja||{}; const ks=Object.keys(D); return '每被一種魔物害死一次，牠對你的傷害永久 −10%（最多 −90%），而且你永遠看得見牠的弱點，可以用「弱點」模式打牠。這是記憶，轉生也帶得走。'+(ks.length?'記得的：'+ks.map(k=>dejaName(k)+' −'+Math.round(dejaCut(k)*100)+'%').join('、'):'還沒有被什麼害死過。'); }},
+    {n:'記憶累積', d:()=>'每回歸一次，你記住一種不被打中的方式：防禦力永久 + 能力總和 ÷ 100（至少 1，目前累積 +'+rzDef()+'）。'},
+    {n:'記憶', d:()=>'每擊殺一隻，防禦力永久 + 能力總和 ÷ 100（至少 1）。每 18 秒一次，沒有每日上限（'+growInfo('rezero')+'）。'}]},
   idle:{name:'掛機系統', skills:[
     {n:'離線狩獵', d:()=>'你離線時，戰鬥不會停。停在哪一層、用什麼模式，就照那樣打，最多結算 8 小時。會死。'},
     {n:'安全線', d:()=>'HP低於你設定的安全線時，先逃一次再停手。背包滿了也停。'},
@@ -831,7 +831,10 @@ function shExtract(m){ const k=m.key+'@'+m.lv; soul.shadowMeta=soul.shadowMeta||
   const full=before.length>=shDeployN(); const weak=before[before.length-1];
   if(full&&weak&&shScore(k)>shScore(weak)) say('gain',shLabel(k)+'（Lv '+m.lv+'）取代了'+shLabel(weak)+'（Lv '+shMeta(weak).lv+'）。（'+shLabel(weak)+'退回軍團）');
   else say('gain','影子抽取成功：'+shLabel(k)+'（Lv '+m.lv+'，HP '+fmt(m.hpMax)+'、攻擊 '+fmt(m.atk)+'）。軍團 '+shTotal()+' 個，出戰 '+after.length+' 個。'); }
-function rzAtk(){ return 0; } function rzDef(){ return sysIs('rezero')?soul.returns:0; }
+function rzAtk(){ return 0; } function rzDef(){ if(!sysIs('rezero')) return 0; if(soul.rzDefN===undefined) soul.rzDefN=soul.returns|0; return soul.rzDefN; }
+function dejaCut(k){ return sysIs('rezero')?Math.min(.9,.1*((soul.rzDeja||{})[k]|0)):0; }
+function dejaName(k){ const d=k==='king'?KING:MONSTERS.find(x=>x.key===k); return d?d.n:k; }
+function dejaKnown(m){ return !!(m&&sysIs('rezero')&&(soul.rzDeja||{})[m.key]); }
 function medAtk(){ return sysIs('ancestor')?soul.meditations:0; }
 /* 老祖的修為：第 n 境需要累積閉關 20 ×（1.5^n − 1）天（10、25、47.5……），每境攻擊與 HP ×1.1 */
 const REALMS=['凡人','練氣','築基','金丹','元嬰','化神','煉虛','合體','大乘','渡劫'];
@@ -2582,7 +2585,7 @@ function reincarnate(after){ inCombat=false; clearInterval(cTimer); story(after?
   worldEvent(soul.name+'（'+soul.system.name+'，'+body.age+' 歲）'+(after?'寫完了灰燼邊境的故事，放下了這一世。':'在教堂放下了這一世。'));
   soul.lives++; soul.memory={lastSys:soul.system.key};
   if(shTotal()>0) say('info','影子軍團 '+shTotal()+' 個跨世保留。下一世不管締結什麼系統，牠們都會跟著你出手。');
-  soul.ach=soul.ach||{}; soul.endings=soul.endings||[]; /* 轉生只留下抽獎的技能（含星數）與影子軍團；其他永久加成全部歸零 */ soul.permAtk=0; soul.permHp=0; soul.permDef=0; soul.permStat={}; soul.idleHours=0; soul.permMag=0; soul.permGold=0; soul.streak=0; soul.lastCheck=0; soul.ciMile={}; soul.choiceSet=null; soul.choicePity=0; soul.pity=0; soul.eats=0; soul.eatHpN=0; soul.lvUps=0; soul.returns=0; soul.forges=0; soul.forgeAtkN=0; soul.meditations=0; soul.points=0; soul.luck=0;
+  soul.ach=soul.ach||{}; soul.endings=soul.endings||[]; /* 轉生只留下抽獎的技能（含星數）與影子軍團；其他永久加成全部歸零 */ soul.permAtk=0; soul.permHp=0; soul.permDef=0; soul.permStat={}; soul.idleHours=0; soul.permMag=0; soul.permGold=0; soul.streak=0; soul.lastCheck=0; soul.ciMile={}; soul.choiceSet=null; soul.choicePity=0; soul.pity=0; soul.eats=0; soul.eatHpN=0; soul.lvUps=0; soul.returns=0; soul.forges=0; soul.forgeAtkN=0; soul.rzDefN=0; soul.meditations=0; soul.points=0; soul.luck=0;
   body=null; soul.system=null; mon=null; status(); save();
   setOptions([{t:'回到主神空間', f:()=>startQuestionnaire()}]);
 }
@@ -2738,7 +2741,7 @@ function pInterval(){ let t=2.0+(wDef(eqW()).spd||0)+(aDef(eqA()).spd||0)+(job()
 function mInterval(m){ return m.iv||2; }
 /* 連續狩獵：掛機、全知、影之君主，或者前世帶來的影子軍團（影子會替你找下一個獵物） */
 function canChain(){ return sysIs('idle')||sysIs('omni')||sysIs('shadow')||shTotal()>0; }
-function modeList(){ const l=['attack']; if(sysIs('omni')||dimHas('scouter')) l.push('weak'); if(sysIs('reflect')) l.push('burst'); l.push('guard','flee'); return l; }
+function modeList(){ const l=['attack']; if(sysIs('omni')||dimHas('scouter')||dejaKnown(mon)) l.push('weak'); if(sysIs('reflect')) l.push('burst'); l.push('guard','flee'); return l; }
 let pending=null, ready=false;
 /* 戰鬥中用道具：按下去道具立刻生效，然後讀秒——使用時間（÷ 速度係數）過完才能再行動，這段時間魔物照打。
    就跟攻擊一樣：先出手，再等間隔。沒輪到你時按下去，會排成下一次行動。 */
@@ -2815,7 +2818,7 @@ function rollLv(lv){ if(Array.isArray(lv)){ const [a,b]=lv; return a+Math.floor(
 function makeMon(pick,lv){
   const m=JSON.parse(JSON.stringify(pick)); const L=pick.lvl||rollLv(lv); m.lv=L;
   const st=monStats(pick,L); m.hp=st.hp; m.hpMax=st.hp; m.atk=st.atk; m.def=st.def;
-  if(sysIs('rezero')&&body.nemesis===m.key) m.atk=Math.round(m.atk*.5);
+  if(dejaCut(m.key)>0) m.atk=Math.max(1,Math.round(m.atk*(1-dejaCut(m.key))));
   return m;
 }
 
@@ -2828,7 +2831,7 @@ function encounter(force,lv,ret){
   say('title',m.n+'出現了！'+(body.floor>1&&!force?'（第 '+body.floor+' 層）':''));
   body.flags.seen=body.flags.seen||{}; if(!body.flags.seen[m.key]&&m.desc){ body.flags.seen[m.key]=1; say('narr',m.desc); }
   const seeStats=sysIs('omni')||sysIs('panel')||dimHas('scouter');
-  say('combat',m.n+'｜Lv '+m.lv+'｜HP '+fmt(m.hp)+'｜攻速 '+mInterval(m).toFixed(1)+' 秒'+(seeStats?'｜攻擊力 '+m.atk+'｜防禦力 '+m.def:'')+((sysIs('omni')||dimHas('scouter'))?'｜<span class="reveal w">弱點：'+m.weak+'</span>':''));
+  say('combat',m.n+'｜Lv '+m.lv+'｜HP '+fmt(m.hp)+'｜攻速 '+mInterval(m).toFixed(1)+' 秒'+(seeStats?'｜攻擊力 '+m.atk+'｜防禦力 '+m.def:'')+((sysIs('omni')||dimHas('scouter')||dejaKnown(m))?'｜<span class="reveal w">'+(dejaKnown(m)&&!sysIs('omni')?'既視感・':'')+'弱點：'+m.weak+'</span>':''));
   monSkipN=0;
   if(sysIs('ancestor')&&m.hp<atkNow()*3){ const k=1+Math.floor(realm()/3); monSkip=true; monSkipN=k-1; m.awed=1; say('info','威壓：'+m.n+'被你的修為壓得動彈不得'+(k>1?'，呆了 '+k+' 次':'')+'。'); }
   else if(wDef(eqW()).calm&&!isKing(m)){ monSkip=true; say('info',m.n+'看見了那把劍，退了半步。第一擊不敢出手。'); }
@@ -2947,7 +2950,7 @@ async function win(){
   if(sysIs('infinite')){ const u=chU(); grow('infinite','鍛骨：HP 上限 +'+u,()=>{ soul.permHp+=u; }); }
   if(sysIs('panel')) grow('panel','打磨',()=>{ body.flags.grind=(body.flags.grind|0)+1; if(body.flags.grind>=12){ body.flags.grind=0; body.freePts++; say('gain','打磨滿十二次：屬性點 +1'); } });
   if(sysIs('omni')) grow('omni','數據累積：攻擊力永久 +1',()=>{ soul.permAtk++; });
-  if(sysIs('rezero')) grow('rezero','記憶：防禦力永久 +1',()=>{ soul.permDef=(soul.permDef||0)+1; });
+  if(sysIs('rezero')){ const u=chU(); grow('rezero','記憶：防禦力永久 +'+u,()=>{ soul.permDef=(soul.permDef||0)+u; }); }
   if(sysIs('idle')) grow('idle','肌肉記憶：攻擊力永久 +1',()=>{ soul.permAtk++; });
   body.flags.killed=body.flags.killed||{}; body.flags.killed[m.key]=1;
   if(body.bounty) gqMigrate(); gqOnKill(m);
@@ -2974,7 +2977,7 @@ function endCombat(){ fx={}; inCombat=false; body.flags.warned=0; body.flags.lin
 async function die(force){
   if(!inCombat&&!force) return; inCombat=false; clearInterval(cTimer); body.autoHunt=false;
   if(body.revive>0){ body.revive--; body.hp=body.hpMax; say('gain','鳳凰之尾碎了。你站了起來，HP全滿。'); if(force){ status(); N.rift(); } else { inCombat=true; lastTick=Date.now(); } return; }
-  if(sysIs('rezero')){ const sn=body.daySnap||{hp:body.hpMax,gold:body.gold,cores:body.cores,day:body.day,age:body.age}; soul.returns++; body.raidFight=0; body.nemesis=mon?mon.key:null; body.hp=body.hpMax; body.gold=sn.gold; body.cores=sn.cores; body.day=sn.day; body.age=sn.age; say('title','死亡回歸'); story(TXT.rezero); say('gain','記憶累積：防禦力永久 +1。'+(mon?'既視感：'+mon.n+'對你的傷害減半。':'')); sysText('又死了一次。不過你記得。'); mon=null; status(); N.market(); return; }
+  if(sysIs('rezero')){ const sn=body.daySnap||{hp:body.hpMax,gold:body.gold,cores:body.cores,day:body.day,age:body.age}; soul.returns++; rzDef(); soul.rzDefN+=chU(); if(mon){ soul.rzDeja=soul.rzDeja||{}; soul.rzDeja[mon.key]=(soul.rzDeja[mon.key]|0)+1; } body.raidFight=0; body.nemesis=mon?mon.key:null; body.hp=body.hpMax; body.gold=sn.gold; body.cores=sn.cores; body.day=sn.day; body.age=sn.age; say('title','死亡回歸'); story(TXT.rezero); say('gain','記憶累積：防禦力永久 +'+chU()+'。'+(mon?'既視感：你記住了'+mon.n+'——牠對你的傷害永久 −'+Math.round(dejaCut(mon.key)*100)+'%，弱點在'+mon.weak+'。':'')); sysText('又死了一次。不過你記得。'); mon=null; status(); N.market(); return; }
   say('title','勇者倒下了……');
   soul.deaths=(soul.deaths||0)+1; const lost=Math.round(body.gold*.1*(1-eatF('altar'))); body.gold-=lost;
   worldEvent(soul.name+' 倒在外面，被人抬回了教堂。');
