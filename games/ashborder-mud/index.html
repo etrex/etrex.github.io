@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.59.3';
+const VERSION='2.59.4';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -712,8 +712,8 @@ function workbench(back){ const o=[]; const known=Object.keys(SYS_GEAR).filter(k
   known.forEach(k=>{ const g=SYS_GEAR[k]; const D=ACCS[g]||ARMORS[g]; const [mk,mn]=SYS_MAT[k]; const ok=(body.corecrystal|0)>=20&&(body[mk]|0)>=mn; o.push({t:'製作'+D.n+'（核晶 20、'+RES[mk]+' '+mn+'；持有核晶 '+(body.corecrystal|0)+'、'+RES[mk]+' '+(body[mk]|0)+'）：'+D.desc, ab:1, dis:!ok, f:()=>{ body.corecrystal-=20; body[mk]-=mn; say('narr','你在工作台前坐了一整夜。核晶在你手裡慢慢變形。'); if(ARMORS[g]) giveArmor(g); else giveAcc(g); status(); workbench(back); }}); });
   o.push({t:'離開工作台', f:back}); setOptions(o,'工作台',true); }
 const JOB_GEAR=['cleaveguard','knightcrest','shadowstep','holybeads','hawkeye'];
-function forgeMaster(back){ say('npc',rnd(['爐守沒有抬頭。「三十年，我只替五種人打過東西。」','「核晶三十顆，金子五百萬。少一顆都不打。」','爐守用鉗子撥了撥火。「你是哪一種人？」']));
-  const o=JOB_GEAR.map(g=>{ const D=ACCS[g]; return {t:'請爐守打造'+D.n+'（核晶 30、500 萬金）：'+D.desc+(D.ownJob===body.job?'':'（不是你的職業，戴了沒效果）'), ab:D.ownJob===body.job, dis:(body.corecrystal|0)<30||body.gold<5000000, f:()=>{ body.corecrystal-=30; body.gold-=5000000; say('narr','爐守打了三天三夜。最後一錘落下的時候，古爐的火暗了一下。'); giveAcc(g); worldEvent(soul.name+' 請熔淵古爐的爐守打造了「'+D.n+'」'); status(); forgeMaster(back); }}; });
+function forgeMaster(back){ say('npc',rnd(['爐守沒有抬頭。「三十年，我只替五種人打過東西。」','「核晶三十顆，金子一百萬。少一顆都不打。」','爐守用鉗子撥了撥火。「你是哪一種人？」']));
+  const o=JOB_GEAR.map(g=>{ const D=ACCS[g]; return {t:'請爐守打造'+D.n+'（核晶 30、100 萬金）：'+D.desc+(D.ownJob===body.job?'':'（不是你的職業，戴了沒效果）'), ab:D.ownJob===body.job, dis:(body.corecrystal|0)<30||body.gold<1000000, f:()=>{ body.corecrystal-=30; body.gold-=1000000; say('narr','爐守打了三天三夜。最後一錘落下的時候，古爐的火暗了一下。'); giveAcc(g); worldEvent(soul.name+' 請熔淵古爐的爐守打造了「'+D.n+'」'); status(); forgeMaster(back); }}; });
   o.push({t:'離開', f:back}); setOptions(o,'爐守　核晶 '+(body.corecrystal|0)+'｜金幣 '+fmt(body.gold),true); }
 const OFF_TROPHY={W:{gatekeeper:'giantaxe',firelizard:'dragonlance',shadowdog:'shadowblade',abysslord:'hellmace'},A:{gatekeeper:'giantplate',firelizard:'dragonscale',leech:'shadowleather'},C:{beast:'ogregauntlet',wolf:'windboots',worm:'dragonboots',snowwolf:'fangneck',bonespider:'lifeneck',crab:'ironring'}};
 function idleCap(){ return Math.min(24,8+Math.floor((soul.idleHours||0)/50))+(gearOn('autogear')?8:0); }
