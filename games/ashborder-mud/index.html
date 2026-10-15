@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.53.1';
+const VERSION='2.54.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -708,9 +708,13 @@ function itemN(k){ return (body&&body.items&&body.items[k])||0; }
 function itemsText(){ const l=Object.keys(ITEMS).filter(k=>itemN(k)>0).map(k=>ITEMS[k].n+' ×'+itemN(k)); return l.length?l.join('、'):'無'; }
 function iPrice(k){ return ITEMS[k].price; }
 /* 自動使用：背包裡有、開關打開、Buff 還沒在身上，就在該用的時候自動用掉 */
-const AUTO_USE={torch:'探索中要遇到魔物時自動灑（牠不會發現你）', whet:'每場戰鬥開場自動喝（攻擊 ×1.5）', armoroil:'每場戰鬥開場自動喝（防禦 ×2）', wisteria:'開始探索時，香味散了就自動換一包', bamboo:'開始探索時自動戴上', chocobo:'開始探索時自動吹哨', map:'開始探索時自動攤開'};
+const AUTO_USE={ration:'戰鬥外補血：回復不會溢出就用（第一順位，回 30%）', bandage:'戰鬥外補血：回復不會溢出就用（第二順位，回 25%）', hpot:'戰鬥外補血：回復不會溢出就用（第三順位，回 50%）', torch:'探索中要遇到魔物時自動灑（牠不會發現你）', whet:'每場戰鬥開場自動喝（攻擊 ×1.5）', armoroil:'每場戰鬥開場自動喝（防禦 ×2）', wisteria:'開始探索時，香味散了就自動換一包', bamboo:'開始探索時自動戴上', chocobo:'開始探索時自動吹哨', map:'開始探索時自動攤開'};
 function autoOn(k){ return !!(body&&body.autoUse&&body.autoUse[k]); }
-function autoUseMenu(){ const ks=Object.keys(AUTO_USE).filter(k=>!ITEMS[k].dim||dimOn());
+const AUTO_HEAL=[['ration',.3,'帳篷'],['bandage',.25,'藥草'],['hpot',.5,'藥水']];
+/* 戰鬥外自動補血：只有能連續狩獵的系統。照 帳篷 → 藥草 → 藥水 的順序，回復量不會溢出才用 */
+function autoHeal(){ if(!body||inCombat||!canChain()||!body.autoUse) return; const used={}; for(let g=0;g<500;g++){ let did=false; for(const [k,pc] of AUTO_HEAL){ if(!autoOn(k)||itemN(k)<=0) continue; const h=Math.round(body.hpMax*pc); if(body.hp+h>body.hpMax) continue; body.items[k]--; body.hp+=h; used[k]=(used[k]|0)+1; body.flags.used=body.flags.used||{}; body.flags.used[k]=1; did=true; break; } if(!did) break; }
+  const ks=Object.keys(used); if(ks.length){ say('info','（自動）'+ks.map(k=>ITEMS[k].n+' ×'+used[k]).join('、')+'，HP '+fmt(body.hp)+' / '+fmt(body.hpMax)); status(); } }
+function autoUseMenu(){ const ks=Object.keys(AUTO_USE).filter(k=>(!ITEMS[k].dim||dimOn())&&(!AUTO_HEAL.some(x=>x[0]===k)||canChain()));
   setOptions(ks.map(k=>({t:(autoOn(k)?'● ':'○ ')+ITEMS[k].n+'：'+AUTO_USE[k]+'（持有 '+itemN(k)+'）', f:()=>{ body.autoUse=body.autoUse||{}; body.autoUse[k]=!autoOn(k); save(); autoUseMenu(); }})).concat([{t:'返回', f:gearMenu}]),'自動使用：打開的道具，背包裡有就會在該用的時候自動用掉，維持 Buff。',true); }
 function autoTake(k,msg){ if(!autoOn(k)||itemN(k)<=0) return false; if(ITEMS[k].dim&&!dimOn()) return false; body.items[k]--; body.flags.used=body.flags.used||{}; body.flags.used[k]=1; say('info','（自動）'+msg); return true; }
 function useItem(k){
@@ -2804,7 +2808,7 @@ function useSkill(){ if(!inCombat) return; const S=jobSkill(); if(!skillReady())
   else { pending='skill'; say('info','下一次行動：'+S.n); renderCombat(); } }
 function chooseAct(k){ body.mode=k; if(ready){ ready=false; pending=null; playerAct(k); if(inCombat){ pT=pInterval(); renderCombat(); } } else { pending=k; say('info','下一次行動：'+MODES[k]); renderCombat(); } save(); }
 
-N.rift=()=>{ lastNode=N.rift;
+N.rift=()=>{ lastNode=N.rift; autoHeal();
   if(riftClosed()){ body.floor=1; body.autoHunt=false; body.idleArmed=false; place('裂谷'); const k=body.flags.ending;
     if(!body.flags.riftClosedSeen){ body.flags.riftClosedSeen=1; story(TXT.rift_closed[k]); } else say('narr',rnd(TXT.rift_closed_re[k]));
     const o=[{t:'返回王城', f:N.market}];
@@ -3004,7 +3008,7 @@ async function win(){
   if(body.fightRet==='north'){ body.fightRet=null; setOptions([{t:'回到村口', f:()=>N.north(true)}]); return; }
   if(body.tripFight&&body.trip){ body.tripFight=0; setOptions([{t:'繼續往前走', f:tripNext}],'探索　'+tripStepText()); return; }
   if(body.regionFight){ const r=body.regionFight; body.regionFight=null; setOptions([{t:'繼續探索', f:()=>N.region(r)},{t:'回王都（一天路程）', f:()=>{ spendDay('回王都'); N.market(); }}]); return; }
-  if(canChain()&&body.autoHunt&&!isKing(m)&&load()<=capOf()&&body.hp>=body.hpMax*body.stopHp){ setOptions([{t:'停止連續狩獵', keep:true, f:()=>{ body.autoHunt=false; clearTimeout(nextT); endCombat(); N.rift(); }}],'1 秒後下一隻…'); nextT=setTimeout(()=>{ if(body.autoHunt&&!inCombat) encounter(); },1000); return; }
+  autoHeal(); if(canChain()&&body.autoHunt&&!isKing(m)&&load()<=capOf()&&body.hp>=body.hpMax*body.stopHp){ setOptions([{t:'停止連續狩獵', keep:true, f:()=>{ body.autoHunt=false; clearTimeout(nextT); endCombat(); N.rift(); }}],'1 秒後下一隻…'); nextT=setTimeout(()=>{ if(body.autoHunt&&!inCombat) encounter(); },1000); return; }
   if(body.autoHunt&&body.hp<body.hpMax*body.stopHp){ say('info','HP低於安全線，停止狩獵。'); body.autoHunt=false; }
   setOptions([{t:'繼續狩獵', f:()=>encounter(isKing(m)?KING:undefined)},{t:'返回王城', f:N.market}]);
 }
