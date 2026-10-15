@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.53.0';
+const VERSION='2.53.1';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -623,6 +623,9 @@ function accEff(inst){ const D=ACCS[inst.key]; const n=inst.sharp||0; if(!n) ret
   else { const f=1+0.1*n; ['atk','def','hp','gold','crit','regen','ward'].forEach(k=>{ if(D[k]) E[k]=Math.round(D[k]*f*100)/100; }); if(D.spd&&D.spd<0) E.spd=Math.round(D.spd*f*100)/100; if(D.res){ E.res={}; Object.keys(D.res).forEach(k=>E.res[k]=Math.min(1,D.res[k]*f)); } }
   return E; }
 function accEq(){ return accWornInst().map(accEff); }
+/* 身上穿戴的東西，名字後面帶強化等級 */
+function sharpTag(x){ return x&&x.sharp?' +'+x.sharp:''; }
+function wornAccText(sl){ const L=accWornInst().filter(x=>ACCS[x.key]&&ACCS[x.key].slot===sl); return L.map(x=>ACCS[x.key].n+sharpTag(x)).join('、'); }
 function accTopLv(k){ const i=accInst(k)[0]; return i?(i.sharp||0):0; }
 function accWorn(k){ const s=ACCS[k].slot; return s==='ring'?ringsOn().filter(x=>x===k).length:(body.acc&&body.acc[s]===k?1:0); }
 function eqCount(t,k){ return (t==='W'?body.weapons:t==='A'?body.armors:body.accs||[]).filter(x=>x.key===k).length; }
@@ -758,7 +761,7 @@ function gearMenu(){
   o.push({t:'整理背包（'+load()+' / '+capOf()+' 格，丟掉用不到的東西）', f:()=>packMenu(gearMenu)});
   o.push({t:'返回', f:back});
   o.wok=1;
-  setOptions(o,(load()>capOf()?'【超重 '+load()+' / '+capOf()+'：離開前要把重量降下來】\n':'')+'裝備與道具　手上：'+wDef(eqW()).n+'｜身上：'+aDef(eqA()).n+(accEq().length?'｜'+accEq().map(D=>D.n).join('、'):'')+'｜攻擊力 '+atkNow()+'｜防禦力 '+defNow()+'｜攻速 '+pInterval().toFixed(1)+' 秒'+(body.flags.whet?'｜已磨刀 ×1.5':'')+(body.flags.oiled?'｜已上油':'')+(atHome?'\n在家：［倉庫］的裝備可以直接穿上，換下來的直接收進地窖（倉庫 '+homeLoad()+' / '+H.cap+' 格）':''),true);
+  setOptions(o,(load()>capOf()?'【超重 '+load()+' / '+capOf()+'：離開前要把重量降下來】\n':'')+'裝備與道具　手上：'+wDef(eqW()).n+sharpTag(eqW())+'｜身上：'+aDef(eqA()).n+sharpTag(eqA())+(accWornInst().length?'｜'+accWornInst().filter(x=>ACCS[x.key]).map(x=>ACCS[x.key].n+sharpTag(x)).join('、'):'')+'｜攻擊力 '+atkNow()+'｜防禦力 '+defNow()+'｜攻速 '+pInterval().toFixed(1)+' 秒'+(body.flags.whet?'｜已磨刀 ×1.5':'')+(body.flags.oiled?'｜已上油':'')+(atHome?'\n在家：［倉庫］的裝備可以直接穿上，換下來的直接收進地窖（倉庫 '+homeLoad()+' / '+H.cap+' 格）':''),true);
 }
 function leaveFight(){ body.autoHunt=false; endCombat(); status(); if(body.tripFight&&body.trip){ body.tripFight=0; say('narr','你甩掉了牠。路還沒走完。'); tripNext(); return; } if(body.raidFight){ body.raidFight=0; raidIgnored(); status(); N.market(); return; } if(body.flags.routeFight){ body.flags.routeFight=0; say('narr','你退了回來。商隊頭子看了你一眼，沒說話。'); N.south(); return; } if(body.flags.escortFight){ body.flags.escortFight=0; say('narr','你帶著商隊繞路跑開。貨保住了一半，商隊頭子只付了一半的錢。'); body.gold+=Math.round(cvEscortPay()*.5); say('gain','金幣 +'+fmt(Math.round(cvEscortPay()*.5))); status(); setOptions([{t:'回南方商行', f:caravanMenu},{t:'回市集', f:N.market}]); return; } if(body.fightRet==='north'){ body.fightRet=null; N.north(true); return; } if(body.regionFight){ const r=body.regionFight; body.regionFight=null; N.region(r); } else N.rift(); }
 function hpFlat(){ return (soul.permHp||0)+eatHp()+accSum('hp'); }
@@ -1115,7 +1118,7 @@ function renderChar(){
   const kv=(k,v,dim)=>'<div class="kv"><i>'+k+'</i><em'+(dim?' class="dim"':'')+'>'+v+'</em></div>';
   const chips=list=>list.length?'<div class="chips">'+list.map(([t,on])=>'<span'+(on?' class="on"':'')+'>'+t+'</span>').join('')+'</div>':'';
   const slot=(title,inner)=>'<div class="slot"><b>'+title+'</b>'+inner+'</div>';
-  const accOf=sl=>{ if(sl==='ring'){ const r=ringsOn().filter(k=>ACCS[k]); return r.length?r.map(k=>ACCS[k].n).join('、')+'（'+r.length+'/'+RING_MAX+'）':'—'; } const k=body.acc&&body.acc[sl]; return k&&ACCS[k]?ACCS[k].n:'—'; };
+  const accOf=sl=>{ const t=wornAccText(sl); if(sl==='ring'){ const r=ringsOn().filter(k=>ACCS[k]); return r.length?t+'（'+r.length+'/'+RING_MAX+'）':'—'; } return t||'—'; };
   const spare=(body.weapons||[]).length-1+(body.armors||[]).length-1+Math.max(0,(body.accs||[]).length-accEq().length);
   const resMain=['herbs','pelts','relics','ore'].map(k=>[RES[k]+' '+body[k],body[k]>0]);
   const resOther=['grain','salt','timber','fish','ink','coal','worldleaf','frostcrystal','pearl','starmetal'].filter(k=>body[k]>0).map(k=>[RES[k]+' '+body[k],true]);
@@ -1123,7 +1126,7 @@ function renderChar(){
     slot('狀態', kv('經驗值',fmt(body.xp)+' / '+fmt(xpNeed(body.level)))+(()=>{ const st=stats(); return kv('力量',st.str)+kv('體力',st.vit)+kv('智力',st.int)+kv('魔力',fmt(magNow()))+kv('敏捷',st.agi+'（同級閃避 '+Math.round(Math.min(.9,Math.max(0,(st.agi-15-lv())*.01)+accSum('dodge'))*100)+'%）'); })()+kv('攻擊力',fmt(atkNow()))+kv('防禦力',fmt(defNow())+'（減傷 '+defPct()+'%）')+kv('HP',fmt(body.hp)+' / '+fmt(body.hpMax))+kv('攻速',pInterval().toFixed(1)+' 秒')+kv('年齡',body.age+' 歲'+(sysIs('ancestor')?'（壽元無盡）':'（肉身 ×'+ageFactor(body.age).toFixed(2)+'）'))+kv('日子','第 '+body.day+' 天')+(shTotal()>0?kv('影子軍團',shTotal()+' 個，出戰 '+shDeployed().length+' 個'+(sysIs('shadow')?'':'（前世帶來）')):''))+
     slot('職業　'+job().n, '<span class="line">'+job().desc+(allWeapons()?'（系統：全武器可用）':'')+'</span>')+
     slot('抗性', '<div class="cols">'+Object.keys(ENV).map(k=>kv(ENV[k].n,resist(k)>=1?'免疫':Math.round(resist(k)*100)+'%',resist(k)<=0)).join('')+'</div>'+(body.flags.blessed?'<span class="line">已受祝福：下一場再減傷兩成</span>':''))+
-    slot('裝備', kv('武器',wDef(eqW()).n)+kv('防具',aDef(eqA()).n+(eqA().sharp?' +'+eqA().sharp:'')+(body.armorPlus?'（護膝 +'+body.armorPlus+'）':''))+kv('鞋',accOf('boots'),accOf('boots')==='—')+kv('手套',accOf('gloves'),accOf('gloves')==='—')+kv('項鍊',accOf('neck'),accOf('neck')==='—')+kv('戒指',accOf('ring'),accOf('ring')==='—')+(spare>0?'<span class="line">背包裡另有 '+spare+' 件裝備</span>':'')+(body.flags.seal?'<span class="line">裂谷之印：所受傷害減少</span>':'')+(body.revive?'<span class="line">鳳凰之尾 ×'+body.revive+'</span>':''))+
+    slot('裝備', kv('武器',wDef(eqW()).n+sharpTag(eqW()))+kv('防具',aDef(eqA()).n+(eqA().sharp?' +'+eqA().sharp:'')+(body.armorPlus?'（護膝 +'+body.armorPlus+'）':''))+kv('鞋',accOf('boots'),accOf('boots')==='—')+kv('手套',accOf('gloves'),accOf('gloves')==='—')+kv('項鍊',accOf('neck'),accOf('neck')==='—')+kv('戒指',accOf('ring'),accOf('ring')==='—')+(spare>0?'<span class="line">背包裡另有 '+spare+' 件裝備</span>':'')+(body.flags.seal?'<span class="line">裂谷之印：所受傷害減少</span>':'')+(body.revive?'<span class="line">鳳凰之尾 ×'+body.revive+'</span>':''))+
     slot('持有', kv('金幣',fmt(body.gold))+kv('裂谷核',body.cores)+kv('背包',load()+' / '+capOf())+(sysIs('shop')?kv('積分',soul.points):'')+(sysIs('luck')?kv('氣運',soul.luck):'')+chips(resMain.concat(resOther))+'<span class="line">道具：'+itemsText()+'</span>')+
     (sysIs('panel')?slot('屬性點', '<div class="cols">'+kv('力',ptsFix().str)+kv('體',ptsFix().vit)+kv('敏',ptsFix().agi)+kv('智',ptsFix().int|0)+kv('運',ptsFix().luck)+'</div>'+kv('未分配',body.freePts)):'')+
     slot('聲望', '<div class="cols">'+kv('騎士團',body.rep.knight)+kv('神殿',body.rep.temple)+kv('王室',body.rep.crown)+kv('民心',body.rep.people)+'</div>')+
