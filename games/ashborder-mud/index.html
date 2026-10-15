@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.59.2';
+const VERSION='2.59.3';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -2534,7 +2534,7 @@ N.home=()=>{ lastNode=N.home; place('王城市集 · 你的屋子'); const H=bod
   say('narr',rnd(['屋頂又漏了一點。地窖是乾的。','你推開門。屋子裡有你上次留下的味道。','後巷有人在吵架。你把門關上，世界安靜下來。']));
   const o=[]; const hint='你的屋子　背包 '+load()+' / '+capOf()+'｜倉庫 '+homeLoad()+' / '+H.cap+' 格';
   if(H.bench) o.push({t:'工作台：製作系統專屬裝備（記得的配方 '+Object.keys(soul.recipes||{}).length+' 張）', f:()=>workbench(N.home)});
-  else o.push({t:'改建屋子，打一張工作台（木材 50、礦石 30、50 萬金）', dis:body.timber<50||body.ore<30||body.gold<500000, f:()=>{ body.timber-=50; body.ore-=30; body.gold-=500000; H.bench=1; say('narr','木匠和鐵匠在你家敲了五天。地窖的角落多了一張厚木台，台面包著鐵皮，旁邊掛滿了工具。'); say('gain','工作台完成。拿到配方的系統專屬裝備，可以在這裡做。'); status(); N.home(); }});
+  else o.push({t:'改建屋子，打一張工作台（木材 50、礦石 30、10 萬金）', dis:body.timber<50||body.ore<30||body.gold<100000, f:()=>{ body.timber-=50; body.ore-=30; body.gold-=100000; H.bench=1; say('narr','木匠和鐵匠在你家敲了五天。地窖的角落多了一張厚木台，台面包著鐵皮，旁邊掛滿了工具。'); say('gain','工作台完成。拿到配方的系統專屬裝備，可以在這裡做。'); status(); N.home(); }});
   o.push({t:'把東西存進倉庫', f:()=>homeStore()}); o.push({t:'從倉庫拿東西出來', f:()=>homeTake()});
   o.push({t:'擴建地窖（'+fmt(homeExpandCost())+' 金，倉庫 +500 格）', dis:body.gold<homeExpandCost(), f:()=>{ const c=homeExpandCost(); body.gold-=c; H.cap+=500; say('gain','工人挖了三天。倉庫 +500 格（現在 '+H.cap+'）。金幣 −'+fmt(c)); status(); N.home(); }});
   o.push({t:'回市集', f:N.market});
