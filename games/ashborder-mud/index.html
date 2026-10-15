@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.55.1';
+const VERSION='2.56.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -475,12 +475,20 @@ function atkFlat(){ return (body?wAtk():2)+(soul.permAtk||0)+medAtk()+forgeAtk()
 function atkBase(){ const S=stats().str; return (S+atkFlat())*strMul(S); }
 function baseAtk(){ return atkBase(); }
 /* 魔力：跟攻擊同一套公式，只是用智力代替力量。魔力 =（智力 + 攻擊加成）× 1.1386^((智力 − 18) ÷ 2) × 其他倍率 */
-function magNow(){ if(!body||!soul.system) return 0; const I=stats().int; const a=(I+atkFlat()+(soul.permMag||0))*strMul(I)*evoMul()*(1+eatAtkPct()); return Math.round(a*(sysIs('ancestor')?1:ageFactor(body.age))); }
+/* 魔力：第二條傷害線，只看智力、魔法武器（含強化）與魔力加成，跟力量和攻擊加成完全分開 */
+function wMag(){ if(!body) return 0; const w=eqW(); const D=wDef(w); return D.mag?D.mag+(w.sharp||0):0; }
+function magNow(){ if(!body||!soul.system) return 0; const I=stats().int; const a=(I+wMag()+(soul.permMag||0))*strMul(I); return Math.round(a*(sysIs('ancestor')?1:ageFactor(body.age))); }
+function magResist(m){ return Math.min(.4,Math.max(0,(monInt(m)-stats().int)*.01)); }
 /* ============================================================
    武器與道具
    ============================================================ */
 const WTYPE={sword:'劍',dagger:'短劍',heavy:'斧鎚',spear:'槍',staff:'杖'};
 const WEAPONS={
+  // 魔法武器：帶魔力，可以用「魔法」模式出手（魔力 × 0.85～1.15，無視防禦，被魔物智力抵抗）
+  runesword:{n:'符文劍', type:'sword', atk:6, mag:8, desc:'劍身刻滿符文，握著會發麻。帶魔力。'},
+  cursedagger:{n:'咒刃', type:'dagger', atk:4, mag:10, spd:-0.3, desc:'攻速快 0.3 秒。刀刃上的字會自己換位置。帶魔力。'},
+  thunderspear:{n:'雷鳴之槍', type:'spear', atk:9, mag:12, desc:'槍尖嵌著星鐵，下雨天會響。帶魔力。'},
+  hellmace:{n:'冥界之鎚', type:'heavy', atk:12, mag:16, spd:0.5, desc:'攻速慢 0.5 秒。深淵領主的鎚，敲下去的地方會冒出冷火。帶魔力。'},
   mastersword:{n:'大師之劍', type:'sword', atk:24, any:1, dim:1, desc:'退魔的劍。對魔王傷害 ×2；HP 全滿時每次攻擊多射出一道劍氣。誰都能用。'},
   // 劍：均衡
   sword:{n:'銅之劍', type:'sword', atk:2, any:1, desc:'召喚時就握在手裡。誰都能用。'},
@@ -514,12 +522,12 @@ const WEAPONS={
   dragonlance:{n:'龍槍', type:'spear', atk:16, pierce:1, desc:'火龍的角打的。穿刺。'},
   holylance:{n:'聖槍', type:'spear', atk:20, pierce:1, ward:.1, desc:'神殿的聖物。穿刺，所受傷害減一成。'},
   // 杖：守
-  woodstaff:{n:'木杖', type:'staff', atk:2, ward:.1, desc:'守護：所受傷害減一成。'},
-  staff:{n:'神官杖', type:'staff', atk:4, ward:.15, desc:'守護：所受傷害減一成半。'},
-  sagestaff:{n:'賢者之杖', type:'staff', atk:7, ward:.2, desc:'書記官的杖。守護兩成。'},
-  altarstaff:{n:'祭壇之杖', type:'staff', atk:10, ward:.2, regen:.03, desc:'守護兩成。每次出手回復 3% HP。'},
-  bishopstaff:{n:'大主教之杖', type:'staff', atk:14, ward:.25, regen:.03, desc:'奧文的杖。守護兩成半，每次出手回復 3% HP。'},
-  worldtree:{n:'世界樹之杖', type:'staff', atk:18, ward:.3, regen:.05, desc:'守林人從焦土心挖出來的。守護三成，每次出手回復 5% HP。'},
+  woodstaff:{n:'木杖', type:'staff', atk:2, mag:3, ward:.1, desc:'守護：所受傷害減一成。'},
+  staff:{n:'神官杖', type:'staff', atk:4, mag:6, ward:.15, desc:'守護：所受傷害減一成半。'},
+  sagestaff:{n:'賢者之杖', type:'staff', atk:7, mag:10, ward:.2, desc:'書記官的杖。守護兩成。'},
+  altarstaff:{n:'祭壇之杖', type:'staff', atk:10, mag:14, ward:.2, regen:.03, desc:'守護兩成。每次出手回復 3% HP。'},
+  bishopstaff:{n:'大主教之杖', type:'staff', atk:14, mag:20, ward:.25, regen:.03, desc:'奧文的杖。守護兩成半，每次出手回復 3% HP。'},
+  worldtree:{n:'世界樹之杖', type:'staff', atk:18, mag:26, ward:.3, regen:.05, desc:'守林人從焦土心挖出來的。守護三成，每次出手回復 5% HP。'},
 };
 /* 職業：決定能用哪幾種武器 */
 const JOBS={
@@ -644,7 +652,7 @@ function giveAcc(k){ body.accs=body.accs||[]; body.acc=body.acc||{}; body.accs.p
    火龍是頭目，第一次打倒必掉。掉寶加成（武器、職業、吃哥布林）照舊乘上去。 */
 const RAND_ACC=['luckring','thunderring'], RAND_P=1/5000, TROPHY_P=1/1000, REGION_TROPHY_P=1/10;
 function trophyRoll(m){ if(m.key==='firelizard'&&!body.flags['boss_'+m.key]){ body.flags['boss_'+m.key]=1; return true; } return lucky((m.region?REGION_TROPHY_P:TROPHY_P)*lootMul(),'drop',m); }
-const OFF_TROPHY={W:{gatekeeper:'giantaxe',firelizard:'dragonlance',shadowdog:'shadowblade'},A:{gatekeeper:'giantplate',firelizard:'dragonscale',leech:'shadowleather'},C:{beast:'ogregauntlet',wolf:'windboots',worm:'dragonboots',snowwolf:'fangneck',bonespider:'lifeneck',crab:'ironring'}};
+const OFF_TROPHY={W:{gatekeeper:'giantaxe',firelizard:'dragonlance',shadowdog:'shadowblade',abysslord:'hellmace'},A:{gatekeeper:'giantplate',firelizard:'dragonscale',leech:'shadowleather'},C:{beast:'ogregauntlet',wolf:'windboots',worm:'dragonboots',snowwolf:'fangneck',bonespider:'lifeneck',crab:'ironring'}};
 function idleCap(){ return Math.min(24,8+Math.floor((soul.idleHours||0)/50)); }
 function dropRare(){ const pool=RAND_ACC; say('narr','魔物的殘骸裡有東西在發光。'); giveAcc(rnd(pool)); }
 function lootUp(){ return !!(wDef(eqW()).loot||job().loot||accHas('loot')); }
@@ -699,7 +707,7 @@ const ITEMS={
 function eqW(){ if(!body||!body.weapons||!body.weapons.length) return {key:'sword',sharp:0}; return body.weapons[body.wpn]||body.weapons[0]; }
 function wDef(w){ return WEAPONS[w.key]||WEAPONS.sword; }
 function wAtk(){ const w=eqW(); return wDef(w).atk+(w.sharp||0); }
-function wName(w){ const D=wDef(w); return D.n+(w.sharp?' +'+w.sharp:'')+'（攻擊力 +'+(D.atk+(w.sharp||0))+(w.sharp?'，含強化 +'+w.sharp:'')+(D.spd?'，攻速 '+(D.spd>0?'+':'−')+Math.abs(D.spd).toFixed(1)+' 秒':'')+'）'; }
+function wName(w){ const D=wDef(w); return D.n+(w.sharp?' +'+w.sharp:'')+'（攻擊力 +'+(D.atk+(w.sharp||0))+(D.mag?'，魔力 +'+(D.mag+(w.sharp||0)):'')+(w.sharp?'，含強化 +'+w.sharp:'')+(D.spd?'，攻速 '+(D.spd>0?'+':'−')+Math.abs(D.spd).toFixed(1)+' 秒':'')+'）'; }
 function wText(w){ const D=wDef(w); return '［'+WTYPE[D.type]+'］'+wName(w)+'　'+D.desc; }
 function hasW(k){ return !!(body.weapons||[]).find(w=>w.key===k); }
 function giveWeapon(k){ body.weapons.push({key:k,sharp:0}); ownedMark('W',k); const dupW=eqCount('W',k)>1; overNote(); say('gain','獲得武器：'+wText({key:k,sharp:0})+(dupW?'。（你現在有 '+eqCount('W',k)+' 把，多的可以賣給武器店）':canUse({key:k})?'。到「裝備與道具」可以換上。':'。你的職業用不了它，但圖鑑會記著。')); }
@@ -1039,7 +1047,7 @@ function sellMenu(kind,back){ const o=[];
   setOptions(o,(kind==='res'?'收購商　裂谷核照今天的市價收；稀有素材他不敢收，要賣去拍賣所委託。':'道具店老闆娘　「用過的不收。沒拆的，半價。」')+'｜背包 '+load()+' / '+capOf()+' 格｜金幣 '+fmt(body.gold),true); }
 /* 賣裝備：身上穿著、手上拿著的不能賣。
    材料做的、店裡買的：照材料或原價算一半；打怪、任務、神殿給的：照拍賣分級（精良 1,000、稀有 1 萬、傳說 10 萬）。 */
-const EQ_VAL={'W:sword':20,'A:leather':40,'W:iron':150,'W:steel':600,'W:knife':40,'W:club':40,'W:woodspear':45,'W:woodstaff':40,'W:dagger':60,'W:bone':100,'W:stoneaxe':60,'W:ironspear':72,'W:axe':96,'W:hammer':144,'W:ram':440,'W:hook':120,'W:assassin':240,'W:poisondagger':75,'W:scimitar':300,
+const EQ_VAL={'W:runesword':800,'W:cursedagger':360,'W:thunderspear':900,'W:sword':20,'A:leather':40,'W:iron':150,'W:steel':600,'W:knife':40,'W:club':40,'W:woodspear':45,'W:woodstaff':40,'W:dagger':60,'W:bone':100,'W:stoneaxe':60,'W:ironspear':72,'W:axe':96,'W:hammer':144,'W:ram':440,'W:hook':120,'W:assassin':240,'W:poisondagger':75,'W:scimitar':300,
   'A:cloth1':30,'A:chain':250,'A:ironplate':300,'A:plate':400,'A:core':480,'A:hunter':125,'A:hunterplate':200,'A:fur':1050,'A:leafleather':1730,'A:scalemail':324,'A:blackplate':780,'A:heat':1305,'A:starmail':1840,'A:sagerobe':720,
   'C:strawshoes':25,'C:clothgloves':25,'C:leatherboots':75,'C:leathergloves':75,'C:snowboots':375,'C:frostneck':1330,'C:ironboots':72,'C:irongauntlet':96,'C:starring':1320,'C:insulgloves':780,'C:thiefgloves':120,'C:thiefring':300,'C:pearlring':1080,'C:leafneck':1230,'C:antidoteneck':1350};
 const W_GRADE={'傳說':['fang','holylance','dragonlance','worldtree','bishopstaff','oldsword','giantaxe'],'稀有':['brand','ember','shadowblade','altarstaff','trident','sagestaff']};
@@ -1107,7 +1115,7 @@ function sharpOpt(tier,back,verb){ const T=SHARP[tier]; const n=eqW().sharp||0;
   if(n>=T.cap) return {t:sharpLabel(tier,verb), f:()=>{ sharpDone(tier); back(); }};
   return {t:sharpLabel(tier,verb), dis:sharpMax(tier)<1, f:()=>qtyMenu(Object.assign(sharpQ(tier),{back}))}; }
 function defGainPct(){ const k=repAtk(body.floor); const D=defNow(); const ehp=d=>(k+d)/k; return ((ehp(D+1)/ehp(D)-1)*100).toFixed(1); }
-function showFormula(){ const D=defNow(); const r=k=>Math.round(100*D/(k+D)); const st=stats(); say('info','數值說明\n基本能力：力量 '+st.str+'、體力 '+st.vit+'、敏捷 '+st.agi+'、智力 '+st.int+'（只有升級會長；'+job().n+'的成長'+growText()+'）\n攻擊 =（力量 + 武器與攻擊加成）× 1.1386^((力量 − 18) ÷ 2) × 肉身係數　現在：（'+st.str+' + '+atkFlat()+'）× '+strMul(st.str).toFixed(2)+' × '+(sysIs('ancestor')?1:ageFactor(body.age)).toFixed(2)+' = '+fmt(atkNow())+'；力量每 +2，攻擊 ×1.14\n你打魔物 = 攻擊 × 0.85～1.15 − 魔物防禦（穿刺無視防禦、弱點 ×2 無視防禦）\n魔物打你 = 魔物攻擊² ÷（魔物攻擊力 + 防禦）　防禦 '+D+' 對第一層的犬減傷 '+r(7)+'%、蛛 '+r(10)+'%、巨獸 '+r(16)+'%、魔王 '+r(24)+'%；魔物越深越強，防禦要跟著長\n環境 = HP 上限 × 環境係數（火 15%、冰 12%、毒 10%、雷 20%）×（1 − 抗性），每一步一次，戰鬥中每次被攻擊再 0.3 次\n防禦 =（防具 + 加固 + 永久加成 + 職業 + 飾品）× 體力倍率　現在：'+defBase()+' × '+vitMul(st.vit).toFixed(2)+' = '+D+'；防具與飾品的「再減」在防禦之後另外乘，合計最多六成\nHP =（24 + 體力 × 2 + HP 加成）× 1.15^(0.8 × (體力 − 18) ÷ 2)　現在：（24 + '+st.vit*2+' + '+hpFlat()+'）× '+vitMul(st.vit).toFixed(2)+'\n魔力 =（智力 + 攻擊加成）× 1.1386^((智力 − 18) ÷ 2) × 肉身係數　現在 '+fmt(magNow())+'（神官的聖光用魔力）\n智力：魔物智力 = 8 + 等級 × 2 + 心智 × 2（沒腦子 −8、遲鈍 −4、機靈 +4、狡猾 +8、魔王 +10）。陷阱繞開機率 = 20% +（魔物智力 − 你的智力）× 2%\n職業技能（戰鬥中用，有冷卻；自動行動時冷卻好了會自動用）：劍士 斬鐵（×1.6，無視一半防禦，8 秒）、騎士 盾擊（×1.3＋震暈，10 秒）、盜賊 連刺（三下 ×0.5，7 秒）、神官 聖光（魔力 ×1.2 無視防禦＋回 8% HP，9 秒）、獵人 狙擊（×1.6 無法閃避，10 秒）\n魔物技能：每次出手 15% 用技能；躲開機率 = 50% + 敏捷差 × 2% 或 智力差 × 1%（10%～90%）；沒躲開：傷害 ×2、失去一次行動、或下一次行動慢 1 秒\n閃避是雙向的：敏捷高的一方，每高 1 點就有 1% 閃開對方的攻擊，雙方閃避都最多 90%（你的含鞋子強化），魔王減半；魔物敏捷 = 15 + 等級 + 身手（出手越快越靈活，±10）；敏捷 '+st.agi+' 對同級魔物 '+Math.round(Math.min(.9,Math.max(0,(st.agi-15-lv())*.01)+accSum('dodge'))*100)+'%\n攻擊間隔 =（2 秒 + 武器防具職業飾品的加減）÷ 速度係數，最快 0.25 秒；速度係數 = 1.01^(敏捷 − 20)　現在 ×'+spNow().toFixed(2)+'，攻擊間隔 '+pInterval().toFixed(2)+' 秒\n魔物 = Lv1 基礎值 × 成長率^(等級−1)，每種魔物成長率不同（HP 約 1.18、攻擊約 1.15、防禦約 1.18）；裂谷 1～9 層魔物等級 1～4、4～8、8～12、12～17、17～22、22～28、28～34、34～40、40～46，魔王固定 Lv 50、火龍固定 Lv 46\n先手率 = 25% +（敏捷 − 魔物敏捷）× 2% +（智力 − 魔物智力）× 1% + 隱匿 20%（獵人、隱身斗篷）+ 影子的腳步最多 30%，介於 5%～95%，魔王減半；探索時沒被魔物發現，可以選擇突襲，必定先手\n經驗值 = 4 × 1.25^(魔物等級−1) × 1.5^(階級−3)（三階為準，一階 0.44 倍、五階 2.25 倍）；升級需要 = 同級三階魔物一隻的經驗 × 隻數 x(L)（Lv 5 起 12 隻、每級 ×1.7，Lv 10 起 900 隻、每級 ×1.06）\n每個地點都有一到五階各一種魔物，階級越高越少見（出現權重 5：3.5：2：1：0.4）\n擊殺金幣 = 5 × 1.2^(魔物等級−1) ×（1 + 0.25×(階級−1)），系統與飾品加成另外乘上去\n年齡：20 歲前 ×0.85，40 歲起每歲 −2%，60 歲起每歲 −1%（最低 0.4）\n背包 = 100 格 + 容器（布袋 30、皮囊 30、背架 60、礦車 130、皮革背包每號 30 最多五號，容器全拿 500；空間背包每個 50 最多十個，系統商城再多 500；每種容器只能有一個。博聞、行商等加成另外疊上去）。裝備和金幣不佔格子\n裝備也佔格子（穿戴中的不算）：短劍 2、杖 3、劍 4、槍 5、斧鎚 6，布衣 3、皮甲 5、鎖甲 8、板甲 12，飾品 1\n每個佔 1 格：裂谷核、灰葉草、魚乾、墨、稀有素材（星鐵 3）、多數道具｜2 格：獸皮、遺物、糧食、鹽、炭、炸彈、捕獸夾｜3 格：礦石、大炸彈｜4 格：木材、帳篷｜5 格：巨型炸彈、爆裂彈\n戰鬥中用道具：按下去立刻生效，接著讀秒，使用時間過完才能再行動，這段時間魔物照打；使用時間 ÷ 速度係數（藥水 1.5 秒、炸彈 2 秒、巨型炸彈 3 秒……）'); }
+function showFormula(){ const D=defNow(); const r=k=>Math.round(100*D/(k+D)); const st=stats(); say('info','數值說明\n基本能力：力量 '+st.str+'、體力 '+st.vit+'、敏捷 '+st.agi+'、智力 '+st.int+'（只有升級會長；'+job().n+'的成長'+growText()+'）\n攻擊 =（力量 + 武器與攻擊加成）× 1.1386^((力量 − 18) ÷ 2) × 肉身係數　現在：（'+st.str+' + '+atkFlat()+'）× '+strMul(st.str).toFixed(2)+' × '+(sysIs('ancestor')?1:ageFactor(body.age)).toFixed(2)+' = '+fmt(atkNow())+'；力量每 +2，攻擊 ×1.14\n你打魔物 = 攻擊 × 0.85～1.15 − 魔物防禦（穿刺無視防禦、弱點 ×2 無視防禦）\n魔物打你 = 魔物攻擊² ÷（魔物攻擊力 + 防禦）　防禦 '+D+' 對第一層的犬減傷 '+r(7)+'%、蛛 '+r(10)+'%、巨獸 '+r(16)+'%、魔王 '+r(24)+'%；魔物越深越強，防禦要跟著長\n環境 = HP 上限 × 環境係數（火 15%、冰 12%、毒 10%、雷 20%）×（1 − 抗性），每一步一次，戰鬥中每次被攻擊再 0.3 次\n防禦 =（防具 + 加固 + 永久加成 + 職業 + 飾品）× 體力倍率　現在：'+defBase()+' × '+vitMul(st.vit).toFixed(2)+' = '+D+'；防具與飾品的「再減」在防禦之後另外乘，合計最多六成\nHP =（24 + 體力 × 2 + HP 加成）× 1.15^(0.8 × (體力 − 18) ÷ 2)　現在：（24 + '+st.vit*2+' + '+hpFlat()+'）× '+vitMul(st.vit).toFixed(2)+'\n魔力 =（智力 + 魔法武器的魔力（含強化）+ 魔力加成）× 1.1386^((智力 − 18) ÷ 2) × 肉身係數，跟力量和攻擊加成無關　現在 '+fmt(magNow())+'（用於「魔法」模式、神官的聖光、魔力爆發、巴哈姆特）\n魔法 = 魔力 × 0.85～1.15，無視防禦；魔物智力每高你 1 點抵抗 1%，最多 40%。只有拿魔法武器（杖、符文劍、咒刃、雷鳴之槍、冥界之鎚）才能用\n智力：魔物智力 = 8 + 等級 × 2 + 心智 × 2（沒腦子 −8、遲鈍 −4、機靈 +4、狡猾 +8、魔王 +10）。陷阱繞開機率 = 20% +（魔物智力 − 你的智力）× 2%\n職業技能（戰鬥中用，有冷卻；自動行動時冷卻好了會自動用）：劍士 斬鐵（×1.6，無視一半防禦，8 秒）、騎士 盾擊（×1.3＋震暈，10 秒）、盜賊 連刺（三下 ×0.5，7 秒）、神官 聖光（魔力 ×1.2 無視防禦＋回 8% HP，9 秒）、獵人 狙擊（×1.6 無法閃避，10 秒）\n魔物技能：每次出手 15% 用技能；躲開機率 = 50% + 敏捷差 × 2% 或 智力差 × 1%（10%～90%）；沒躲開：傷害 ×2、失去一次行動、或下一次行動慢 1 秒\n閃避是雙向的：敏捷高的一方，每高 1 點就有 1% 閃開對方的攻擊，雙方閃避都最多 90%（你的含鞋子強化），魔王減半；魔物敏捷 = 15 + 等級 + 身手（出手越快越靈活，±10）；敏捷 '+st.agi+' 對同級魔物 '+Math.round(Math.min(.9,Math.max(0,(st.agi-15-lv())*.01)+accSum('dodge'))*100)+'%\n攻擊間隔 =（2 秒 + 武器防具職業飾品的加減）÷ 速度係數，最快 0.25 秒；速度係數 = 1.01^(敏捷 − 20)　現在 ×'+spNow().toFixed(2)+'，攻擊間隔 '+pInterval().toFixed(2)+' 秒\n魔物 = Lv1 基礎值 × 成長率^(等級−1)，每種魔物成長率不同（HP 約 1.18、攻擊約 1.15、防禦約 1.18）；裂谷 1～9 層魔物等級 1～4、4～8、8～12、12～17、17～22、22～28、28～34、34～40、40～46，魔王固定 Lv 50、火龍固定 Lv 46\n先手率 = 25% +（敏捷 − 魔物敏捷）× 2% +（智力 − 魔物智力）× 1% + 隱匿 20%（獵人、隱身斗篷）+ 影子的腳步最多 30%，介於 5%～95%，魔王減半；探索時沒被魔物發現，可以選擇突襲，必定先手\n經驗值 = 4 × 1.25^(魔物等級−1) × 1.5^(階級−3)（三階為準，一階 0.44 倍、五階 2.25 倍）；升級需要 = 同級三階魔物一隻的經驗 × 隻數 x(L)（Lv 5 起 12 隻、每級 ×1.7，Lv 10 起 900 隻、每級 ×1.06）\n每個地點都有一到五階各一種魔物，階級越高越少見（出現權重 5：3.5：2：1：0.4）\n擊殺金幣 = 5 × 1.2^(魔物等級−1) ×（1 + 0.25×(階級−1)），系統與飾品加成另外乘上去\n年齡：20 歲前 ×0.85，40 歲起每歲 −2%，60 歲起每歲 −1%（最低 0.4）\n背包 = 100 格 + 容器（布袋 30、皮囊 30、背架 60、礦車 130、皮革背包每號 30 最多五號，容器全拿 500；空間背包每個 50 最多十個，系統商城再多 500；每種容器只能有一個。博聞、行商等加成另外疊上去）。裝備和金幣不佔格子\n裝備也佔格子（穿戴中的不算）：短劍 2、杖 3、劍 4、槍 5、斧鎚 6，布衣 3、皮甲 5、鎖甲 8、板甲 12，飾品 1\n每個佔 1 格：裂谷核、灰葉草、魚乾、墨、稀有素材（星鐵 3）、多數道具｜2 格：獸皮、遺物、糧食、鹽、炭、炸彈、捕獸夾｜3 格：礦石、大炸彈｜4 格：木材、帳篷｜5 格：巨型炸彈、爆裂彈\n戰鬥中用道具：按下去立刻生效，接著讀秒，使用時間過完才能再行動，這段時間魔物照打；使用時間 ÷ 速度係數（藥水 1.5 秒、炸彈 2 秒、巨型炸彈 3 秒……）'); }
 function showStatus(){ say('info','<b>'+esc(soul.name)+'</b>　Lv '+body.level+'（經驗值 '+fmt(body.xp)+'/'+fmt(xpNeed(body.level))+'）｜力量 '+stats().str+'｜體力 '+stats().vit+'｜敏捷 '+stats().agi+'｜攻擊力 '+atkNow()+'｜防禦力 '+defNow()+'｜HP '+body.hp+'/'+body.hpMax+'\n'+body.age+' 歲｜第 '+body.day+' 天\n金幣 '+body.gold+'｜裂谷核 '+body.cores+'｜背包 '+load()+'/'+capOf()+' 格（'+bagText()+'）\n武器：'+wText(eqW())+'\n道具：'+itemsText()+'\n資源：'+(Object.keys(RES).filter(k=>k!=='gold'&&k!=='cores'&&body[k]>0).map(k=>RES[k]+' '+body[k]).join('、')||'無')+'\n聲望：騎士團 '+body.rep.knight+'、神殿 '+body.rep.temple+'、王室 '+body.rep.crown+'、民心 '+body.rep.people+(body.flags.quest?'｜義務 '+Math.min(body.quest,10)+'/10':'')); }
 function status(){
   if(!body){document.getElementById('status').innerHTML='';renderSystem();renderChar();renderQuests();renderAchs();return;}
@@ -1624,7 +1632,7 @@ const ACHS=[
  {id:'trader50', n:'商路上的人', d:'做成五十筆交換', c:()=>(body.flags.exCount||0)>=50},
  {id:'routes', n:'情報販子', d:'知道所有的交換管道', c:()=>EXCH.every(e=>exKnown(e.id))},
  {id:'armory', n:'武器庫', d:'拿到過二十種武器', c:()=>ownedN('W',WEAPONS)>=20},
- {id:'armory_all', n:'武器大師', d:'全部三十三種武器都拿到過', c:()=>Object.keys(WEAPONS).filter(k=>!WEAPONS[k].dim).every(everW)},
+ {id:'armory_all', n:'武器大師', d:'全部武器都拿到過', c:()=>Object.keys(WEAPONS).filter(k=>!WEAPONS[k].dim).every(everW)},
  {id:'typemaster', n:'五藝', d:'五種武器各拿到一把（不必能用）', c:()=>Object.keys(WTYPE).every(t=>Object.keys(ownedReg().W).some(k=>WEAPONS[k]&&WEAPONS[k].type===t))},
  {id:'wardrobe', n:'鐵壁', d:'拿到過十二種防具', c:()=>ownedN('A',ARMORS)>=12},
  {id:'wardrobe_all', n:'衣冠', d:'全部防具都拿到過', c:()=>Object.keys(ARMORS).every(everA)},
@@ -2059,6 +2067,7 @@ const REGIONS={
         {t:'請老鐵匠強化裝備（所有裝備，最多 +25）', go:back=>enhMenu('mine',back)},
         {t:'打一把石斧（礦石 5）', req:()=>body.ore>=5, f:()=>{ body.ore-=5; giveWeapon('stoneaxe'); }},
         {t:'打一支鐵槍（礦石 6）', req:()=>body.ore>=6, f:()=>{ body.ore-=6; giveWeapon('ironspear'); }},
+        {t:'打一支雷鳴之槍（礦石 20、星鐵 1，攻擊力 +9、魔力 +12）', req:()=>body.ore>=20&&body.starmetal>=1, f:()=>{ body.ore-=20; body.starmetal-=1; say('npc','老鐵匠把星鐵敲進槍尖，屋頂上響了一聲雷。「這東西有脾氣。」'); giveWeapon('thunderspear'); }},
         {t:'打一把戰斧（礦石 8，攻擊力 +12、攻速慢 0.5 秒）', req:()=>body.ore>=8, f:()=>{ body.ore-=8; giveWeapon('axe'); }},
         {t:'打一把戰鎚（礦石 12）', req:()=>body.ore>=12, f:()=>{ body.ore-=12; giveWeapon('hammer'); }},
         {t:'打一把破城鎚（礦石 20、裂谷核 5）', req:()=>body.ore>=20&&body.cores>=5, f:()=>{ body.ore-=20; body.cores-=5; giveWeapon('ram'); }},
@@ -2257,6 +2266,7 @@ N.region=(r)=>{ if(body.trip&&!inCombat){ body.tripFight=0; tripNode(); return; 
   if(r==='forest'&&qActive('sq_father')&&d>=2&&(body.talked['守林人']||0)>=2&&!body.flags.fatherDone) o.push({t:'把五張獸皮拿給守林人看', dis:body.pelts<5, f:()=>{ story(TXT.sq_father_done); body.flags.fatherDone=1; body.regionFlags.forestBless=1; say('npc','守林人從倒木底下拖出一根杖。「焦土心挖的。世界樹燒剩的那一截。」'); giveWeapon('worldtree'); status(); N.region(r); }});
   if(r==='port'&&qActive('sq_cousin')){ if(!body.flags.cousinAsked&&d>=2) o.push({t:'替漁夫問商會長：「他胖了沒有？」', f:()=>{ talk(TXT.sq_cousin_ask); body.flags.cousinAsked=1; N.region(r); }}); else if(body.flags.cousinAsked&&!body.flags.cousinDone) o.push({t:'把商會長的信交給漁夫', f:()=>{ story(TXT.sq_cousin_done); body.flags.cousinDone=1; body.gold+=500; say('gain','金幣 +500'); say('npc','袋子底下還有一件疊好的衣服。「他說你要是進商會，穿這個沒人攔。」'); giveArmor('uniform'); say('npc','漁夫又從船底下抽出一支三叉戟。「四十年了。給你。」'); giveWeapon('trident'); status(); N.region(r); }}); }
   if(r==='port'&&(body.talked['走私販']||0)>=1) o.push({t:'跟走私販買他的彎鉤（2 件遺物）', dis:body.relics<2, f:()=>{ body.relics-=2; say('npc','「這個勾過的東西比你這輩子見過的多。」'); giveWeapon('hook'); status(); N.region(r); }});
+  if(r==='port'&&(body.talked['走私販']||0)>=2) o.push({t:'請走私販打一把咒刃（6 件遺物，攻擊力 +4、魔力 +10）', dis:body.relics<6, f:()=>{ body.relics-=6; say('npc','「遺物裡的字我拆下來，刻到刀上。別問我從哪學的。」'); giveWeapon('cursedagger'); status(); N.region(r); }});
   if(r==='port'&&hasW('hook')&&(body.talked['走私販']||0)>=2) o.push({t:'跟走私販買刺客之刃（4 件遺物）', dis:body.relics<4, f:()=>{ body.relics-=4; say('npc','「這把沒有來歷。有來歷的東西我不賣。」'); giveWeapon('assassin'); status(); N.region(r); }});
   if(r==='port'&&d>=2) o.push(enhOpt('port',()=>N.region(r),'請商會的南方刀匠強化裝備'));
   if(r==='port'&&(body.talked['走私販']||0)>=2){
@@ -2423,7 +2433,7 @@ function stallMenu(){ lastNode=stallMenu; place('王城市集 · 道具店');
 N.wshop=()=>{ lastNode=N.wshop; place('王城市集 · 武器店');
   if(!body.flags.wshop){ body.flags.wshop=1; story(TXT.wshop1); } else say('narr',rnd(TXT.wshop_re));
   const o=[];
-  [['iron',150],['steel',600],['knife',40],['club',40],['woodspear',45],['woodstaff',40]].forEach(([k,p])=>{ o.push({t:'買'+WEAPONS[k].n+'（'+p+' 金，［'+WTYPE[WEAPONS[k].type]+'］攻擊力 +'+WEAPONS[k].atk+'）'+(hasW(k)?'（持有 '+eqCount('W',k)+'）':canUse({key:k})?'':'（'+job().n+'不能用）'), dis:body.gold<p, f:()=>{ body.gold-=p; giveWeapon(k); status(); N.wshop(); }}); });
+  [['iron',150],['steel',600],['runesword',800],['knife',40],['club',40],['woodspear',45],['woodstaff',40]].forEach(([k,p])=>{ o.push({t:'買'+WEAPONS[k].n+'（'+p+' 金，［'+WTYPE[WEAPONS[k].type]+'］攻擊力 +'+WEAPONS[k].atk+(WEAPONS[k].mag?'、魔力 +'+WEAPONS[k].mag:'')+'）'+(hasW(k)?'（持有 '+eqCount('W',k)+'）':canUse({key:k})?'':'（'+job().n+'不能用）'), dis:body.gold<p, f:()=>{ body.gold-=p; giveWeapon(k); status(); N.wshop(); }}); });
   [['cloth1',30],['chain',250],['ironplate',300]].forEach(([k,p])=>{ o.push({t:'買'+ARMORS[k].n+'（'+p+' 金，［'+ATYPE[ARMORS[k].type]+'］防禦力 +'+ARMORS[k].def+'）'+(hasA(k)?'（持有 '+eqCount('A',k)+'）':canWear({key:k})?'':'（'+job().n+'不能穿）'), dis:body.gold<p, f:()=>{ body.gold-=p; giveArmor(k); status(); N.wshop(); }}); });
   [['strawshoes',25],['clothgloves',25]].forEach(([k,p])=>{ o.push({t:'買'+ACCS[k].n+'（'+p+' 金，［'+ASLOT[ACCS[k].slot]+'］'+accStat(k)+'）'+(hasAcc(k)?'（持有 '+eqCount('C',k)+'）':''), dis:body.gold<p, f:()=>{ body.gold-=p; giveAcc(k); status(); N.wshop(); }}); });
   o.push(enhOpt('wshop',N.wshop,'強化裝備'));
@@ -2506,7 +2516,7 @@ const EQ_SRC={
   'C:luckring':'#rand', 'C:thunderring':'#rand',
   'W:iron':'王都武器店', 'W:steel':'王都武器店', 'W:knife':'王都武器店', 'W:club':'王都武器店', 'W:woodspear':'王都武器店', 'W:woodstaff':'王都武器店', 'A:cloth1':'王都武器店', 'A:chain':'王都武器店', 'A:ironplate':'王都武器店', 'A:core':'王都武器店', 'C:strawshoes':'王都武器店', 'C:clothgloves':'王都武器店',
   'W:ironspear':'東方礦坑的老鐵匠', 'W:stoneaxe':'東方礦坑的老鐵匠', 'W:axe':'東方礦坑的老鐵匠', 'W:dagger':'灰燼森林的獵人', 'A:hunter':'灰燼森林的獵人', 'C:leatherboots':'灰燼森林的獵人', 'C:leathergloves':'灰燼森林的獵人',
-  'W:hook':'南方港市的走私販', 'W:poisondagger':'北門難民營的藥婆', 'A:plate':'騎士團營房的布蘭德'};
+  'W:hook':'南方港市的走私販', 'W:cursedagger':'南方港市的走私販', 'W:runesword':'王都武器店', 'W:thunderspear':'東方礦坑的老鐵匠', 'W:hellmace':'@abysslord', 'W:poisondagger':'北門難民營的藥婆', 'A:plate':'騎士團營房的布蘭德'};
 function eqSrcHint(id){ const v=EQ_SRC[id]; if(v==='#rand') return '裂谷三階以上的魔物身上偶爾會掉，非常少見。'; if(v[0]==='@'){ const m=MON(v.slice(1)); return '聽說'+m.n+'身上有，不一定掉。'+monHint(m); } return v+'做得出來（或賣），要準備材料或錢。'; }
 /* 裝備委託照「性質」開：有某種抗性、某種防具防禦力幾以上、某種武器攻擊力幾以上、攻速快的鞋、強化幾以上……交一件符合的多餘裝備就行 */
 const RES_N={fire:'火',ice:'冰',poison:'毒',lightning:'雷'};
@@ -2792,12 +2802,12 @@ const GATES={
 let inCombat=false, mon=null, guard=false, turnNo=0, monSkip=false, monSkipN=0, execUsed=false, auto=false;
 let cTimer=null, pT=0, mT=0, lastTick=0;
 function curMonRef(){ return mon; }
-const MODES={attack:'攻擊',weak:'弱點',guard:'防禦',flee:'撤退',burst:'爆發'};
+const MODES={attack:'攻擊',magic:'魔法',weak:'弱點',guard:'防禦',flee:'撤退',burst:'爆發'};
 function pInterval(){ let t=2.0+(wDef(eqW()).spd||0)+(aDef(eqA()).spd||0)+(job().spd||0)+accSum('spd'); t-=0.3*eatF('wolf')+0.2*eatF('thunder'); if(sysIs('idle')) t-=0.4+(soul.idleHours||0)*0.01; if(sysIs('infinite')) t-=Math.min(0.5,soul.lvUps*0.03); return Math.max(0.25,t/spNow()); }
 function mInterval(m){ return m.iv||2; }
 /* 連續狩獵：掛機、全知、影之君主，或者前世帶來的影子軍團（影子會替你找下一個獵物） */
 function canChain(){ return sysIs('idle')||sysIs('omni')||sysIs('shadow')||shTotal()>0; }
-function modeList(){ const l=['attack']; if(sysIs('omni')||dimHas('scouter')||dejaKnown(mon)) l.push('weak'); if(sysIs('reflect')) l.push('burst'); l.push('guard','flee'); return l; }
+function modeList(){ const l=['attack']; if(wMag()>0) l.push('magic'); if(sysIs('omni')||dimHas('scouter')||dejaKnown(mon)) l.push('weak'); if(sysIs('reflect')) l.push('burst'); l.push('guard','flee'); return l; }
 let pending=null, ready=false;
 /* 戰鬥中用道具：按下去道具立刻生效，然後讀秒——使用時間（÷ 速度係數）過完才能再行動，這段時間魔物照打。
    就跟攻擊一樣：先出手，再等間隔。沒輪到你時按下去，會排成下一次行動。 */
@@ -2923,7 +2933,7 @@ function tick(){
   if(ready) return;   // 等玩家出手：時間凍結，敵人也不動
   pT-=dt; mT-=dt; if(skillCD>0) skillCD=Math.max(0,skillCD-dt);
   if(pT<=0&&!ready&&casting) casting=null;
-  if(pT<=0&&!ready){ if(pending&&pending.startsWith('item:')){ const k=pending.slice(5); pending=null; if(itemN(k)>0){ startCast(k); if(!inCombat) return; renderCombat(); } else { playerAct(body.mode); if(!inCombat) return; pT+=pInterval(); } } else if(pending==='skill'){ pending=null; if(skillReady()) doSkill(); else playerAct(body.mode); if(!inCombat) return; pT+=pInterval(); } else if(pending){ const k=pending; pending=null; playerAct(k); if(!inCombat) return; pT+=pInterval(); } else if(body.autoAct){ if(body.autoSkill!==false&&skillReady()&&(body.mode==='attack'||body.mode==='weak')) doSkill(); else playerAct(body.mode); if(!inCombat) return; pT+=pInterval(); } else { ready=true; pT=0; renderCombat(); say('info','輪到你了！'); } }
+  if(pT<=0&&!ready){ if(pending&&pending.startsWith('item:')){ const k=pending.slice(5); pending=null; if(itemN(k)>0){ startCast(k); if(!inCombat) return; renderCombat(); } else { playerAct(body.mode); if(!inCombat) return; pT+=pInterval(); } } else if(pending==='skill'){ pending=null; if(skillReady()) doSkill(); else playerAct(body.mode); if(!inCombat) return; pT+=pInterval(); } else if(pending){ const k=pending; pending=null; playerAct(k); if(!inCombat) return; pT+=pInterval(); } else if(body.autoAct){ if(body.autoSkill!==false&&skillReady()&&(body.mode==='attack'||body.mode==='weak'||body.mode==='magic')) doSkill(); else playerAct(body.mode); if(!inCombat) return; pT+=pInterval(); } else { ready=true; pT=0; renderCombat(); say('info','輪到你了！'); } }
   if(mT<=0){ monsterAttack(); if(!inCombat) return; mT+=mInterval(mon); }
   if(body.hp<body.hpMax*.3 && !body.flags.warned){ body.flags.warned=1; sys('lowhp'); }
   const h=opts.querySelector('.hint'); if(h) h.textContent=combatHint();
@@ -2940,10 +2950,12 @@ function playerAct(k){
   // 安全線：低於就自動切撤退
   if(body.hp<body.hpMax*body.stopHp&&k!=='flee'&&!isKing(mon)){ if(body.autoAct){ body.mode='flee'; k='flee'; say('info','HP低於安全線，自動改為撤退。'); } else if(!body.flags.lineWarned){ body.flags.lineWarned=1; sysText('你已經在安全線以下了。要走現在走。'); } }
   if(k==='burst'&&body.rage<5) k='attack';
-  if((k==='attack'||k==='weak'||k==='burst')&&monDodged()){ status(); return; }
+  if(k==='magic'&&!(wMag()>0)) k='attack';
+  if((k==='attack'||k==='weak'||k==='burst'||k==='magic')&&monDodged()){ status(); return; }
+  if(k==='magic'){ const rs=magResist(mon); const d=Math.max(1,Math.round(magNow()*(0.85+Math.random()*.3)*(1-rs))); mon.hp-=d; say('combat',wDef(eqW()).n+'放出魔法！對'+mon.n+'造成了 '+fmt(d)+' 點傷害'+(rs>0?'（被抵抗 '+Math.round(rs*100)+'%）':'')+'。'); afterHit(d); }
   if(k==='attack'){ const D=wDef(eqW()); const d=Math.max(1,playerAtk()-(D.pierce?0:mon.def)); mon.hp-=d; say('combat',D.n+'的一擊！'+(lastCrit?'會心一擊！':'')+'對'+mon.n+'造成了 '+d+' 點傷害。'); afterHit(d); if(ssr('double')&&mon.hp>0&&chance(Math.min(.9,.1*ssrF('double')))){ const d2=Math.max(1,playerAtk()-(D.pierce?0:mon.def)); mon.hp-=d2; say('combat','連擊！'+fmt(d2)+' 傷害。'); afterHit(d2); } }
   if(k==='weak'){ const d=playerAtk()*2; mon.hp-=d; say('combat',wDef(eqW()).n+'命中弱點'+mon.weak+'！'+(lastCrit?'會心一擊！':'')+'造成了 '+d+' 點傷害。'); afterHit(d); }
-  if(fx.clones>0&&(k==='attack'||k==='weak')&&mon.hp>0){ const cd=fx.clones*Math.max(1,Math.round(atkNow()*.3-(mon.def>1e8?0:mon.def))); mon.hp-=cd; say('combat','分身（'+fx.clones+'）一起出手：'+fmt(cd)+' 傷害。'); }
+  if(fx.clones>0&&(k==='attack'||k==='weak'||k==='magic')&&mon.hp>0){ const cd=fx.clones*Math.max(1,Math.round(atkNow()*.3-(mon.def>1e8?0:mon.def))); mon.hp-=cd; say('combat','分身（'+fx.clones+'）一起出手：'+fmt(cd)+' 傷害。'); }
   if(k==='burst'){ body.rage=0; const d=Math.round(atkNow()*5); mon.hp-=d; say('combat','怒氣爆發：'+d+' 傷害。'); }
   if(k==='guard'){ guard=true; say('combat','你舉起劍格擋。'); }
   if(k==='flee'){ if(lucky(.6,'flee',mon)){ say('info','順利逃走了！'); leaveFight(); return; } say('hurt','沒能逃掉！'); }
@@ -3019,7 +3031,7 @@ async function win(){
   if(sysIs('idle')){ const u=chU(); grow('idle','肌肉記憶：攻擊力永久 +'+u,()=>{ soul.permAtk+=u; }); }
   body.flags.killed=body.flags.killed||{}; body.flags.killed[m.key]=1;
   if(body.bounty) gqMigrate(); gqOnKill(m);
-  { const first={gatekeeper:'giantaxe',firelizard:'dragonlance',shadowdog:'shadowblade'}[m.key]; if(first&&trophyRoll(m)){ say('narr',({gatekeeper:'獨眼巨人倒下的時候，手裡的斧頭砸出一個坑。',firelizard:'火龍的角斷了一根，還在發燙。',shadowdog:'地獄犬的影子沒有跟著牠消失。它凝成了一把刀。'})[m.key]); giveWeapon(first); } }
+  { const first={gatekeeper:'giantaxe',firelizard:'dragonlance',shadowdog:'shadowblade',abysslord:'hellmace'}[m.key]; if(first&&trophyRoll(m)){ say('narr',({gatekeeper:'獨眼巨人倒下的時候，手裡的斧頭砸出一個坑。',firelizard:'火龍的角斷了一根，還在發燙。',shadowdog:'地獄犬的影子沒有跟著牠消失。它凝成了一把刀。',abysslord:'深淵領主的鎚掉在地上，冷火還在燒。'})[m.key]); giveWeapon(first); } }
   { const fa={gatekeeper:'giantplate',firelizard:'dragonscale',leech:'shadowleather'}[m.key]; if(fa&&trophyRoll(m)){ say('narr',({gatekeeper:'巨人的胸甲上有一道你砍出來的口子。除此之外完好。',firelizard:'火龍的鱗一片一片剝下來，還是燙的。',leech:'吸血蝙蝠的翼膜薄得透光，卻割不破。'})[m.key]); giveArmor(fa); } }
   { const fc={beast:'ogregauntlet',wolf:'windboots',worm:'dragonboots',snowwolf:'fangneck',bonespider:'lifeneck',crab:'ironring'}[m.key]; if(fc&&trophyRoll(m)){ say('narr',({beast:'食人魔的手掌比你的頭還大。手骨是空心的。',wolf:'野狼死了，腳還在抽。你把牠四隻腳上的皮剝下來。',worm:'沙蟲的內壁又硬又滑，燒不起來。',snowwolf:'白狼的牙齒是白的，比雪白。',bonespider:'骷髏兵的胸腔裡掛著一條項鍊，還帶著體溫。它的體溫。',crab:'岩石魔像碎開，中間是一圈鐵。'})[m.key]); giveAcc(fc); } }
   if(body.flags.quest===1){ body.quest++; if(!body.questDone) say('info','討伐進度 '+Math.min(body.quest,10)+'/10'); if(body.quest>=10&&!body.questDone){ body.questDone=true; const r=NUM.killGold()*20; body.gold+=r; body.rep.crown+=30; say('gain','義務完成。王庫獎勵 '+r+' 金。稱號「裂谷討伐者」。'); addLuck(10,'完成任務'); } }
