@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.59.0';
+const VERSION='2.59.1';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -581,16 +581,16 @@ function canWear(a){ const D=aDef(a); return !!(D.any||allWeapons()||job().armor
 const ASLOT={boots:'鞋',gloves:'手套',neck:'項鍊',ring:'戒指'};
 const ACCS={
   // 系統專屬（家裡的工作台，拿到配方才做得出來，只有對應系統戴著才有效）
-  shadowbind:{n:'影縛之環', slot:'ring', sys:1, excl:1, own:'shadow', desc:'影之君主專屬：出戰影子 +1，可以疊戴。'},
+  shadowbind:{n:'影縛之環', slot:'ring', sys:1, excl:1, own:'shadow', desc:'影之君主的配方：出戰影子 +1，可以疊戴。只要有影子就有用。'},
   checkinbadge:{n:'全勤徽章', slot:'neck', sys:1, excl:1, own:'checkin', desc:'簽到系統專屬：簽到獎勵 +50%。'},
   choiceeye:{n:'抉擇之眼', slot:'neck', sys:1, excl:1, own:'choice', desc:'神級選擇專屬：每個套餐多一個獎勵（3 → 4）。'},
   pitycharm:{n:'保底護符', slot:'neck', sys:1, excl:1, own:'gacha', desc:'抽獎系統專屬：保底從每 3 次十連降到每 2 次。'},
   gluttonfang:{n:'饕餮之牙', slot:'gloves', sys:1, excl:1, own:'devour', desc:'吞噬進化專屬：血肉累積的 HP ×2。'},
-  leapboots:{n:'越級者之靴', slot:'boots', sys:1, excl:1, own:'infinite', desc:'無限升級專屬：經驗 +50%。'},
+  leapboots:{n:'越級者之靴', slot:'boots', sys:1, excl:1, own:'infinite', desc:'無限升級的配方：經驗 +50%，哪個系統都有用。'},
   toad:{n:'招財金蟾', slot:'neck', sys:1, excl:1, own:'luck', desc:'氣運掠奪專屬：獲得的氣運 ×2。'},
   vipcard:{n:'VIP 卡', slot:'ring', sys:1, excl:1, own:'shop', desc:'系統商城專屬：積分 +50%。'},
   grindgloves:{n:'打磨手套', slot:'gloves', sys:1, excl:1, own:'panel', desc:'屬性面板專屬：打磨每 8 次就給 1 點（原本 12 次）。'},
-  farsight:{n:'千里眼', slot:'neck', sys:1, excl:1, own:'omni', desc:'全知系統專屬：先手率 +20%。'},
+  farsight:{n:'千里眼', slot:'neck', sys:1, excl:1, own:'omni', desc:'全知系統的配方：先手率 +20%，哪個系統都有用。'},
   memanchor:{n:'記憶之錨', slot:'neck', sys:1, excl:1, own:'rezero', desc:'死亡回歸專屬：回歸時保留等級與經驗。'},
   autogear:{n:'自動化齒輪', slot:'ring', sys:1, excl:1, own:'idle', desc:'掛機系統專屬：離線上限 +8 小時。'},
   heartham:{n:'熔心之鎚', slot:'gloves', sys:1, excl:1, own:'forge', desc:'煉化系統專屬：煉化冷卻減半。'},
@@ -697,8 +697,8 @@ function ringSynthMenu(back){ const o=Object.keys(RING_RECIPE).map(r=>{ const R=
 function crystalMenu(back){ const n=Math.min(Math.floor((body.corecrystal|0)/100),fitR('soulcrystal'));
   setOptions([{t:'提煉魂晶（核晶 100 → 魂晶 1，持有核晶 '+fmt(body.corecrystal|0)+'）', ab:1, dis:n<1, f:()=>qtyMenu({title:'提煉魂晶', unit:'顆', max:n, cost:q=>'核晶 −'+fmt(q*100), f:q=>{ body.corecrystal-=q*100; addRes('soulcrystal',q); say('gain','古爐吞下 '+fmt(q*100)+' 顆核晶，吐出 '+q+' 顆魂晶。魂晶在你手心裡是涼的。'); }, back:()=>crystalMenu(back)})},
     {t:'合成屬性戒指', ab:1, f:()=>ringSynthMenu(()=>crystalMenu(back))},{t:'找爐守打造職業專屬裝備', ab:1, f:()=>forgeMaster(()=>crystalMenu(back))},{t:'離開古爐', f:back}],'熔淵古爐　核晶 '+fmt(body.corecrystal|0)+'｜魂晶 '+(body.soulcrystal|0),true); }
-/* 專屬裝備：系統專屬要對應系統、職業專屬要對應職業，戴著才有效 */
-function gearOn(id){ if(!body) return 0; if(ARMORS[id]) return eqA().key===id&&sysIs(ARMORS[id].own)?1:0; const D=ACCS[id]; if(!D) return 0; if(D.own&&!sysIs(D.own)) return 0; if(D.ownJob&&body.job!==D.ownJob) return 0; return accWorn(id); }
+/* 專屬裝備：系統專屬的效果在哪個系統都算（影子、經驗、先手率到處有用；積分、閉關這類只在那個系統才有東西可加），職業專屬要對應職業才有效 */
+function gearOn(id){ if(!body) return 0; if(ARMORS[id]) return eqA().key===id?1:0; const D=ACCS[id]; if(!D) return 0; if(D.ownJob&&body.job!==D.ownJob) return 0; return accWorn(id); }
 const SYS_GEAR={shadow:'shadowbind',checkin:'checkinbadge',choice:'choiceeye',gacha:'pitycharm',devour:'gluttonfang',infinite:'leapboots',luck:'toad',shop:'vipcard',panel:'grindgloves',omni:'farsight',reflect:'thornmail',rezero:'memanchor',idle:'autogear',forge:'heartham',trader:'merchscale',ancestor:'cushion'};
 const SYS_MAT={shadow:['relics',20],checkin:['ink',20],choice:['pearl',2],gacha:['starmetal',2],devour:['pelts',60],infinite:['ore',60],luck:['worldleaf',2],shop:['salt',40],panel:['herbs',60],omni:['ink',40],reflect:['ore',100],rezero:['relics',30],idle:['coal',60],forge:['coal',100],trader:['fish',60],ancestor:['timber',30]};
 /* 配方：在系統裡做到某件事，系統把配方交給你。記在靈魂裡，轉世也記得；每個系統各自取得 */
@@ -706,9 +706,10 @@ function cnt(k){ soul.cnt=soul.cnt||{}; return soul.cnt[k]|0; }
 function cntAdd(k,n){ soul.cnt=soul.cnt||{}; soul.cnt[k]=(soul.cnt[k]|0)+(n||1); }
 const RECIPE_COND={checkin:['連續簽到 3 天',()=>(soul.streak|0)>=3],choice:['累計選擇 1,500 次',()=>cnt('choice')>=1500],gacha:['累計十連抽 500 次',()=>cnt('gacha')>=500],devour:['吃過 12 個家族',()=>eatN()>=12],infinite:['等級達到 30',()=>body.level>=30],shadow:['影子軍團 500 個',()=>shTotal()>=500],luck:['氣運 5,000',()=>(soul.luck|0)>=5000],shop:['累計賺到 5 萬積分',()=>cnt('points')>=50000],panel:['累計獲得 150 個屬性點',()=>cnt('ptsGot')>=150],omni:['知道 8 個秘密',()=>Object.keys(FACT_NAME).filter(k=>fact(k)).length>=8],reflect:['累計被打 5,000 次',()=>(soul.hitsTaken|0)>=5000],rezero:['累計回歸 10 次',()=>cnt('returns')>=10],idle:['累計離線狩獵 24 小時',()=>(soul.idleHours|0)>=24],forge:['累計煉化 300 次',()=>cnt('forges')>=300],trader:['累計做成 50 筆交換',()=>cnt('trades')>=50],ancestor:['修為到達「渡劫」',()=>realm()>=9]};
 function checkRecipes(){ if(!body||!soul.system) return; const k=soul.system.key; const C=RECIPE_COND[k]; if(!C) return; soul.recipes=soul.recipes||{}; if(soul.recipes[k]) return; if(C[1]()){ soul.recipes[k]=1; const g=SYS_GEAR[k]; const nm=(ACCS[g]||ARMORS[g]).n; say('title','配方取得：'+nm); sysText('你已經準備好了。配方記下來了：「'+nm+'」。回家，工作台上做得出來。'); } }
-function workbench(back){ const k=soul.system.key; const g=SYS_GEAR[k]; const D=ACCS[g]||ARMORS[g]; const o=[];
-  if(!(soul.recipes||{})[k]) say('narr','你在工作台前坐了一會兒。不知道要做什麼。');
-  else { const [mk,mn]=SYS_MAT[k]; const ok=(body.corecrystal|0)>=20&&(body[mk]|0)>=mn; o.push({t:'製作'+D.n+'（核晶 20、'+RES[mk]+' '+mn+'；持有核晶 '+(body.corecrystal|0)+'、'+RES[mk]+' '+(body[mk]|0)+'）：'+D.desc, ab:1, dis:!ok, f:()=>{ body.corecrystal-=20; body[mk]-=mn; say('narr','你在工作台前坐了一整夜。核晶在你手裡慢慢變形。'); if(ARMORS[g]) giveArmor(g); else giveAcc(g); status(); workbench(back); }}); }
+/* 工作台：列出靈魂記得的每一張配方（每個系統一件），前世拿到的配方這一世也做得出來 */
+function workbench(back){ const o=[]; const known=Object.keys(SYS_GEAR).filter(k=>(soul.recipes||{})[k]);
+  if(!known.length) say('narr','你在工作台前坐了一會兒。不知道要做什麼。');
+  known.forEach(k=>{ const g=SYS_GEAR[k]; const D=ACCS[g]||ARMORS[g]; const [mk,mn]=SYS_MAT[k]; const ok=(body.corecrystal|0)>=20&&(body[mk]|0)>=mn; o.push({t:'製作'+D.n+'（核晶 20、'+RES[mk]+' '+mn+'；持有核晶 '+(body.corecrystal|0)+'、'+RES[mk]+' '+(body[mk]|0)+'）：'+D.desc, ab:1, dis:!ok, f:()=>{ body.corecrystal-=20; body[mk]-=mn; say('narr','你在工作台前坐了一整夜。核晶在你手裡慢慢變形。'); if(ARMORS[g]) giveArmor(g); else giveAcc(g); status(); workbench(back); }}); });
   o.push({t:'離開工作台', f:back}); setOptions(o,'工作台',true); }
 const JOB_GEAR=['cleaveguard','knightcrest','shadowstep','holybeads','hawkeye'];
 function forgeMaster(back){ say('npc',rnd(['爐守沒有抬頭。「三十年，我只替五種人打過東西。」','「核晶三十顆，金子五百萬。少一顆都不打。」','爐守用鉗子撥了撥火。「你是哪一種人？」']));
@@ -2532,7 +2533,7 @@ function homeSpace(){ return Math.max(0,body.home.cap-homeLoad()); }
 N.home=()=>{ lastNode=N.home; place('王城市集 · 你的屋子'); const H=body.home; if(!H){ N.market(); return; }
   say('narr',rnd(['屋頂又漏了一點。地窖是乾的。','你推開門。屋子裡有你上次留下的味道。','後巷有人在吵架。你把門關上，世界安靜下來。']));
   const o=[]; const hint='你的屋子　背包 '+load()+' / '+capOf()+'｜倉庫 '+homeLoad()+' / '+H.cap+' 格';
-  o.push({t:'工作台：製作'+soul.system.name.replace(/系統$/,'')+'專屬裝備', f:()=>workbench(N.home)});
+  o.push({t:'工作台：製作系統專屬裝備（記得的配方 '+Object.keys(soul.recipes||{}).length+' 張）', f:()=>workbench(N.home)});
   o.push({t:'把東西存進倉庫', f:()=>homeStore()}); o.push({t:'從倉庫拿東西出來', f:()=>homeTake()});
   o.push({t:'擴建地窖（'+fmt(homeExpandCost())+' 金，倉庫 +500 格）', dis:body.gold<homeExpandCost(), f:()=>{ const c=homeExpandCost(); body.gold-=c; H.cap+=500; say('gain','工人挖了三天。倉庫 +500 格（現在 '+H.cap+'）。金幣 −'+fmt(c)); status(); N.home(); }});
   o.push({t:'回市集', f:N.market});
