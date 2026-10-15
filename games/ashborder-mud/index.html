@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.54.0';
+const VERSION='2.54.1';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -527,7 +527,7 @@ const JOBS={
   knight:{n:'騎士', types:['sword','spear'], armor:['mail','plate'], def:2, desc:'能用劍與槍，穿鎖甲與板甲。防禦力 +2。'},
   thief:{n:'盜賊', types:['dagger','sword'], armor:['cloth','leather'], spd:-0.2, loot:1, desc:'能用短劍與劍，穿布衣與皮甲。攻速快 0.2 秒，魔物掉東西的機會加倍。'},
   priest:{n:'神官', types:['staff','heavy'], armor:['cloth','leather'], regen:.02, desc:'能用杖與斧鎚，穿布衣與皮甲。每次出手回復 2% HP。'},
-  hunter:{n:'獵人', types:['spear','dagger'], armor:['leather','mail'], quiet:1, gather:1, desc:'能用槍與短劍，穿皮甲與鎖甲。探索時三成機會避開魔物，採集多一份。'},
+  hunter:{n:'獵人', types:['spear','dagger'], armor:['leather','mail'], quiet:1, gather:1, desc:'能用槍與短劍，穿皮甲與鎖甲。探索時三成機會不被魔物發現（可以突襲），先手率 +20%，採集多一份。'},
 };
 const JOB_START={swordsman:[],knight:['woodspear'],thief:['knife'],priest:['woodstaff'],hunter:['woodspear','knife']};
 function job(){ return JOBS[(body&&body.job)||'swordsman']; }
@@ -539,7 +539,7 @@ const ARMORS={
   cloth1:{n:'旅人服', type:'cloth', def:1, any:1, desc:'誰都能穿的粗布衣。'},
   uniform:{n:'商會制服', type:'cloth', def:3, trade:1, desc:'交換時每筆多拿一成。'},
   robe:{n:'神官之袍', type:'cloth', def:4, sealed:1, res:{poison:1}, desc:'奧文親手縫的。毒免疫。'},
-  cloak:{n:'隱身斗篷', type:'cloth', def:7, quiet:1, desc:'魔物看不見你：探索時三成機會不被盯上。'},
+  cloak:{n:'隱身斗篷', type:'cloth', def:7, quiet:1, desc:'魔物看不見你：探索時三成機會不被盯上（可以突襲），先手率 +20%。'},
   sagerobe:{n:'賢者法衣', type:'cloth', def:9, ward:.1, res:{lightning:.5}, desc:'受到的傷害再減一成。雷抗性五成。'},
   bishoprobe:{n:'大主教法衣', type:'cloth', def:12, ward:.15, regen:.02, res:{poison:.5,lightning:.5}, desc:'受到的傷害再減一成五，每次出手回復 2% HP。毒與雷抗性五成。'},
   // 皮甲
