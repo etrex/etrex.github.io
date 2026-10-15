@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.59.4';
+const VERSION='2.59.5';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -706,10 +706,13 @@ function cnt(k){ soul.cnt=soul.cnt||{}; return soul.cnt[k]|0; }
 function cntAdd(k,n){ soul.cnt=soul.cnt||{}; soul.cnt[k]=(soul.cnt[k]|0)+(n||1); }
 const RECIPE_COND={checkin:['連續簽到 3 天',()=>(soul.streak|0)>=3],choice:['累計選擇 1,500 次',()=>cnt('choice')>=1500],gacha:['累計十連抽 500 次',()=>cnt('gacha')>=500],devour:['吃過 12 個家族',()=>eatN()>=12],infinite:['等級達到 30',()=>body.level>=30],shadow:['影子軍團 500 個',()=>shTotal()>=500],luck:['氣運 5,000',()=>(soul.luck|0)>=5000],shop:['累計賺到 5 萬積分',()=>cnt('points')>=50000],panel:['累計獲得 150 個屬性點',()=>cnt('ptsGot')>=150],omni:['知道 8 個秘密',()=>Object.keys(FACT_NAME).filter(k=>fact(k)).length>=8],reflect:['累計被打 5,000 次',()=>(soul.hitsTaken|0)>=5000],rezero:['累計回歸 10 次',()=>cnt('returns')>=10],idle:['累計離線狩獵 24 小時',()=>(soul.idleHours|0)>=24],forge:['累計煉化 300 次',()=>cnt('forges')>=300],trader:['累計做成 50 筆交換',()=>cnt('trades')>=50],ancestor:['修為到達「渡劫」',()=>realm()>=9]};
 function checkRecipes(){ if(!body||!soul.system) return; const k=soul.system.key; const C=RECIPE_COND[k]; if(!C) return; soul.recipes=soul.recipes||{}; if(soul.recipes[k]) return; if(C[1]()){ soul.recipes[k]=1; const g=SYS_GEAR[k]; const nm=(ACCS[g]||ARMORS[g]).n; say('title','配方取得：'+nm); sysText('你已經準備好了。配方記下來了：「'+nm+'」。回家，工作台上做得出來。'); } }
+/* 在家做東西：背包加倉庫一起算，先用背包的，不夠再從倉庫拿 */
+function homeHave(k){ return (body[k]|0)+((body.home&&body.home.res[k])|0); }
+function homeTakeRes(k,n){ const a=Math.min(n,body[k]|0); body[k]-=a; n-=a; if(n>0&&body.home) body.home.res[k]=(body.home.res[k]|0)-n; }
 /* 工作台：列出靈魂記得的每一張配方（每個系統一件），前世拿到的配方這一世也做得出來 */
 function workbench(back){ const o=[]; const known=Object.keys(SYS_GEAR).filter(k=>(soul.recipes||{})[k]);
   if(!known.length) say('narr','你在工作台前坐了一會兒。不知道要做什麼。');
-  known.forEach(k=>{ const g=SYS_GEAR[k]; const D=ACCS[g]||ARMORS[g]; const [mk,mn]=SYS_MAT[k]; const ok=(body.corecrystal|0)>=20&&(body[mk]|0)>=mn; o.push({t:'製作'+D.n+'（核晶 20、'+RES[mk]+' '+mn+'；持有核晶 '+(body.corecrystal|0)+'、'+RES[mk]+' '+(body[mk]|0)+'）：'+D.desc, ab:1, dis:!ok, f:()=>{ body.corecrystal-=20; body[mk]-=mn; say('narr','你在工作台前坐了一整夜。核晶在你手裡慢慢變形。'); if(ARMORS[g]) giveArmor(g); else giveAcc(g); status(); workbench(back); }}); });
+  known.forEach(k=>{ const g=SYS_GEAR[k]; const D=ACCS[g]||ARMORS[g]; const [mk,mn]=SYS_MAT[k]; const ok=homeHave('corecrystal')>=20&&homeHave(mk)>=mn; o.push({t:'製作'+D.n+'（核晶 20、'+RES[mk]+' '+mn+'；背包加倉庫：核晶 '+fmt(homeHave('corecrystal'))+'、'+RES[mk]+' '+fmt(homeHave(mk))+'）：'+D.desc, ab:1, dis:!ok, f:()=>{ homeTakeRes('corecrystal',20); homeTakeRes(mk,mn); say('narr','你在工作台前坐了一整夜。核晶在你手裡慢慢變形。'); if(ARMORS[g]) giveArmor(g); else giveAcc(g); status(); workbench(back); }}); });
   o.push({t:'離開工作台', f:back}); setOptions(o,'工作台',true); }
 const JOB_GEAR=['cleaveguard','knightcrest','shadowstep','holybeads','hawkeye'];
 function forgeMaster(back){ say('npc',rnd(['爐守沒有抬頭。「三十年，我只替五種人打過東西。」','「核晶三十顆，金子一百萬。少一顆都不打。」','爐守用鉗子撥了撥火。「你是哪一種人？」']));
