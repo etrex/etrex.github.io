@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.58.1';
+const VERSION='2.59.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -543,6 +543,8 @@ function allWeapons(){ return sysIs('devour')||sysIs('panel'); }
 function canUse(w){ const D=wDef(w); return !!(D.any||allWeapons()||job().types.includes(D.type)); }
 const ATYPE={cloth:'布衣',leather:'皮甲',mail:'鎖甲',plate:'板甲'};
 const ARMORS={
+  thornmail:{n:'荊棘鎧', type:'mail', def:14, any:1, excl:1, own:'reflect', desc:'反傷系統專屬：反傷從 3 倍變 4 倍。誰都能穿。'},
+  cushion:{n:'千年蒲團', type:'cloth', def:4, any:1, excl:1, own:'ancestor', desc:'老祖系統專屬：閉關每天攻擊 +2。誰都能穿。'},
   // 布衣
   cloth1:{n:'旅人服', type:'cloth', def:1, any:1, desc:'誰都能穿的粗布衣。'},
   uniform:{n:'商會制服', type:'cloth', def:3, trade:1, desc:'交換時每筆多拿一成。'},
@@ -578,6 +580,27 @@ function canWear(a){ const D=aDef(a); return !!(D.any||allWeapons()||job().armor
 /* 飾品：鞋・手套（次要裝備）、項鍊・戒指（稀有裝備）。不限職業。 */
 const ASLOT={boots:'鞋',gloves:'手套',neck:'項鍊',ring:'戒指'};
 const ACCS={
+  // 系統專屬（家裡的工作台，拿到配方才做得出來，只有對應系統戴著才有效）
+  shadowbind:{n:'影縛之環', slot:'ring', sys:1, excl:1, own:'shadow', desc:'影之君主專屬：出戰影子 +1，可以疊戴。'},
+  checkinbadge:{n:'全勤徽章', slot:'neck', sys:1, excl:1, own:'checkin', desc:'簽到系統專屬：簽到獎勵 +50%。'},
+  choiceeye:{n:'抉擇之眼', slot:'neck', sys:1, excl:1, own:'choice', desc:'神級選擇專屬：每個套餐多一個獎勵（3 → 4）。'},
+  pitycharm:{n:'保底護符', slot:'neck', sys:1, excl:1, own:'gacha', desc:'抽獎系統專屬：保底從每 3 次十連降到每 2 次。'},
+  gluttonfang:{n:'饕餮之牙', slot:'gloves', sys:1, excl:1, own:'devour', desc:'吞噬進化專屬：血肉累積的 HP ×2。'},
+  leapboots:{n:'越級者之靴', slot:'boots', sys:1, excl:1, own:'infinite', desc:'無限升級專屬：經驗 +50%。'},
+  toad:{n:'招財金蟾', slot:'neck', sys:1, excl:1, own:'luck', desc:'氣運掠奪專屬：獲得的氣運 ×2。'},
+  vipcard:{n:'VIP 卡', slot:'ring', sys:1, excl:1, own:'shop', desc:'系統商城專屬：積分 +50%。'},
+  grindgloves:{n:'打磨手套', slot:'gloves', sys:1, excl:1, own:'panel', desc:'屬性面板專屬：打磨每 8 次就給 1 點（原本 12 次）。'},
+  farsight:{n:'千里眼', slot:'neck', sys:1, excl:1, own:'omni', desc:'全知系統專屬：先手率 +20%。'},
+  memanchor:{n:'記憶之錨', slot:'neck', sys:1, excl:1, own:'rezero', desc:'死亡回歸專屬：回歸時保留等級與經驗。'},
+  autogear:{n:'自動化齒輪', slot:'ring', sys:1, excl:1, own:'idle', desc:'掛機系統專屬：離線上限 +8 小時。'},
+  heartham:{n:'熔心之鎚', slot:'gloves', sys:1, excl:1, own:'forge', desc:'煉化系統專屬：煉化冷卻減半。'},
+  merchscale:{n:'商人之秤', slot:'ring', sys:1, excl:1, own:'trader', desc:'萬物交易專屬：抽成從多拿一半變成多拿 75%。'},
+  // 職業專屬（熔淵古爐的爐守打造，只有對應職業戴著才有效）
+  cleaveguard:{n:'斷鋼護腕', slot:'gloves', sys:1, excl:1, ownJob:'swordsman', desc:'劍士專屬：斬鐵冷卻 −3 秒，無視全部防禦。'},
+  knightcrest:{n:'王國紋章盾', slot:'gloves', sys:1, excl:1, ownJob:'knight', desc:'騎士專屬：盾擊多震暈一次。'},
+  shadowstep:{n:'影縫短靴', slot:'boots', sys:1, excl:1, ownJob:'thief', desc:'盜賊專屬：連刺從三下變四下。'},
+  holybeads:{n:'聖光念珠', slot:'neck', sys:1, excl:1, ownJob:'priest', desc:'神官專屬：聖光回血從 8% 變 15%。'},
+  hawkeye:{n:'鷹眼護目', slot:'neck', sys:1, excl:1, ownJob:'hunter', desc:'獵人專屬：狙擊 ×1.6 → ×2.2。'},
   // 屬性戒指：最難拿的東西。只有挑戰、魔物十萬分之一、師傅用稀有素材加戰利品打造、公會 S 級、拍賣所一千萬才有
   strring:{n:'力量之戒', slot:'ring', stat:{str:1}, sys:1, desc:'力量 +1（強化每級 +10%）。'},
   vitring:{n:'體力之戒', slot:'ring', stat:{vit:1}, sys:1, desc:'體力 +1（強化每級 +10%）。'},
@@ -673,9 +696,26 @@ function ringSynthMenu(back){ const o=Object.keys(RING_RECIPE).map(r=>{ const R=
   o.push({t:'不合成了', f:back}); setOptions(o,'熔淵古爐　屬性戒指＝基底飾品 ×5（背包或倉庫裡多的，身上穿的不算）＋同款稀有素材 ×5＋魂晶 ×1',true); }
 function crystalMenu(back){ const n=Math.min(Math.floor((body.corecrystal|0)/100),fitR('soulcrystal'));
   setOptions([{t:'提煉魂晶（核晶 100 → 魂晶 1，持有核晶 '+fmt(body.corecrystal|0)+'）', ab:1, dis:n<1, f:()=>qtyMenu({title:'提煉魂晶', unit:'顆', max:n, cost:q=>'核晶 −'+fmt(q*100), f:q=>{ body.corecrystal-=q*100; addRes('soulcrystal',q); say('gain','古爐吞下 '+fmt(q*100)+' 顆核晶，吐出 '+q+' 顆魂晶。魂晶在你手心裡是涼的。'); }, back:()=>crystalMenu(back)})},
-    {t:'合成屬性戒指', ab:1, f:()=>ringSynthMenu(()=>crystalMenu(back))},{t:'離開古爐', f:back}],'熔淵古爐　核晶 '+fmt(body.corecrystal|0)+'｜魂晶 '+(body.soulcrystal|0),true); }
+    {t:'合成屬性戒指', ab:1, f:()=>ringSynthMenu(()=>crystalMenu(back))},{t:'找爐守打造職業專屬裝備', ab:1, f:()=>forgeMaster(()=>crystalMenu(back))},{t:'離開古爐', f:back}],'熔淵古爐　核晶 '+fmt(body.corecrystal|0)+'｜魂晶 '+(body.soulcrystal|0),true); }
+/* 專屬裝備：系統專屬要對應系統、職業專屬要對應職業，戴著才有效 */
+function gearOn(id){ if(!body) return 0; if(ARMORS[id]) return eqA().key===id&&sysIs(ARMORS[id].own)?1:0; const D=ACCS[id]; if(!D) return 0; if(D.own&&!sysIs(D.own)) return 0; if(D.ownJob&&body.job!==D.ownJob) return 0; return accWorn(id); }
+const SYS_GEAR={shadow:'shadowbind',checkin:'checkinbadge',choice:'choiceeye',gacha:'pitycharm',devour:'gluttonfang',infinite:'leapboots',luck:'toad',shop:'vipcard',panel:'grindgloves',omni:'farsight',reflect:'thornmail',rezero:'memanchor',idle:'autogear',forge:'heartham',trader:'merchscale',ancestor:'cushion'};
+const SYS_MAT={shadow:['relics',20],checkin:['ink',20],choice:['pearl',2],gacha:['starmetal',2],devour:['pelts',60],infinite:['ore',60],luck:['worldleaf',2],shop:['salt',40],panel:['herbs',60],omni:['ink',40],reflect:['ore',100],rezero:['relics',30],idle:['coal',60],forge:['coal',100],trader:['fish',60],ancestor:['timber',30]};
+/* 配方：在系統裡做到某件事，系統把配方交給你。記在靈魂裡，轉世也記得；每個系統各自取得 */
+function cnt(k){ soul.cnt=soul.cnt||{}; return soul.cnt[k]|0; }
+function cntAdd(k,n){ soul.cnt=soul.cnt||{}; soul.cnt[k]=(soul.cnt[k]|0)+(n||1); }
+const RECIPE_COND={checkin:['連續簽到 3 天',()=>(soul.streak|0)>=3],choice:['累計選擇 1,500 次',()=>cnt('choice')>=1500],gacha:['累計十連抽 500 次',()=>cnt('gacha')>=500],devour:['吃過 12 個家族',()=>eatN()>=12],infinite:['等級達到 30',()=>body.level>=30],shadow:['影子軍團 500 個',()=>shTotal()>=500],luck:['氣運 5,000',()=>(soul.luck|0)>=5000],shop:['累計賺到 5 萬積分',()=>cnt('points')>=50000],panel:['累計獲得 150 個屬性點',()=>cnt('ptsGot')>=150],omni:['知道 8 個秘密',()=>Object.keys(FACT_NAME).filter(k=>fact(k)).length>=8],reflect:['累計被打 5,000 次',()=>(soul.hitsTaken|0)>=5000],rezero:['累計回歸 10 次',()=>cnt('returns')>=10],idle:['累計離線狩獵 24 小時',()=>(soul.idleHours|0)>=24],forge:['累計煉化 300 次',()=>cnt('forges')>=300],trader:['累計做成 50 筆交換',()=>cnt('trades')>=50],ancestor:['修為到達「渡劫」',()=>realm()>=9]};
+function checkRecipes(){ if(!body||!soul.system) return; const k=soul.system.key; const C=RECIPE_COND[k]; if(!C) return; soul.recipes=soul.recipes||{}; if(soul.recipes[k]) return; if(C[1]()){ soul.recipes[k]=1; const g=SYS_GEAR[k]; const nm=(ACCS[g]||ARMORS[g]).n; say('title','配方取得：'+nm); sysText('你已經準備好了。配方記下來了：「'+nm+'」。回家，工作台上做得出來。'); } }
+function workbench(back){ const k=soul.system.key; const g=SYS_GEAR[k]; const D=ACCS[g]||ARMORS[g]; const o=[];
+  if(!(soul.recipes||{})[k]) say('narr','你在工作台前坐了一會兒。不知道要做什麼。');
+  else { const [mk,mn]=SYS_MAT[k]; const ok=(body.corecrystal|0)>=20&&(body[mk]|0)>=mn; o.push({t:'製作'+D.n+'（核晶 20、'+RES[mk]+' '+mn+'；持有核晶 '+(body.corecrystal|0)+'、'+RES[mk]+' '+(body[mk]|0)+'）：'+D.desc, ab:1, dis:!ok, f:()=>{ body.corecrystal-=20; body[mk]-=mn; say('narr','你在工作台前坐了一整夜。核晶在你手裡慢慢變形。'); if(ARMORS[g]) giveArmor(g); else giveAcc(g); status(); workbench(back); }}); }
+  o.push({t:'離開工作台', f:back}); setOptions(o,'工作台',true); }
+const JOB_GEAR=['cleaveguard','knightcrest','shadowstep','holybeads','hawkeye'];
+function forgeMaster(back){ say('npc',rnd(['爐守沒有抬頭。「三十年，我只替五種人打過東西。」','「核晶三十顆，金子五百萬。少一顆都不打。」','爐守用鉗子撥了撥火。「你是哪一種人？」']));
+  const o=JOB_GEAR.map(g=>{ const D=ACCS[g]; return {t:'請爐守打造'+D.n+'（核晶 30、500 萬金）：'+D.desc+(D.ownJob===body.job?'':'（不是你的職業，戴了沒效果）'), ab:D.ownJob===body.job, dis:(body.corecrystal|0)<30||body.gold<5000000, f:()=>{ body.corecrystal-=30; body.gold-=5000000; say('narr','爐守打了三天三夜。最後一錘落下的時候，古爐的火暗了一下。'); giveAcc(g); worldEvent(soul.name+' 請熔淵古爐的爐守打造了「'+D.n+'」'); status(); forgeMaster(back); }}; });
+  o.push({t:'離開', f:back}); setOptions(o,'爐守　核晶 '+(body.corecrystal|0)+'｜金幣 '+fmt(body.gold),true); }
 const OFF_TROPHY={W:{gatekeeper:'giantaxe',firelizard:'dragonlance',shadowdog:'shadowblade',abysslord:'hellmace'},A:{gatekeeper:'giantplate',firelizard:'dragonscale',leech:'shadowleather'},C:{beast:'ogregauntlet',wolf:'windboots',worm:'dragonboots',snowwolf:'fangneck',bonespider:'lifeneck',crab:'ironring'}};
-function idleCap(){ return Math.min(24,8+Math.floor((soul.idleHours||0)/50)); }
+function idleCap(){ return Math.min(24,8+Math.floor((soul.idleHours||0)/50))+(gearOn('autogear')?8:0); }
 function dropRare(){ const pool=RAND_ACC; say('narr','魔物的殘骸裡有東西在發光。'); giveAcc(rnd(pool)); }
 function lootUp(){ return !!(wDef(eqW()).loot||job().loot||accHas('loot')); }
 /* 環境：進得去，但沒有免疫就一直掉血。抗性減傷；有系統的人可以用別的方式付錢通過。 */
@@ -706,8 +746,8 @@ function hasA(k){ return !!(body.armors||[]).find(a=>a.key===k); }
 function ownedReg(){ const f=body.flags; f.owned=f.owned||{W:{},A:{},C:{}}; const o=f.owned; (body.weapons||[]).forEach(w=>o.W[w.key]=1); (body.armors||[]).forEach(a=>o.A[a.key]=1); (body.accs||[]).forEach(a=>o.C[a.key]=1); ((body.home&&body.home.eq)||[]).forEach(e=>o[e.t][e.k]=1); return o; }
 function ownedMark(t,k){ if(!body) return; ownedReg()[t][k]=1; }
 function everW(k){ return !!ownedReg().W[k]; } function everA(k){ return !!ownedReg().A[k]; } function everC(k){ return !!ownedReg().C[k]; }
-function ownedN(t,D){ const o=ownedReg()[t]; return Object.keys(o).filter(k=>D[k]&&!D[k].dim).length; }
-function bkN(D){ return Object.keys(D).filter(k=>!D[k].dim).length; }
+function ownedN(t,D){ const o=ownedReg()[t]; return Object.keys(o).filter(k=>D[k]&&!D[k].dim&&!D[k].excl).length; }
+function bkN(D){ return Object.keys(D).filter(k=>!D[k].dim&&!D[k].excl).length; }
 function giveArmor(k){ body.armors.push({key:k}); ownedMark('A',k); const dupA=eqCount('A',k)>1; overNote(); if(ARMORS[k].heat) body.regionFlags.heatArmor=1; if(ARMORS[k].cold) body.regionFlags.furCoat=1; say('gain','獲得防具：'+aText({key:k})+(dupA?'　（你現在有 '+eqCount('A',k)+' 件，多的可以賣給武器店）':canWear({key:k})?'　到「裝備與道具」可以換上。':'　'+job().n+'穿不了，先收著。')); }
 const ITEMS={
   hpot:{n:'藥水', d:'回復五成HP', out:1, fight:1, price:30},
@@ -817,7 +857,7 @@ function ciStat(k){ soul.permStat=soul.permStat||{}; k=k||rnd(['str','vit','agi'
 function doCheckin(){
   if(soul.lastCheck&&Date.now()-soul.lastCheck>2*D) soul.streak=0;
   soul.streak++; soul.lastCheck=Date.now(); const n=soul.streak;
-  const g=ciGold(n), c=ciCores(n), a=ciAtk(n);
+  const cm=gearOn('checkinbadge')?1.5:1; const g=Math.round(ciGold(n)*cm), c=Math.round(ciCores(n)*cm), a=Math.round(ciAtk(n)*cm);
   body.gold+=g; addRes('cores',c); soul.permAtk+=a;
   say('gain','簽到成功。連續 '+n+' 天：金幣 +'+fmt(g)+'、裂谷核 +'+c+'、攻擊力永久 +'+a);
   if(n%7===0){ const w=n/7; addItem('elixir',3); const eq=gachaEquip(chance(Math.min(.5,.05*w))?'稀有':'精良'); say('title','七日大獎（第 '+w+' 週）'); say('gain','回春藥 +3、'+(eq?'裝備「'+eq+'」、':'')+ciStat()); }
@@ -860,7 +900,7 @@ function shName(k){ return shMeta(k).n; }
 function shLabel(k){ const n=shName(k); return /影子$/.test(n)?n:n+'的影子'; }
 function shLabels(ks){ const c={}; ks.forEach(k=>{ const n=shLabel(k); c[n]=(c[n]|0)+1; }); return Object.keys(c).map(n=>n+(c[n]>1?'（'+c[n]+' 個）':'')).join('、'); }
 function shTotal(){ const b=shBag(); let n=0; for(const k in b) n+=b[k]; return n; }
-function shDeployN(){ return body?Math.floor(stats().int/5):0; }
+function shDeployN(){ return body?Math.floor(stats().int/5)+gearOn('shadowbind'):0; }
 function shDeployed(){ const b=shBag(); const ks=Object.keys(b).filter(k=>b[k]>0).sort((x,y)=>shScore(y)-shScore(x)); const out=[]; let N=shDeployN(); for(const k of ks){ for(let i=0;i<b[k]&&N>0;i++,N--) out.push(k); if(N<=0) break; } return out; }
 /* 影子出手：每次你行動，每個影子打出牠當魔物時的傷害（魔物傷害公式：攻擊² ÷（攻擊 + 對方防禦）），再乘上這段時間牠能出手幾次（你的攻擊間隔 ÷ 牠的攻速）。 */
 function shDmgOf(list,D){ if(!body||!list.length) return 0; const T=pInterval(); return Math.max(1,Math.round(list.reduce((t,x)=>{ const m=shMeta(typeof x==='string'?x:x.k); return t+monDamage(m.atk*(0.85+Math.random()*.3),D||0)*T/m.iv; },0))); }
@@ -892,9 +932,9 @@ function rzRewind(){ const sn=body.daySnap; if(!sn||!sn._full) return false; con
 /* 先手率：誰先發現誰。基本 25%，敏捷每高魔物 1 點 +2%，智力每高 1 點 +1%，隱匿（獵人、隱身斗篷之類）+20%，吃過「影子的腳步」最多 +30%；5%～95%，魔王減半。
    突襲、SSR 先手權、吃到五階的狼必定先手。 */
 let ambushNext=0;
-function firstP(m){ if(!body||!m) return .25; const st=stats(); let p=.25+(st.agi-monAgi(m))*.02+(st.int-monInt(m))*.01+((aDef(eqA()).quiet||job().quiet)?.2:0)+.3*eatF('governor'); p=Math.min(.95,Math.max(.05,p)); if(isKing(m)) p*=.5; return p; }
+function firstP(m){ if(!body||!m) return .25; const st=stats(); let p=.25+(st.agi-monAgi(m))*.02+(st.int-monInt(m))*.01+((aDef(eqA()).quiet||job().quiet)?.2:0)+.3*eatF('governor')+(gearOn('farsight')?.2:0); p=Math.min(.95,Math.max(.05,p)); if(isKing(m)) p*=.5; return p; }
 function dejaKnown(m){ return !!(m&&sysIs('rezero')&&(soul.rzDeja||{})[m.key]); }
-function medAtk(){ return sysIs('ancestor')?soul.meditations:0; }
+function medAtk(){ return sysIs('ancestor')?(soul.meditations|0)+(soul.medBonus|0):0; }
 /* 老祖的修為：第 n 境需要累積閉關 20 ×（1.5^n − 1）天（10、25、47.5……），每境攻擊與 HP ×1.1 */
 const REALMS=['凡人','練氣','築基','金丹','元嬰','化神','煉虛','合體','大乘','渡劫'];
 const CN_NUM=['','一','二','三','四','五','六','七','八','九','十'];
@@ -904,17 +944,18 @@ function realmName(n){ if(n<REALMS.length) return REALMS[n]; const k=n-REALMS.le
 function realmMul(){ return Math.pow(1.1,realm()); }
 function meditate(days,back){ if(!growReady('ancestor')){ say('info','閉關要靜下心。'+growInfo('ancestor')); back(); return; }
   const r0=realm(); let n=0; grow('ancestor','閉關',()=>{},GROW_CD,GROW_CAP,true); say('narr',rnd(['你在屋裡盤腿坐下，關上門。','你把自己封在洞裡。外面的聲音一層一層淡下去。','你閉上眼睛。']));
-  for(;n<days;n++){ body.day++; soul.meditations=(soul.meditations|0)+1; worldTick(); if(body.pending) { n++; break; } }
+  for(;n<days;n++){ body.day++; soul.meditations=(soul.meditations|0)+1; if(gearOn('cushion')) soul.medBonus=(soul.medBonus|0)+1; worldTick(); if(body.pending) { n++; break; } }
   status(); body.hp=body.hpMax;
-  say('gain','閉關 '+n+' 天：攻擊力永久 +'+n+'。第 '+body.day+' 天。'+(n<days?'外面出事了，你提早出關。':''));
+  say('gain','閉關 '+n+' 天：攻擊力永久 +'+n*(gearOn('cushion')?2:1)+'。第 '+body.day+' 天。'+(n<days?'外面出事了，你提早出關。':''));
   const r1=realm(); if(r1>r0){ for(let r=r0+1;r<=r1;r++) say('title','突破：'+realmName(r)); say('gain','攻擊與 HP ×'+realmMul().toFixed(2)+'。'); worldEvent(soul.name+' 閉關出來，修為突破到「'+realmName(r1)+'」'); }
   save(); back(); } function medHp(){ return 0; }
 
 const FORGE_JEWEL=50;
 function forgeAtk(){ if(!sysIs('forge')) return 0; if(soul.forgeAtkN===undefined) soul.forgeAtkN=Math.floor((soul.forges|0)/5); return soul.forgeAtkN; }
+function forgeCD(){ return gearOn('heartham')?GROW_CD/2:GROW_CD; }
 function forgeMenu(back){ const L=[]; const W=eqW(), A=eqA(); L.push({n:wDef(W).n,x:W,c:5,t:'武器'}); L.push({n:aDef(A).n,x:A,c:5,t:'防具'}); accWornInst().forEach(x=>{ const D=ACCS[x.key]; if(D) L.push({n:D.n,x,c:(D.slot==='neck'||D.slot==='ring')?FORGE_JEWEL:5,t:ASLOT[D.slot]}); });
   if((body.corecrystal|0)>0) L.slice().forEach(e=>L.push(Object.assign({},e,{crystal:1})));
-  setOptions(L.map(e=>e.crystal?({t:'核晶煉化 '+e.t+'：'+e.n+'（+'+(e.x.sharp||0)+' → +'+((e.x.sharp||0)+10)+'，核晶 1）', ab:1, dis:!growReady('forge'), f:()=>{ grow('forge','核晶化為紅光，融進'+e.n+'。強化 +10',()=>{ body.corecrystal--; soul.forges=(soul.forges|0)+1; e.x.sharp=(e.x.sharp||0)+10; forgeAtk(); if(soul.forges%5===0){ const u=chU(); soul.forgeAtkN+=u; say('gain','器靈覺醒：攻擊力永久 +'+u); } }); forgeMenu(back); }}):({t:e.t+'：'+e.n+'（+'+(e.x.sharp||0)+' → +'+((e.x.sharp||0)+1)+'，裂谷核 '+e.c+' 枚）', ab:1, dis:body.cores<e.c||!growReady('forge'), f:()=>{ grow('forge','裂谷核化為紅光，融進'+e.n+'。強化 +1（+'+((e.x.sharp||0)+1)+'）',()=>{ body.cores-=e.c; soul.forges=(soul.forges|0)+1; e.x.sharp=(e.x.sharp||0)+1; forgeAtk(); if(soul.forges%5===0){ const u=chU(); soul.forgeAtkN+=u; say('gain','器靈覺醒：攻擊力永久 +'+u); } }); forgeMenu(back); }})).concat([{t:'不煉了', f:back}]),'煉化　裂谷核 '+body.cores+' 枚｜'+growInfo('forge'),true); }
+  setOptions(L.map(e=>e.crystal?({t:'核晶煉化 '+e.t+'：'+e.n+'（+'+(e.x.sharp||0)+' → +'+((e.x.sharp||0)+10)+'，核晶 1）', ab:1, dis:!growReady('forge',forgeCD()), f:()=>{ grow('forge','核晶化為紅光，融進'+e.n+'。強化 +10',()=>{ body.corecrystal--; soul.forges=(soul.forges|0)+1; cntAdd('forges'); e.x.sharp=(e.x.sharp||0)+10; forgeAtk(); if(soul.forges%5===0){ const u=chU(); soul.forgeAtkN+=u; say('gain','器靈覺醒：攻擊力永久 +'+u); } },forgeCD()); forgeMenu(back); }}):({t:e.t+'：'+e.n+'（+'+(e.x.sharp||0)+' → +'+((e.x.sharp||0)+1)+'，裂谷核 '+e.c+' 枚）', ab:1, dis:body.cores<e.c||!growReady('forge',forgeCD()), f:()=>{ grow('forge','裂谷核化為紅光，融進'+e.n+'。強化 +1（+'+((e.x.sharp||0)+1)+'）',()=>{ body.cores-=e.c; soul.forges=(soul.forges|0)+1; cntAdd('forges'); e.x.sharp=(e.x.sharp||0)+1; forgeAtk(); if(soul.forges%5===0){ const u=chU(); soul.forgeAtkN+=u; say('gain','器靈覺醒：攻擊力永久 +'+u); } },forgeCD()); forgeMenu(back); }})).concat([{t:'不煉了', f:back}]),'煉化　裂谷核 '+body.cores+' 枚｜'+growInfo('forge',forgeCD()),true); }
 function atkNow(){ if(!body||!soul.system) return 0; let a=baseAtk()*evoMul()*(1+eatAtkPct())*realmMul(); return Math.round(a*(sysIs('ancestor')?1:ageFactor(body.age))); }
 function refDef(){ return soul.permDef||0; }
 /* 防禦 =（防具 + 加固 + 永久加成 + 職業 + 飾品）× 體力倍率（跟 HP 同一條：1.15^(0.8 ×(體力 − 18) ÷ 2)），所以防禦會跟著魔物一起長 */
@@ -1011,7 +1052,7 @@ function setOptions(list,hint,noExtras){
     if(lastNode===N.market) b.push({t:'把資源賣給收購商', f:()=>sellMenu('res',ret)});
     if(lastNode===stallMenu) b.push({t:'把道具賣回給老闆娘', f:()=>sellMenu('items',ret)});
     b.wok=1; setOptions(b,'背包超重（'+load()+' / '+capOf()+'）。揹不動，什麼都做不了——先把重量降到 '+capOf()+' 以下。',true); return; }
-  if(body&&!inCombat){ checkQuests(); checkAchs(); renderAchs(); }
+  if(body&&!inCombat){ checkQuests(); checkAchs(); renderAchs(); checkRecipes(); }
   opts.innerHTML=hint?'<div class="hint">'+hint+'</div>':'';
   const hasOver=body&&!inCombat&&!packing&&!body.autoHunt&&overList().length>0;
   if(hasOver){ const L0=list, H0=hint, X0=noExtras; const ret=L0.rb||(!noExtras&&curBuild)||(()=>setOptions(L0,H0,X0)); list=[{t:'背包滿了：還有'+overText()+'裝不下——整理背包，丟掉一些東西', ab:1, pack:1, f:()=>packMenu(ret)}].concat(list); }
@@ -1357,8 +1398,8 @@ function townExtras(o,back){
       if(!have.length){ say('info','你身上沒有可以點的東西。'); back(); return; }
       setOptions(have.map(k=>({t:'拿出全部'+RES[k]+'（'+body[k]+'）', f:()=>{
         const n=body[k]; setOptions(CARRY.filter(x=>x!==k&&!NO_TRANSMUTE.includes(x)).map(x=>({t:'換成'+RES[x]+'（'+n+'）', f:()=>{ useTimed('trader'); body[k]=0; addRes(x,n); say('gain','點石：'+RES[k]+' '+n+' 化為 '+RES[x]+' '+n+'。商人看得目瞪口呆。'); status(); back(); }})).concat([{t:'算了', f:back}]),'換成什麼？'); }})).concat([{t:'算了', f:back}]),'拿出什麼？'); }}); }
-  if(sysIs('gacha')){ o.unshift({t:'十連抽（'+growInfo('gacha',60000,Infinity)+'）', ab:1, dis:!growReady('gacha',60000,Infinity), f:()=>{ grow('gacha','十連抽',()=>{},60000,Infinity,true); doGacha(); back(); }}); }
-  if(sysIs('forge')){ o.unshift({t:'煉化：把裂谷核煉進裝備（'+growInfo('forge')+'）', ab:1, f:()=>forgeMenu(back)}); }
+  if(sysIs('gacha')){ o.unshift({t:'十連抽（'+growInfo('gacha',60000,Infinity)+'）', ab:1, dis:!growReady('gacha',60000,Infinity), f:()=>{ grow('gacha','十連抽',()=>{ cntAdd('gacha'); },60000,Infinity,true); doGacha(); back(); }}); }
+  if(sysIs('forge')){ o.unshift({t:'煉化：把裂谷核煉進裝備（'+growInfo('forge',forgeCD())+'）', ab:1, f:()=>forgeMenu(back)}); }
   if(sysIs('ancestor')){ o.unshift({t:'閉關修煉（「'+realmName(realm())+'」，'+growInfo('ancestor')+'）', ab:1, f:()=>setOptions([1,10,100].map(n=>({t:'閉關 '+n+' 天', ab:1, f:()=>meditate(n,back)})).concat([{t:'算了', f:back}]),'閉關的日子，外面的世界照樣在走。出了事會提早出關。',true)}); }
   if(sysIs('shadow')){ const q=shq(); const ok=SHQ.filter(([n])=>q.k>=n&&!q.got[n]); if(ok.length) o.unshift({t:'交付每日任務（今日擊殺 '+q.k+'：'+ok.map(([n])=>n+' 隻').join('、')+'）', ab:1, f:()=>{ ok.forEach(([n,gm,cm])=>{ q.got[n]=1; const g=chGoldUnit()*gm, c=Math.floor(ciS()/20)*cm; body.gold+=g; addRes('cores',c); say('gain','每日任務（擊殺 '+n+' 隻）完成：金幣 +'+fmt(g)+'、裂谷核 +'+c+'。'); }); status(); back(); }}); }
 }
@@ -1571,7 +1612,7 @@ function chApply(x){ switch(x.k){
   case 'perm': if(x.p==='atk') soul.permAtk=(soul.permAtk||0)+x.n; else if(x.p==='hp') soul.permHp=(soul.permHp||0)+x.n; else if(x.p==='def') soul.permDef=(soul.permDef||0)+x.n; else if(x.p==='mag') soul.permMag=(soul.permMag||0)+x.n; else soul.permGold=(soul.permGold||0)+x.n; break;
   case 'stat': soul.permStat=soul.permStat||{}; soul.permStat[x.s]=(soul.permStat[x.s]|0)+1; break;
   case 'eq': eqGive(x.id); if(/^(W:(fang|holylance|dragonlance|worldtree|bishopstaff|oldsword|giantaxe))$/.test(x.id)||(AUC_GRADE['傳說']||[]).includes(x.id)) worldEvent(soul.name+' 在神級選擇裡拿到了傳說裝備「'+eqIdName(x.id)+'」'); break; } }
-function chMake(){ soul.choicePity=(soul.choicePity|0)+1; const set=[0,1,2].map(()=>[0,1,2].map(()=>chRoll(false)));
+function chMake(){ soul.choicePity=(soul.choicePity|0)+1; const set=[0,1,2].map(()=>(gearOn('choiceeye')?[0,1,2,3]:[0,1,2]).map(()=>chRoll(false)));
   let hasL=set.some(b=>b.some(x=>x.r==='L'));
   if(!hasL&&soul.choicePity>=10){ set[Math.floor(Math.random()*3)][Math.floor(Math.random()*3)]=chRoll(true); hasL=true; }
   if(hasL) soul.choicePity=0; soul.choiceSet=set; return set; }
@@ -1580,7 +1621,7 @@ function choiceMenu(back){
   say('title','神級選擇'); sysText(rnd(['選一個。','只能拿一包。','想清楚。其他兩包會消失。']));
   setOptions(set.map((b,i)=>({t:N3[i]+'：'+b.map(chText).join('、'), legend:b.some(x=>x.r==='L'), f:()=>{
     if(!growReady('choice',GROW_CD,Infinity)){ say('info','還在冷卻。'+growInfo('choice',GROW_CD,Infinity)); back(); return; }
-    grow('choice',N3[i]+'：'+b.map(chText).join('、'),()=>{ b.forEach(chApply); soul.choiceSet=null; },GROW_CD,Infinity); back(); }})).concat([{t:'先不選', f:back}]),'三個套餐，選一包。沒選的話，套餐會留到下次。'); }
+    grow('choice',N3[i]+'：'+b.map(chText).join('、'),()=>{ b.forEach(chApply); soul.choiceSet=null; cntAdd('choice'); },GROW_CD,Infinity); back(); }})).concat([{t:'先不選', f:back}]),'三個套餐，選一包。沒選的話，套餐會留到下次。'); }
 function doGacha(){
   say('title','十連抽'); const out=[]; soul.pity++; soul.ssrStar=soul.ssrStar||{}; soul.permStat=soul.permStat||{};
   let ssrHit=false;
@@ -1589,7 +1630,7 @@ function doGacha(){
     if(u<0.00001){ const n=gachaEquip('傳說'); if(n){ out.push('<b>★傳說★</b> '+n+'！！'); worldEvent(soul.name+' 在十連抽裡抽到了傳說裝備「'+n+'」'); continue; } }
     else if(u<0.00011){ const n=gachaEquip('稀有'); if(n){ out.push('<b>稀有裝備</b> '+n+'！'); continue; } }
     const r=Math.random();
-    if(r<0.1||(i===9&&soul.pity>=3&&!ssrHit)){ ssrHit=true;
+    if(r<0.1||(i===9&&soul.pity>=(gearOn('pitycharm')?2:3)&&!ssrHit)){ ssrHit=true;
       if(chance(.3)){ const k=rnd(['str','vit','agi','int']); soul.permStat[k]=(soul.permStat[k]|0)+1; out.push('<b>SSR</b> '+STAT_N[k]+'永久 +1'); }
       else { const k=rnd(Object.keys(SSR)); if(!soul.ssr.includes(k)){ soul.ssr.push(k); soul.ssrStar[k]=1; out.push('<b>SSR</b> 新技能「'+SSR[k].n+'」：'+SSR[k].d(ssrF(k))); } else { soul.ssrStar[k]=(soul.ssrStar[k]||1)+1; out.push('<b>SSR</b> 「'+SSR[k].n+'」升到 '+soul.ssrStar[k]+' 星：'+SSR[k].d(ssrF(k))); } } }
     else if(r<0.35){ const p=Math.random();
@@ -1616,7 +1657,7 @@ function panelMenu(){
     {t:'幸運 +1（每殺金幣 +'+12*NUM.killGold(1)+'）', ab:1, f:put('luck','幸運',1)},
     {t:'先不分配', f:back}], '未分配 '+body.freePts+' 點');
 }
-function addLuck(n,why){ if(!sysIs('luck')) return; const b=soul.luck; soul.luck+=n; if(why) say('gain','奪運：氣運 +'+n+'（'+why+'）目前 '+soul.luck); luckTitles(b); }
+function addLuck(n,why){ if(!sysIs('luck')) return; if(gearOn('toad')) n*=2; const b=soul.luck; soul.luck+=n; if(why) say('gain','奪運：氣運 +'+n+'（'+why+'）目前 '+soul.luck); luckTitles(b); }
 /* 氣運：幸運率 = log₁₀(1 + 氣運) ÷ 7，氣運每多 10 倍 +14.3%，1000 萬封頂 100%。對你有利的機率沒成功時，再擲一次幸運率；對你不利的機率成功時，也再擲一次幸運率把它擋掉。 */
 const LUCK_T=[[30,'福星'],[60,'天選'],[100,'氣運之子'],[300,'鴻運當頭'],[1000,'天命之人'],[3000,'萬中選一'],[10000,'天道寵兒'],[30000,'氣運化身'],[100000,'運之神']];
 function luckTh(i){ if(i<LUCK_T.length) return LUCK_T[i]; const k=i-LUCK_T.length+2; return [100000*Math.pow(3,k-1),'運之神·'+k+'重']; }
@@ -1666,7 +1707,7 @@ const ACHS=[
  {id:'armory_all', n:'武器大師', d:'全部武器都拿到過', c:()=>Object.keys(WEAPONS).filter(k=>!WEAPONS[k].dim).every(everW)},
  {id:'typemaster', n:'五藝', d:'五種武器各拿到一把（不必能用）', c:()=>Object.keys(WTYPE).every(t=>Object.keys(ownedReg().W).some(k=>WEAPONS[k]&&WEAPONS[k].type===t))},
  {id:'wardrobe', n:'鐵壁', d:'拿到過十二種防具', c:()=>ownedN('A',ARMORS)>=12},
- {id:'wardrobe_all', n:'衣冠', d:'全部防具都拿到過', c:()=>Object.keys(ARMORS).every(everA)},
+ {id:'wardrobe_all', n:'衣冠', d:'全部防具都拿到過', c:()=>Object.keys(ARMORS).filter(k=>!ARMORS[k].excl).every(everA)},
  {id:'armortype', n:'四裝', d:'四種防具各拿到一件（不必能穿）', c:()=>Object.keys(ATYPE).every(t=>Object.keys(ownedReg().A).some(k=>ARMORS[k]&&ARMORS[k].type===t))},
  {id:'fullset', n:'全副武裝', d:'鞋、手套、項鍊、戒指四個部位都戴上', c:()=>Object.keys(ASLOT).every(s=>s==='ring'?ringsOn().length>0:body.acc&&body.acc[s])},
  {id:'jeweler', n:'珠寶匠', d:'全部稀有裝備（項鍊與戒指）都拿到過', c:()=>RARE_ACC.every(everC)},
@@ -1699,9 +1740,9 @@ function checkAchs(){ if(!body) return; soul.ach=soul.ach||{}; ACHS.forEach(a=>{
 function renderAchs(){ const c=document.getElementById('achCard'); if(!body){ c.innerHTML='<h2>圖鑑與成就</h2><div class="slot"><span>尚未降生。</span></div>'; return; }
   const got=Object.keys(soul.ach||{}).length; const known=Object.keys(FACT_NAME).filter(fact).length;
   const kv=(k,v)=>'<div class="kv"><i>'+k+'</i><em>'+v+'</em></div>';
-  const col='<div class="slot"><b>圖鑑</b><div class="cols">'+kv('認識的人',NPCS.filter(n=>body.talked[n.n]).length+' / '+NPCS.length)+kv('交換管道',EXCH.filter(e=>exKnown(e.id)).length+' / '+EXCH.length)+kv('秘密',known+' / '+Object.keys(FACT_NAME).length)+kv('武器',ownedN('W',WEAPONS)+' / '+bkN(WEAPONS))+kv('防具',ownedN('A',ARMORS)+' / '+Object.keys(ARMORS).length)+kv('飾品',ownedN('C',ACCS)+' / '+bkN(ACCS))+kv('用過的道具',Object.keys(body.flags.used||{}).filter(k=>ITEMS[k]&&!ITEMS[k].dim).length+' / '+bkN(ITEMS))+kv('到過的地方',PLACES.filter(p=>body.flags.been&&body.flags.been[p]).length+' / '+PLACES.length)+kv('魔物',Object.keys(body.flags.seen||{}).length+' / '+(MONSTERS.length+1))+'</div></div>';
+  const col='<div class="slot"><b>圖鑑</b><div class="cols">'+kv('認識的人',NPCS.filter(n=>body.talked[n.n]).length+' / '+NPCS.length)+kv('交換管道',EXCH.filter(e=>exKnown(e.id)).length+' / '+EXCH.length)+kv('秘密',known+' / '+Object.keys(FACT_NAME).length)+kv('武器',ownedN('W',WEAPONS)+' / '+bkN(WEAPONS))+kv('防具',ownedN('A',ARMORS)+' / '+bkN(ARMORS))+kv('飾品',ownedN('C',ACCS)+' / '+bkN(ACCS))+kv('用過的道具',Object.keys(body.flags.used||{}).filter(k=>ITEMS[k]&&!ITEMS[k].dim).length+' / '+bkN(ITEMS))+kv('到過的地方',PLACES.filter(p=>body.flags.been&&body.flags.been[p]).length+' / '+PLACES.length)+kv('魔物',Object.keys(body.flags.seen||{}).length+' / '+(MONSTERS.length+1))+'</div></div>';
   c.innerHTML='<h2>圖鑑與成就（'+got+'/'+ACHS.length+'）</h2>'+col+ACHS.map(a=>'<div class="ach'+(soul.ach&&soul.ach[a.id]?' on':'')+'"><b>'+(soul.ach&&soul.ach[a.id]?'✓ ':'')+a.n+'</b>　'+a.d+'</div>').join(''); }
-function showAchs(){ if(!body) return; const got=ACHS.filter(a=>soul.ach&&soul.ach[a.id]); say('info','圖鑑：認識的人 '+NPCS.filter(n=>body.talked[n.n]).length+'/'+NPCS.length+'、交換管道 '+EXCH.filter(e=>exKnown(e.id)).length+'/'+EXCH.length+'、秘密 '+Object.keys(FACT_NAME).filter(fact).length+'/'+Object.keys(FACT_NAME).length+'、武器 '+(body.weapons||[]).length+'/'+bkN(WEAPONS)+'、防具 '+(body.armors||[]).length+'/'+Object.keys(ARMORS).length+'、飾品 '+(body.accs||[]).length+'/'+bkN(ACCS)+'、用過的道具 '+Object.keys(body.flags.used||{}).filter(k=>ITEMS[k]&&!ITEMS[k].dim).length+'/'+bkN(ITEMS)+'、到過的地方 '+PLACES.filter(p=>body.flags.been&&body.flags.been[p]).length+'/'+PLACES.length+'\n成就 '+got.length+'/'+ACHS.length+'：'+(got.map(a=>a.n).join('、')||'還沒有')+'\n未達成：'+ACHS.filter(a=>!(soul.ach&&soul.ach[a.id])).map(a=>a.n+'（'+a.d+'）').join('、')); }
+function showAchs(){ if(!body) return; const got=ACHS.filter(a=>soul.ach&&soul.ach[a.id]); say('info','圖鑑：認識的人 '+NPCS.filter(n=>body.talked[n.n]).length+'/'+NPCS.length+'、交換管道 '+EXCH.filter(e=>exKnown(e.id)).length+'/'+EXCH.length+'、秘密 '+Object.keys(FACT_NAME).filter(fact).length+'/'+Object.keys(FACT_NAME).length+'、武器 '+(body.weapons||[]).length+'/'+bkN(WEAPONS)+'、防具 '+(body.armors||[]).length+'/'+bkN(ARMORS)+'、飾品 '+(body.accs||[]).length+'/'+bkN(ACCS)+'、用過的道具 '+Object.keys(body.flags.used||{}).filter(k=>ITEMS[k]&&!ITEMS[k].dim).length+'/'+bkN(ITEMS)+'、到過的地方 '+PLACES.filter(p=>body.flags.been&&body.flags.been[p]).length+'/'+PLACES.length+'\n成就 '+got.length+'/'+ACHS.length+'：'+(got.map(a=>a.n).join('、')||'還沒有')+'\n未達成：'+ACHS.filter(a=>!(soul.ach&&soul.ach[a.id])).map(a=>a.n+'（'+a.d+'）').join('、')); }
 const N={};
 N.hall=()=>{ lastNode=N.hall; if(pendingEvent(N.hall)) return;
   place('召喚大殿');
@@ -1892,7 +1933,7 @@ function exchangeOptions(where,back){
       const fromK=Object.keys(e.from)[0], toK=Object.keys(e.to)[0]; const need=e.from[fromK];
       const quote=()=>{ const f=priceFactor(where,fromK,'sell')*priceFactor(where,toK,'buy'); return Math.max(1,Math.round(e.to[toK]*f)); };
       const doOnce=(silent)=>{
-        const base=quote(); const cut=(sysIs('trader')?Math.max(1,Math.round(base*0.5)):0)+(aDef(eqA()).trade?Math.max(1,Math.round(base*0.1)):Math.round(base*0.1*eatF('guild'))); const get=base+cut;
+        const base=quote(); const cut=(sysIs('trader')?Math.max(1,Math.round(base*(gearOn('merchscale')?.75:.5))):0)+(aDef(eqA()).trade?Math.max(1,Math.round(base*0.1)):Math.round(base*0.1*eatF('guild'))); const get=base+cut;
         const pool=exPool(e.id); if(body[fromK]<need||pool.pool<=0) return false;
         { const ms=stockOf(where,fromK); const s0=(STOCK0[where]||{})[fromK]; if(ms&&s0&&ms.v>s0*2) return false; }
         if(!toK.startsWith('rep_')&&toK!=='gold'&&space()+need*wOf(fromK)<get*wOf(toK)) return false;
@@ -1908,7 +1949,7 @@ function exchangeOptions(where,back){
       const pl=exPool(e.id); const ms=stockOf(where,fromK); const full=ms&&ms.v>((STOCK0[where]||{})[fromK]||0)*2;
       const had=()=>toK==='gold'?body.gold:toK.startsWith('rep_')?body.rep[toK.slice(4)]:body[toK];
       o.push({t:RES[fromK]+' '+need+' → '+nameOf(toK)+' +'+q+(sysIs('trader')?'（抽成）':'')+'　'+(full?(EX_WHO[e.id]||e.npc)+'的'+RES[fromK]+'堆到沒地方放，暫時不收':demandText(e))+info, dis:body[fromK]<need||pl.pool<=0||full, f:()=>{
-        qtyMenu({title:RES[fromK]+' '+need+' → '+nameOf(toK), unit:'次', max:Math.min(pl.pool,Math.floor(body[fromK]/need),200), cost:n=>RES[fromK]+' −'+need*n+'，約 '+nameOf(toK)+' +'+q*n, note:'價格會隨你的交易變動，換到他不收為止。', f:n=>{ let k=0; const g0=had(); while(k<n&&doOnce(true)) k++; const g1=had(); const tg=sysIs('trader')&&k>0; const tu=chU(); if(tg){ body.capBonus=(body.capBonus|0)+1; soul.permHp+=tu; soul.trades=(soul.trades||0)+1; } say('gain','換了 '+k+' 次：'+RES[fromK]+' −'+need*k+'，'+nameOf(toK)+' +'+(g1-g0)+'。'+(tg?'行商：背包 +1、HP 上限 +'+tu+'（第 '+soul.trades+' 筆）。':'')+'現在的價：'+quote()+'。'+(exPool(e.id).pool<=0?(EX_WHO[e.id]||e.npc)+'這一輪夠了，過幾天再來。':k<n?'他手上的貨堆滿了，只收到這裡。':'')); }, back:()=>{ back(); }}); }});
+        qtyMenu({title:RES[fromK]+' '+need+' → '+nameOf(toK), unit:'次', max:Math.min(pl.pool,Math.floor(body[fromK]/need),200), cost:n=>RES[fromK]+' −'+need*n+'，約 '+nameOf(toK)+' +'+q*n, note:'價格會隨你的交易變動，換到他不收為止。', f:n=>{ let k=0; const g0=had(); while(k<n&&doOnce(true)) k++; const g1=had(); const tg=sysIs('trader')&&k>0; const tu=chU(); if(tg) cntAdd('trades'); if(tg){ body.capBonus=(body.capBonus|0)+1; soul.permHp+=tu; soul.trades=(soul.trades||0)+1; } say('gain','換了 '+k+' 次：'+RES[fromK]+' −'+need*k+'，'+nameOf(toK)+' +'+(g1-g0)+'。'+(tg?'行商：背包 +1、HP 上限 +'+tu+'（第 '+soul.trades+' 筆）。':'')+'現在的價：'+quote()+'。'+(exPool(e.id).pool<=0?(EX_WHO[e.id]||e.npc)+'這一輪夠了，過幾天再來。':k<n?'他手上的貨堆滿了，只收到這裡。':'')); }, back:()=>{ back(); }}); }});
     });
     o.push({t:'不換了', f:back}); setOptions(o,'交換　每個人隔幾天才需要一批貨；沒人送，需求會囤，最多囤三輪。價格看他手上有多少。'+(canSeeStock()?'你看得見存量。':'你只看得出大概。'));
   }};
@@ -2491,6 +2532,7 @@ function homeSpace(){ return Math.max(0,body.home.cap-homeLoad()); }
 N.home=()=>{ lastNode=N.home; place('王城市集 · 你的屋子'); const H=body.home; if(!H){ N.market(); return; }
   say('narr',rnd(['屋頂又漏了一點。地窖是乾的。','你推開門。屋子裡有你上次留下的味道。','後巷有人在吵架。你把門關上，世界安靜下來。']));
   const o=[]; const hint='你的屋子　背包 '+load()+' / '+capOf()+'｜倉庫 '+homeLoad()+' / '+H.cap+' 格';
+  o.push({t:'工作台：製作'+soul.system.name.replace(/系統$/,'')+'專屬裝備', f:()=>workbench(N.home)});
   o.push({t:'把東西存進倉庫', f:()=>homeStore()}); o.push({t:'從倉庫拿東西出來', f:()=>homeTake()});
   o.push({t:'擴建地窖（'+fmt(homeExpandCost())+' 金，倉庫 +500 格）', dis:body.gold<homeExpandCost(), f:()=>{ const c=homeExpandCost(); body.gold-=c; H.cap+=500; say('gain','工人挖了三天。倉庫 +500 格（現在 '+H.cap+'）。金幣 −'+fmt(c)); status(); N.home(); }});
   o.push({t:'回市集', f:N.market});
@@ -2875,13 +2917,13 @@ function jobSkill(){ return JSKILL[(body&&body.job)||'swordsman']||JSKILL.swords
 function skillReady(){ return skillCD<=0; }
 /* 影子跟著你出手：普通行動和技能都算 */
 function shAct(){ if(shFight.length&&mon){ const d=shDmgOf(shFight,mon.def); mon.hp-=d; say('combat','影子軍團（'+shFight.length+'）合擊：'+fmt(d)+' 傷害。'); } }
-function doSkill(){ const S=jobSkill(); skillCD=S.cd; turnNo++; let tot=0;
+function doSkill(){ const S=jobSkill(); skillCD=S.cd-(S.id==='cleave'&&gearOn('cleaveguard')?3:0); turnNo++; let tot=0;
   shAct(); if(mon.hp<=0){ win(); return; }
   const hit=(mul,ignDef)=>{ const d=Math.max(1,Math.round(playerAtk()*mul-(ignDef===true?0:mon.def*(ignDef||1)))); mon.hp-=d; tot+=d; return d; };
-  if(S.id==='flurry'){ let n=0; for(let i=0;i<3;i++){ if(unlucky(monDodgeP(mon),'mdodge',mon)){ continue; } hit(0.5); n++; } say('combat','連刺！'+n+' / 3 下命中，共 '+fmt(tot)+' 傷害。'); }
-  else if(S.id==='holy'){ const rs=Math.min(0.4,Math.max(0,(monInt(mon)-stats().int)*0.01)); if(unlucky(rs,'resist',mon)){ say('info',mon.n+'抵抗了聖光。'); } else { const d=Math.max(1,Math.round(magNow()*1.2*(0.85+Math.random()*.3))); mon.hp-=d; tot+=d; const h=Math.round(body.hpMax*.08); body.hp=Math.min(body.hpMax,body.hp+h); say('combat','聖光！'+fmt(tot)+' 神聖傷害，HP +'+h+'。'); } }
-  else if(S.id==='snipe'){ hit(1.6); say('combat','狙擊！'+fmt(tot)+' 傷害。'); }
-  else { if(monDodged()){ status(); return; } if(S.id==='cleave'){ hit(1.6,0.5); say('combat','斬鐵！'+fmt(tot)+' 傷害。'); } else { hit(1.3); monSkip=true; say('combat','盾擊！'+fmt(tot)+' 傷害，'+mon.n+'被震暈了。'); } }
+  if(S.id==='flurry'){ let n=0; const hn=gearOn('shadowstep')?4:3; for(let i=0;i<hn;i++){ if(unlucky(monDodgeP(mon),'mdodge',mon)){ continue; } hit(0.5); n++; } say('combat','連刺！'+n+' / '+hn+' 下命中，共 '+fmt(tot)+' 傷害。'); }
+  else if(S.id==='holy'){ const rs=Math.min(0.4,Math.max(0,(monInt(mon)-stats().int)*0.01)); if(unlucky(rs,'resist',mon)){ say('info',mon.n+'抵抗了聖光。'); } else { const d=Math.max(1,Math.round(magNow()*1.2*(0.85+Math.random()*.3))); mon.hp-=d; tot+=d; const h=Math.round(body.hpMax*(gearOn('holybeads')?.15:.08)); body.hp=Math.min(body.hpMax,body.hp+h); say('combat','聖光！'+fmt(tot)+' 神聖傷害，HP +'+h+'。'); } }
+  else if(S.id==='snipe'){ hit(gearOn('hawkeye')?2.2:1.6); say('combat','狙擊！'+fmt(tot)+' 傷害。'); }
+  else { if(monDodged()){ status(); return; } if(S.id==='cleave'){ hit(1.6,gearOn('cleaveguard')?true:0.5); say('combat','斬鐵！'+fmt(tot)+' 傷害。'); } else { hit(1.3); monSkip=true; if(gearOn('knightcrest')) monSkipN=(monSkipN||0)+1; say('combat','盾擊！'+fmt(tot)+' 傷害，'+mon.n+'被震暈了。'); } }
   if(tot>0) afterHit(tot);
   if(mon.hp<=0){ win(); return; } status(); }
 function useSkill(){ if(!inCombat) return; const S=jobSkill(); if(!skillReady()){ say('info',S.n+'還在冷卻（'+skillCD.toFixed(1)+' 秒）。'); return; }
@@ -2905,7 +2947,7 @@ N.rift=()=>{ lastNode=N.rift; autoHeal();
   const o=[];
   if(body.floor<TOP_FLOOR) o.push({t:'在這一層狩獵（攻速 '+pInterval().toFixed(1)+' 秒）', f:()=>{ if(envTick()) return; if(!canChain()) body.autoHunt=false; encounter(); }}); else o.push({t:'挑戰裂谷魔王', f:()=>{ if(envTick()) return; body.autoHunt=false; encounter(KING); }});
   envOptions(o,N.rift);
-  if(body.floor===7&&!riftClosed()){ o.push(enhOpt('forge',N.rift,'在熔淵古爐強化裝備')); o.push({t:'熔淵古爐：提煉魂晶、合成屬性戒指', ab:1, f:()=>crystalMenu(N.rift)}); }
+  if(body.floor===7&&!riftClosed()){ o.push(enhOpt('forge',N.rift,'在熔淵古爐強化裝備')); o.push({t:'熔淵古爐：提煉魂晶、合成屬性戒指、找爐守', ab:1, f:()=>crystalMenu(N.rift)}); }
   o.push({t:'安全線 '+Math.round(body.stopHp*100)+'%（切換）', f:()=>{ body.stopHp=({0.5:0.3,0.3:0.1,0.1:0.5})[body.stopHp]||0.3; say('info','安全線設為 '+Math.round(body.stopHp*100)+'%。'+(sysIs('idle')?'離線狩獵也用這條線。':'')); N.rift(); }});
   if(canChain()) o.push({t:(body.autoHunt?'● ':'○ ')+'連續狩獵（'+(sysIs('idle')||sysIs('omni')||sysIs('shadow')?'你的能力':'影子軍團替你找下一隻')+'：打完自動下一隻）', ab:1, f:()=>{ body.autoHunt=!body.autoHunt; save(); N.rift(); }});
   o.push({t:(body.autoAct?'● ':'○ ')+'自動戰鬥（輪到你時重複上一次行動）', f:()=>{ body.autoAct=!body.autoAct; save(); N.rift(); }});
@@ -3038,7 +3080,7 @@ function monsterAttack(){
   if(d>0&&shFight.length) d=Math.round(d*shGuard(raw));
   if(body.shield>0&&d>0){ const ab=Math.min(body.shield,d); body.shield-=ab; d-=ab; say('info','護盾擋下 '+fmt(ab)+'（剩 '+fmt(body.shield)+'）'); }
   body.hp-=d; soul.hitsTaken=(soul.hitsTaken||0)+1; say('hurt',mon.n+'的攻擊！受到了 '+d+' 點傷害。'); if(mon.leech&&d>0){ const h=Math.round(d*.5); mon.hp=Math.min(mon.hpMax,mon.hp+h); say('combat',mon.n+'吸了你的血，HP +'+h+'。'); } if(sysIs('reflect')){ const u=chU(); grow('reflect','皮糙肉厚：防禦力永久 +'+u,()=>{ soul.permDef=(soul.permDef||0)+u; }); }
-  if(sysIs('reflect')&&d>0){ const r=d*3; mon.hp-=r; body.rage=Math.min(5,body.rage+1); say('combat','三倍奉還：'+r+' 傷害回到'+mon.n+'身上。怒氣 '+body.rage+'/5'); }
+  if(sysIs('reflect')&&d>0){ const r=d*(gearOn('thornmail')?4:3); mon.hp-=r; body.rage=Math.min(5,body.rage+1); say('combat','三倍奉還：'+r+' 傷害回到'+mon.n+'身上。怒氣 '+body.rage+'/5'); }
   if(ssr('reflect')&&d>0){ const rd=Math.round(d*ssrF('reflect')); mon.hp-=rd; say('combat','反彈：'+fmt(rd)+' 傷害。'); }
   if(mon.hp<=0&&body.hp>0){ win(); return; }
   if(body.hp>0&&!fx.half) zoneEnv().forEach(k=>{ const ed=envDmg(k,.3); if(ed>0){ body.hp-=ed; say('hurt',ENV[k].n+'：−'+ed+' HP'); } });
@@ -3055,7 +3097,7 @@ function killGoldLv(m){ return Math.max(1,Math.round(5*Math.pow(1.2,m.lv-1)*(1+.
 /* 升級需求 = 同級三階魔物一隻的經驗值 × 所需隻數 x(L)；x(L) Lv 5 起 12 隻、每級 ×1.7，Lv 10 起 900 隻、每級 ×1.06 */
 function xpKills(L){ return L<10?12*Math.pow(1.7,Math.max(0,L-5)):900*Math.pow(1.06,L-10); }
 function xpNeed(L){ return Math.round(xpKills(L)*4*Math.pow(1.25,L-1)); }
-function gainXp(x){ if(sysIs('infinite')) x*=5; body.xp+=x; while(body.xp>=xpNeed(body.level)){ const a0=atkNow(), h0=body.hpMax; body.xp-=xpNeed(body.level); const s0=stats(); body.level++; if(sysIs('infinite')) soul.lvUps++; if(sysIs('panel')&&body.level%2===0) body.freePts+=1; body.hpMax=hpMaxNow(); body.hp=Math.min(body.hpMax,body.hp+(body.hpMax-h0)); say('title','等級提升！Lv '+body.level); { const s1=stats(); const d=k=>s1[k]>s0[k]?'（+'+(s1[k]-s0[k])+'）':'（這級沒長）'; say('gain','力量 '+s0.str+' → '+s1.str+d('str')+'｜體力 '+s0.vit+' → '+s1.vit+d('vit')+'｜敏捷 '+s0.agi+' → '+s1.agi+d('agi')+'｜智力 '+s0.int+' → '+s1.int+d('int')); } say('gain','攻擊 '+a0+' → '+atkNow()+'｜HP 上限 '+h0+' → '+body.hpMax+'｜攻速 '+pInterval().toFixed(2)+' 秒'+(sysIs('panel')&&body.level%2===0?'｜屬性點 +1':'')); sysText(rnd(['數字漲了。別高興太早，裂谷也在漲。','嗯，比剛來的時候像樣一點了。','你變強了。它們也是。'])); } }
+function gainXp(x){ if(sysIs('infinite')) x*=5; if(gearOn('leapboots')) x*=1.5; body.xp+=x; while(body.xp>=xpNeed(body.level)){ const a0=atkNow(), h0=body.hpMax; body.xp-=xpNeed(body.level); const s0=stats(); body.level++; if(sysIs('infinite')) soul.lvUps++; if(sysIs('panel')&&body.level%2===0){ body.freePts+=1; cntAdd('ptsGot'); } body.hpMax=hpMaxNow(); body.hp=Math.min(body.hpMax,body.hp+(body.hpMax-h0)); say('title','等級提升！Lv '+body.level); { const s1=stats(); const d=k=>s1[k]>s0[k]?'（+'+(s1[k]-s0[k])+'）':'（這級沒長）'; say('gain','力量 '+s0.str+' → '+s1.str+d('str')+'｜體力 '+s0.vit+' → '+s1.vit+d('vit')+'｜敏捷 '+s0.agi+' → '+s1.agi+d('agi')+'｜智力 '+s0.int+' → '+s1.int+d('int')); } say('gain','攻擊 '+a0+' → '+atkNow()+'｜HP 上限 '+h0+' → '+body.hpMax+'｜攻速 '+pInterval().toFixed(2)+' 秒'+(sysIs('panel')&&body.level%2===0?'｜屬性點 +1':'')); sysText(rnd(['數字漲了。別高興太早，裂谷也在漲。','嗯，比剛來的時候像樣一點了。','你變強了。它們也是。'])); } }
 async function win(){
   if(!inCombat) return; inCombat=false; const m=curMonRef(); 
   fx.felix=0; const capM=fx.caught?2:1;
@@ -3065,15 +3107,15 @@ async function win(){
   let nDrop=(ssr('loot')||lucky(Math.min(1,m.drop*lootMul()),'drop',m))?1:0; if(ssr('loot')) nDrop+=Math.floor(ssrF('loot')-1+1e-9); if(isKing(m))nDrop+=2; if(luckF()>0&&chance(luckF())){ luckSay('cores',m); nDrop+=1+Math.floor(Math.random()*3); }
   if(luckF()>0&&chance(luckF()*.02)){ let x; do{ x=chRoll(chance(.3)); }while(x.r==='N'); chApply(x); say('title','奇遇'); say('gain','你在'+m.n+'的殘骸裡踢到一個東西……'+chText(x)); }
   nDrop*=capM; const got=addRes('cores',nDrop); if(got) say('gain','獲得了裂谷核 ×'+got+'！');
-  if(!isKing(m)){ if(lucky(.25*lootMul(),'drop',m)){ const k=rnd(['hpot','hpot','smoke','bomb','whet','bandage','bandage','coredust','trap','ration']); if(addItem(k,1)>0) say('gain','你在牠身邊撿到一個'+ITEMS[k].n+'。'); } if(m.tier>=3&&lucky(RAND_P*lootMul(),'drop',m)) dropRare(); if(m.tier===4&&lucky(lootMul()/500,'drop',m)){ addRes('corecrystal',1); say('gain','★ '+m.n+'的身體裡凝著一顆核晶。核晶 +1'); } if(m.tier>=5&&lucky(lootMul()/500,'drop',m)){ addRes('soulcrystal',1); say('title','★ 魂晶 ★'); say('gain',m.n+'倒下時，牠的魂凝成一顆晶體。魂晶 +1'); } { const sr=statRingFor(m); if(sr&&lucky(1e-5*lootMul(),'drop',m)){ say('title','★ 傳說 ★'); say('narr',m.n+'倒下的地方，有一枚戒指在發光。'); giveAcc(sr); worldEvent(soul.name+' 從'+m.n+'身上撿到了「'+ACCS[sr].n+'」'); } } } else { addItem('hpot',2); say('gain','魔王的殘骸裡有兩瓶藥水。'); say('narr','魔王的牙還在發燙。'); giveWeapon('fang'); giveArmor('scale'); say('narr','魔王的指骨上套著一枚戒指。'); giveAcc('kingring'); }
+  if(!isKing(m)){ if(lucky(.25*lootMul(),'drop',m)){ const k=rnd(['hpot','hpot','smoke','bomb','whet','bandage','bandage','coredust','trap','ration']); if(addItem(k,1)>0) say('gain','你在牠身邊撿到一個'+ITEMS[k].n+'。'); } if(m.tier>=3&&lucky(RAND_P*lootMul(),'drop',m)) dropRare(); if(m.tier===4&&lucky(lootMul()/500,'drop',m)){ addRes('corecrystal',1); say('gain','★ '+m.n+'的身體裡凝著一顆核晶。核晶 +1'); } if(m.tier>=5&&lucky(lootMul()/500,'drop',m)){ addRes('soulcrystal',1); say('title','★ 魂晶 ★'); say('gain',m.n+'倒下時，牠的魂凝成一顆晶體。魂晶 +1'); } { const sr=statRingFor(m); if(sr&&lucky(1e-5*lootMul(),'drop',m)){ say('title','★ 傳說 ★'); say('narr',m.n+'倒下的地方，有一枚戒指在發光。'); giveAcc(sr); worldEvent(soul.name+' 從'+m.n+'身上撿到了「'+ACCS[sr].n+'」'); } } } else { addItem('hpot',2); say('gain','魔王的殘骸裡有兩瓶藥水。'); say('narr','魔王的牙還在發燙。'); giveWeapon('fang'); giveArmor('scale'); say('narr','魔王的指骨上套著一枚戒指。'); giveAcc('kingring'); if(lucky(lootMul()/500,'drop',m)){ addRes('soulcrystal',1); say('title','★ 魂晶 ★'); say('gain','魔王的魂凝成一顆魂晶。魂晶 +1'); } }
   let xp=killXp(m); if(ssr('xp')) xp=Math.round(xp*(1+.3*ssrF('xp'))); if(sysIs('infinite')&&m.lv>body.level) xp*=5; xp*=capM; if(m.metal){ xp*=100; say('gain','金屬史萊姆碎成一地亮片。經驗 ×100！'); } gainXp(xp);
-  if(sysIs('devour')){ if(m.fm&&DEVOUR[m.fm]&&(body.eaten[m.fm]|0)<m.tier){ const st0=evoStage(); const first=!body.eaten[m.fm]; body.eaten[m.fm]=m.tier; say('gain','捕食：'+devText(m.fm,m.tier)+'。'+(first?'（'+eatN()+'/'+Object.keys(DEVOUR).length+' 種）':'吃到更高階的了，效果升級。')); const st=evoStage(); if(st>st0){ body.evolved=true; say('title',EVO[st][1]); say('gain','攻擊與 HP 上限 ×'+EVO[st][2]+'。'); } } if(soul.eatHpN===undefined) soul.eatHpN=soul.eats; soul.eats++; soul.eatHpN+=chU(); if(soul.eats%10===0) say('gain','血肉累積：HP 上限 +'+fmt(soul.eatHpN)+'。'); }
+  if(sysIs('devour')){ if(m.fm&&DEVOUR[m.fm]&&(body.eaten[m.fm]|0)<m.tier){ const st0=evoStage(); const first=!body.eaten[m.fm]; body.eaten[m.fm]=m.tier; say('gain','捕食：'+devText(m.fm,m.tier)+'。'+(first?'（'+eatN()+'/'+Object.keys(DEVOUR).length+' 種）':'吃到更高階的了，效果升級。')); const st=evoStage(); if(st>st0){ body.evolved=true; say('title',EVO[st][1]); say('gain','攻擊與 HP 上限 ×'+EVO[st][2]+'。'); } } if(soul.eatHpN===undefined) soul.eatHpN=soul.eats; soul.eats++; soul.eatHpN+=chU()*(gearOn('gluttonfang')?2:1); if(soul.eats%10===0) say('gain','血肉累積：HP 上限 +'+fmt(soul.eatHpN)+'。'); }
   if(sysIs('shadow')&&!m.noShadow){ shq().k++; if(chance(1/3)) shExtract(m); else say('info','影子從你指間散掉了。'); }
   if(sysIs('luck')&&m.tier>=3) addLuck(isKing(m)?15:5,'擊殺強敵');
-  if(sysIs('shop')){ soul.points+=m.tier*10; say('gain','積分 +'+m.tier*10+'（'+soul.points+'）'); }
+  if(sysIs('shop')){ const pg=Math.round(m.tier*10*(gearOn('vipcard')?1.5:1)); soul.points+=pg; cntAdd('points',pg); say('gain','積分 +'+pg+'（'+soul.points+'）'); }
   if(sysIs('luck')) grow('luck','天命：氣運 +1',()=>{ addLuck(1); });
   if(sysIs('infinite')){ const u=chU(); grow('infinite','鍛骨：HP 上限 +'+u,()=>{ soul.permHp+=u; }); }
-  if(sysIs('panel')) grow('panel','打磨',()=>{ body.flags.grind=(body.flags.grind|0)+1; if(body.flags.grind>=12){ body.flags.grind=0; body.freePts++; say('gain','打磨滿十二次：屬性點 +1'); } });
+  if(sysIs('panel')) grow('panel','打磨',()=>{ body.flags.grind=(body.flags.grind|0)+1; if(body.flags.grind>=(gearOn('grindgloves')?8:12)){ body.flags.grind=0; body.freePts++; cntAdd('ptsGot'); say('gain','打磨滿十二次：屬性點 +1'); } });
   if(sysIs('omni')){ const u=chU(); grow('omni','數據累積：攻擊力永久 +'+u,()=>{ soul.permAtk+=u; }); }
   if(sysIs('rezero')){ const u=chU(); grow('rezero','記憶：防禦力永久 +'+u,()=>{ soul.permDef=(soul.permDef||0)+u; }); }
   if(sysIs('idle')){ const u=chU(); grow('idle','肌肉記憶：攻擊力永久 +'+u,()=>{ soul.permAtk+=u; }); }
@@ -3105,7 +3147,7 @@ async function die(force){
   if(!inCombat&&!force) return; inCombat=false; clearInterval(cTimer); body.autoHunt=false;
   if(mon&&mon.duel){ body.duelFight=0; body.hp=1; mon=null; say('npc','布蘭德的劍停在你脖子前面。「還不夠。」他收劍，把你拉起來。「養好了再來。」'); status(); N.barracks(); return; }
   if(body.revive>0){ body.revive--; body.hp=body.hpMax; say('gain','鳳凰之尾碎了。你站了起來，HP全滿。'); if(force){ status(); N.rift(); } else { inCombat=true; lastTick=Date.now(); } return; }
-  if(sysIs('rezero')){ const sn=body.daySnap||{hp:body.hpMax,gold:body.gold,cores:body.cores,day:body.day,age:body.age}; const killer=mon; const lv0=body.level; const u=chU(); soul.returns++; rzDef(); soul.rzDefN+=u; if(mon){ soul.rzDeja=soul.rzDeja||{}; soul.rzDeja[mon.key]=(soul.rzDeja[mon.key]|0)+1; } if(!rzRewind()){ body.hp=body.hpMax; body.gold=sn.gold; body.cores=sn.cores; body.day=sn.day; body.age=sn.age; } body.raidFight=0; body.nemesis=killer?killer.key:null; say('title','死亡回歸'); story(TXT.rezero); say('info','你回到了第 '+body.day+' 天的早上。'+(body.level<lv0?'身體回到 Lv '+body.level+'，':'')+'背包、金幣、發生過的事都回到那時候。只有你記得。'); say('gain','記憶累積：防禦力永久 +'+u+'。'+(mon?'既視感：你記住了'+mon.n+'——牠對你的傷害永久 −'+Math.round(dejaCut(mon.key)*100)+'%，弱點在'+mon.weak+'。':'')); sysText('又死了一次。不過你記得。'); mon=null; status(); N.market(); return; }
+  if(sysIs('rezero')){ const sn=body.daySnap||{hp:body.hpMax,gold:body.gold,cores:body.cores,day:body.day,age:body.age}; const killer=mon; const lv0=body.level, xp0=body.xp; const u=chU(); soul.returns++; cntAdd('returns'); rzDef(); soul.rzDefN+=u; if(mon){ soul.rzDeja=soul.rzDeja||{}; soul.rzDeja[mon.key]=(soul.rzDeja[mon.key]|0)+1; } const rw=rzRewind(); if(rw&&gearOn('memanchor')){ body.level=lv0; body.xp=xp0; say('gain','記憶之錨：你記得今天學會的一切。等級與經驗保留。'); } if(!rw){ body.hp=body.hpMax; body.gold=sn.gold; body.cores=sn.cores; body.day=sn.day; body.age=sn.age; } body.raidFight=0; body.nemesis=killer?killer.key:null; say('title','死亡回歸'); story(TXT.rezero); say('info','你回到了第 '+body.day+' 天的早上。'+(body.level<lv0?'身體回到 Lv '+body.level+'，':'')+'背包、金幣、發生過的事都回到那時候。只有你記得。'); say('gain','記憶累積：防禦力永久 +'+u+'。'+(mon?'既視感：你記住了'+mon.n+'——牠對你的傷害永久 −'+Math.round(dejaCut(mon.key)*100)+'%，弱點在'+mon.weak+'。':'')); sysText('又死了一次。不過你記得。'); mon=null; status(); N.market(); return; }
   say('title','勇者倒下了……');
   soul.deaths=(soul.deaths||0)+1; const lost=Math.round(body.gold*.1*(1-eatF('altar'))); body.gold-=lost;
   worldEvent(soul.name+' 倒在外面，被人抬回了教堂。');
