@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.59.5';
+const VERSION='2.60.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -358,6 +358,7 @@ const SYSTEMS={
     {n:'肌肉記憶', d:()=>'每擊殺一隻，攻擊力永久 + 能力總和 ÷ 100（至少 1，目前 +'+(body?chU():1)+'）。離線狩獵也算。每 18 秒一次，沒有每日上限（'+growInfo('idle')+'）。'}]},
   forge:{name:'煉化系統', skills:[
     {n:'煉化', d:()=>'把裂谷核煉進身上的一件裝備，強化 +1：武器、防具、鞋子、手套 5 枚；項鍊、戒指 '+FORGE_JEWEL+' 枚（每級效果 +10%）。每 18 秒一次，沒有每日上限（'+growInfo('forge')+'）。'},
+    {n:'自煉', d:()=>'不用跑神殿或熔淵古爐，隨時自己提煉：裂谷核 '+CC_FORGE+' → 核晶 1（免金幣），核晶 '+SC_FORGE+' → 魂晶 1。到神殿、古爐也照這個價。'},
     {n:'器靈', d:()=>'每煉化 5 次，器靈覺醒一次：攻擊力永久 + 能力總和 ÷ 100（至少 1，目前 +'+(body?chU():1)+'；累積 +'+forgeAtk()+'）。'}]},
   trader:{name:'萬物交易系統', skills:[
     {n:'行情', d:()=>'所有交換管道和每個地方的存量對你透明。別人只看得出「缺貨」「貨很多」，你看得到數字。'},
@@ -694,8 +695,8 @@ function ringSynthMenu(back){ const o=Object.keys(RING_RECIPE).map(r=>{ const R=
     let need=5; const fromBag=Math.min(need,eqSpare('C',R.base)); if(fromBag) eqRemove('C',R.base,fromBag); need-=fromBag; const H=body.home; while(need>0&&H){ const j=H.eq.findIndex(e=>e.t==='C'&&e.k===R.base); if(j<0) break; H.eq.splice(j,1); need--; }
     body[R.mat]-=5; body.soulcrystal-=1; say('narr','五件'+ACCS[R.base].n+'在古爐裡熔成一灘光。你把魂晶丟進去，光縮成一個圈。'); giveAcc(r); worldEvent(soul.name+' 在熔淵古爐合成了「'+ACCS[r].n+'」'); status(); ringSynthMenu(back); }}; });
   o.push({t:'不合成了', f:back}); setOptions(o,'熔淵古爐　屬性戒指＝基底飾品 ×5（背包或倉庫裡多的，身上穿的不算）＋同款稀有素材 ×5＋魂晶 ×1',true); }
-function crystalMenu(back){ const n=Math.min(Math.floor((body.corecrystal|0)/100),fitR('soulcrystal'));
-  setOptions([{t:'提煉魂晶（核晶 100 → 魂晶 1，持有核晶 '+fmt(body.corecrystal|0)+'）', ab:1, dis:n<1, f:()=>qtyMenu({title:'提煉魂晶', unit:'顆', max:n, cost:q=>'核晶 −'+fmt(q*100), f:q=>{ body.corecrystal-=q*100; addRes('soulcrystal',q); say('gain','古爐吞下 '+fmt(q*100)+' 顆核晶，吐出 '+q+' 顆魂晶。魂晶在你手心裡是涼的。'); }, back:()=>crystalMenu(back)})},
+function crystalMenu(back){
+  setOptions([refineSC(()=>crystalMenu(back),'提煉魂晶'),
     {t:'合成屬性戒指', ab:1, f:()=>ringSynthMenu(()=>crystalMenu(back))},{t:'找爐守打造職業專屬裝備', ab:1, f:()=>forgeMaster(()=>crystalMenu(back))},{t:'離開古爐', f:back}],'熔淵古爐　核晶 '+fmt(body.corecrystal|0)+'｜魂晶 '+(body.soulcrystal|0),true); }
 /* 專屬裝備：系統專屬的效果在哪個系統都算（影子、經驗、先手率到處有用；積分、閉關這類只在那個系統才有東西可加），職業專屬要對應職業才有效 */
 function gearOn(id){ if(!body) return 0; if(ARMORS[id]) return eqA().key===id?1:0; const D=ACCS[id]; if(!D) return 0; if(D.ownJob&&body.job!==D.ownJob) return 0; return accWorn(id); }
@@ -955,6 +956,13 @@ function meditate(days,back){ if(!growReady('ancestor')){ say('info','閉關要�
   save(); back(); } function medHp(){ return 0; }
 
 const FORGE_JEWEL=50;
+const CC_FORGE=50, SC_FORGE=50;
+function ccCost(){ return sysIs('forge')?{c:CC_FORGE,g:0}:{c:100,g:1000}; }
+function scCost(){ return sysIs('forge')?SC_FORGE:100; }
+function refineCC(back,where){ const k=ccCost(); const n=Math.min(Math.floor(body.cores/k.c),k.g?Math.floor(body.gold/k.g):Infinity,fitR('corecrystal'));
+  return {t:where+'（裂谷核 '+k.c+(k.g?'、'+fmt(k.g)+' 金':'')+' → 核晶 1）', ab:1, dis:n<1, f:()=>qtyMenu({title:'提煉核晶', unit:'顆', max:n, cost:q=>'裂谷核 −'+fmt(q*k.c)+(k.g?'、'+fmt(q*k.g)+' 金':''), f:q=>{ body.cores-=q*k.c; body.gold-=q*k.g; addRes('corecrystal',q); say('gain',fmt(q*k.c)+' 枚裂谷核壓成 '+q+' 顆核晶。不燙了，沉甸甸的。'); }, back})}; }
+function refineSC(back,where){ const c=scCost(); const n=Math.min(Math.floor((body.corecrystal|0)/c),fitR('soulcrystal'));
+  return {t:where+'（核晶 '+c+' → 魂晶 1，持有核晶 '+fmt(body.corecrystal|0)+'）', ab:1, dis:n<1, f:()=>qtyMenu({title:'提煉魂晶', unit:'顆', max:n, cost:q=>'核晶 −'+fmt(q*c), f:q=>{ body.corecrystal-=q*c; addRes('soulcrystal',q); say('gain',fmt(q*c)+' 顆核晶化成 '+q+' 顆魂晶。魂晶在你手心裡是涼的。'); }, back})}; }
 function forgeAtk(){ if(!sysIs('forge')) return 0; if(soul.forgeAtkN===undefined) soul.forgeAtkN=Math.floor((soul.forges|0)/5); return soul.forgeAtkN; }
 function forgeCD(){ return gearOn('heartham')?GROW_CD/2:GROW_CD; }
 function forgeMenu(back){ const L=[]; const W=eqW(), A=eqA(); L.push({n:wDef(W).n,x:W,c:5,t:'武器'}); L.push({n:aDef(A).n,x:A,c:5,t:'防具'}); accWornInst().forEach(x=>{ const D=ACCS[x.key]; if(D) L.push({n:D.n,x,c:(D.slot==='neck'||D.slot==='ring')?FORGE_JEWEL:5,t:ASLOT[D.slot]}); });
@@ -1403,7 +1411,7 @@ function townExtras(o,back){
       setOptions(have.map(k=>({t:'拿出全部'+RES[k]+'（'+body[k]+'）', f:()=>{
         const n=body[k]; setOptions(CARRY.filter(x=>x!==k&&!NO_TRANSMUTE.includes(x)).map(x=>({t:'換成'+RES[x]+'（'+n+'）', f:()=>{ useTimed('trader'); body[k]=0; addRes(x,n); say('gain','點石：'+RES[k]+' '+n+' 化為 '+RES[x]+' '+n+'。商人看得目瞪口呆。'); status(); back(); }})).concat([{t:'算了', f:back}]),'換成什麼？'); }})).concat([{t:'算了', f:back}]),'拿出什麼？'); }}); }
   if(sysIs('gacha')){ o.unshift({t:'十連抽（'+growInfo('gacha',60000,Infinity)+'）', ab:1, dis:!growReady('gacha',60000,Infinity), f:()=>{ grow('gacha','十連抽',()=>{ cntAdd('gacha'); },60000,Infinity,true); doGacha(); back(); }}); }
-  if(sysIs('forge')){ o.unshift({t:'煉化：把裂谷核煉進裝備（'+growInfo('forge',forgeCD())+'）', ab:1, f:()=>forgeMenu(back)}); }
+  if(sysIs('forge')){ o.unshift({t:'煉化：把裂谷核煉進裝備（'+growInfo('forge',forgeCD())+'）', ab:1, f:()=>forgeMenu(back)},{t:'自煉：提煉核晶、魂晶', ab:1, f:()=>{ const me=()=>setOptions([refineCC(me,'提煉核晶'),refineSC(me,'提煉魂晶'),{t:'不煉了', f:back}],'自煉　裂谷核 '+fmt(body.cores)+'｜核晶 '+fmt(body.corecrystal|0)+'｜魂晶 '+(body.soulcrystal|0),true); me(); }}); }
   if(sysIs('ancestor')){ o.unshift({t:'閉關修煉（「'+realmName(realm())+'」，'+growInfo('ancestor')+'）', ab:1, f:()=>setOptions([1,10,100].map(n=>({t:'閉關 '+n+' 天', ab:1, f:()=>meditate(n,back)})).concat([{t:'算了', f:back}]),'閉關的日子，外面的世界照樣在走。出了事會提早出關。',true)}); }
   if(sysIs('shadow')){ const q=shq(); const ok=SHQ.filter(([n])=>q.k>=n&&!q.got[n]); if(ok.length) o.unshift({t:'交付每日任務（今日擊殺 '+q.k+'：'+ok.map(([n])=>n+' 隻').join('、')+'）', ab:1, f:()=>{ ok.forEach(([n,gm,cm])=>{ q.got[n]=1; const g=chGoldUnit()*gm, c=Math.floor(ciS()/20)*cm; body.gold+=g; addRes('cores',c); say('gain','每日任務（擊殺 '+n+' 隻）完成：金幣 +'+fmt(g)+'、裂谷核 +'+c+'。'); }); status(); back(); }}); }
 }
@@ -2370,7 +2378,7 @@ N.temple=()=>{ lastNode=N.temple; if(pendingEvent(N.temple)) return;
   else if(npcGone('奧文')) say('narr',rnd(TXT.temple_owen_gone_re));
   else say('narr',rnd(body.flags.ledgerHow==='steal'?TXT.temple_stolen_re:TXT.temple_re));
   const o=[]; const ow=!npcGone('奧文');
-  { const n=Math.min(Math.floor(body.cores/100),Math.floor(body.gold/1000),fitR('corecrystal')); o.push({t:'請神殿的熔爐提煉核晶（裂谷核 100、1,000 金 → 核晶 1）', dis:n<1, f:()=>qtyMenu({title:'提煉核晶', unit:'顆', max:n, cost:q=>'裂谷核 −'+fmt(q*100)+'、'+fmt(q*1000)+' 金', f:q=>{ body.cores-=q*100; body.gold-=q*1000; addRes('corecrystal',q); say('gain','熔爐把 '+fmt(q*100)+' 枚裂谷核壓成 '+q+' 顆核晶。不燙了，沉甸甸的。'); }, back:N.temple})}); }
+  o.push(refineCC(N.temple,'請神殿的熔爐提煉核晶'));
   if(!fact('ledger')){
     if(ow&&body.rep.temple>=10) o.push({t:'請奧文讓你看神殿的帳冊', f:()=>{ talk(TXT.temple_ledger_friend); body.flags.ledgerHow='friend'; learn('ledger','帳冊：三十年來，神殿每年把裂谷核賣給南方，數量比王國的稅收還多。'); N.temple(); }});
     else if(body.rep.temple<=-20) o.push({t:'趁奧文不在，跟書記官要帳冊', ab:body.rep.people>=10, f:()=>{ if(body.rep.people>=10||sysIs('omni')||(sysIs('luck')&&soul.luck>=30)){ talk(TXT.temple_ledger_steal); body.flags.ledgerHow='steal'; learn('ledger','帳冊：三十年來，神殿每年把裂谷核賣給南方，數量比王國的稅收還多。'); } else { talk(TXT.temple_no_trust); say('info','他需要理由相信你。民心 10，或讓他看見你的眼睛。'); } N.temple(); }});
