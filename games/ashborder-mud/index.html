@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.52.0';
+const VERSION='2.53.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -689,7 +689,7 @@ const ITEMS={
   coredust:{n:'破甲粉', d:'撒出去，這一場敵人的防禦歸零', fight:1, price:45},
   trap:{n:'捕獸夾', w:2, d:'絆住敵人，接下來兩次攻擊落空', fight:1, price:35},
   armoroil:{n:'守護之藥', d:'這一場（或下一場）防禦加倍', out:1, fight:1, price:40},
-  torch:{n:'聖水', d:'下一次探索不會遇敵', out:1, price:20},
+  torch:{n:'聖水', d:'探索時下一次遇到魔物，牠不會發現你：可以突襲或悄悄走開（用一次）', out:1, price:20},
   elixir:{n:'回春藥', d:'年輕三歲', out:1, price:0},
   flare:{n:'信號彈', d:'魔物潮時放出，騎士團會替你守住北門', price:0},
 };
@@ -704,6 +704,12 @@ function addItem(k,n){ body.items=body.items||{}; if(n<=0){ body.items[k]=(body.
 function itemN(k){ return (body&&body.items&&body.items[k])||0; }
 function itemsText(){ const l=Object.keys(ITEMS).filter(k=>itemN(k)>0).map(k=>ITEMS[k].n+' ×'+itemN(k)); return l.length?l.join('、'):'無'; }
 function iPrice(k){ return ITEMS[k].price; }
+/* 自動使用：背包裡有、開關打開、Buff 還沒在身上，就在該用的時候自動用掉 */
+const AUTO_USE={torch:'探索中要遇到魔物時自動灑（牠不會發現你）', whet:'每場戰鬥開場自動喝（攻擊 ×1.5）', armoroil:'每場戰鬥開場自動喝（防禦 ×2）', wisteria:'開始探索時，香味散了就自動換一包', bamboo:'開始探索時自動戴上', chocobo:'開始探索時自動吹哨', map:'開始探索時自動攤開'};
+function autoOn(k){ return !!(body&&body.autoUse&&body.autoUse[k]); }
+function autoUseMenu(){ const ks=Object.keys(AUTO_USE).filter(k=>!ITEMS[k].dim||dimOn());
+  setOptions(ks.map(k=>({t:(autoOn(k)?'● ':'○ ')+ITEMS[k].n+'：'+AUTO_USE[k]+'（持有 '+itemN(k)+'）', f:()=>{ body.autoUse=body.autoUse||{}; body.autoUse[k]=!autoOn(k); save(); autoUseMenu(); }})).concat([{t:'返回', f:gearMenu}]),'自動使用：打開的道具，背包裡有就會在該用的時候自動用掉，維持 Buff。',true); }
+function autoTake(k,msg){ if(!autoOn(k)||itemN(k)<=0) return false; if(ITEMS[k].dim&&!dimOn()) return false; body.items[k]--; body.flags.used=body.flags.used||{}; body.flags.used[k]=1; say('info','（自動）'+msg); return true; }
 function useItem(k){
   if(itemN(k)<=0) return; const it=ITEMS[k];
   if(it.dim){ dimUse(k); if(inCombat) renderCombat(); else save(); return; }
@@ -715,7 +721,7 @@ function useItem(k){
   if(k==='coredust'){ mon.def=0; say('combat','破甲粉撒在'+mon.n+'身上，皮開始冒煙。這一場牠的防禦歸零。'); }
   if(k==='trap'){ const av=trapAvoidP(mon); if(unlucky(av,'trap',mon)){ say('info',mon.n+'看了陷阱一眼，繞開了。（'+witWord(mon)+'，繞開機率 '+Math.round(av*100)+'%）'); } else { monSkipN=(monSkipN||0)+2; say('combat','陷阱絆住了'+mon.n+'的腿。接下來兩次攻擊會落空。'); } }
   if(k==='armoroil'){ body.flags.oiled=1; say('gain','喝下守護之藥。'+(inCombat?'這一場':'下一場')+'防禦加倍。'); }
-  if(k==='torch'){ body.flags.torch=1; say('gain','灑下聖水。魔物不敢靠近，下一次探索不會遇敵。'); }
+  if(k==='torch'){ body.flags.torch=1; say('gain','灑下聖水。探索時下一次遇到魔物，牠不會發現你。'); }
   if(k==='elixir'){ if(sysIs('ancestor')){ body.items[k]++; say('info','你不會老。這瓶留著吧。'); return; } body.age=Math.max(16,body.age-3); say('gain','年齡 −3。'); }
   if(k==='flare'){ body.items[k]++; say('info','這是魔物潮的時候用的。'); return; }
   if(k==='hpot'){ const h=Math.round(body.hpMax*.5); body.hp=Math.min(body.hpMax,body.hp+h); say('gain','藥水：HP +'+h+'（'+body.hp+'/'+body.hpMax+'）'); }
@@ -748,6 +754,7 @@ function gearMenu(){
   const held=Object.keys(ITEMS).filter(k=>itemN(k)>0);
   held.forEach(k=>{ const it=ITEMS[k]; o.push({t:it.n+' ×'+itemN(k)+'：'+it.d+(it.out?'':'（戰鬥中才能用）'), dis:!it.out, f:()=>{ useItem(k); if(!it.menu) gearMenu(); }}); });
   if(!held.length) o.push({t:'（道具袋是空的）', dis:true, f:()=>{}});
+  o.push({t:'自動使用設定（維持 Buff）', f:autoUseMenu});
   o.push({t:'整理背包（'+load()+' / '+capOf()+' 格，丟掉用不到的東西）', f:()=>packMenu(gearMenu)});
   o.push({t:'返回', f:back});
   o.wok=1;
@@ -1370,7 +1377,7 @@ function dimBuyPerm(k){ body.dim=body.dim||{}; const D=DIMP[k]; body.dim[k]=1;
   else if(k==='hylian') giveAcc('hylian');
   else say('gain','獲得'+D.n+'。'+D.d.replace(/【[^】]*】/g,'')); }
 /* ---------- 時光機：重大劇情發生前自動記下節點 ---------- */
-const TM_KEEP=['level','xp','gold','cores','items','weapons','wpn','armors','arm','armorPlus','armor','accs','acc','bags','capBonus','freePts','pts','ptsV','statAdd','eaten','evolved','home','dim','dbBought','dbHave','balls','revive','floor','maxFloor','job','hpMax','hp','herbs','pelts','relics','ore','grain','salt','timber','fish','ink','coal','worldleaf','frostcrystal','pearl','starmetal','over','mode','autoAct','autoSkill','autoHunt','stopHp','idleArmed','tm'];
+const TM_KEEP=['level','xp','gold','cores','items','weapons','wpn','armors','arm','armorPlus','armor','accs','acc','bags','capBonus','freePts','pts','ptsV','statAdd','eaten','evolved','home','dim','dbBought','dbHave','balls','revive','floor','maxFloor','job','hpMax','hp','herbs','pelts','relics','ore','grain','salt','timber','fish','ink','coal','worldleaf','frostcrystal','pearl','starmetal','over','mode','autoAct','autoSkill','autoUse','autoHunt','stopHp','idleArmed','tm'];
 const TM_KEEP_FLAGS=['owned','seen','killed','rareFound','terrain','used','grind','wisteria','metalNext','whet','oiled','torch','rift10'];
 function tmSave(id,label){ if(!body) return; const snap=JSON.parse(JSON.stringify(body,(k,v)=>(k==='tm'||k==='daySnap')?undefined:v)); body.tm=body.tm||{}; body.tm[id]={label,day:body.day,snap}; }
 function tmRestore(id){ const t=body.tm&&body.tm[id]; if(!t) return false; const cur=body; const nb=JSON.parse(JSON.stringify(t.snap));
@@ -2146,6 +2153,7 @@ function tripStepText(){ const T=body.trip; return '第 '+Math.min(T.step+1,T.ma
 function tripStart(r){
   const d=regionDepthOf(r); spendDay('探索',true);
   body.trip={r, d, day:body.day, step:0, max:2+d, path:'', prev:null, rareUsed:false, loot:{}, met:{}};
+  { const f=body.flags; if(!((f.wisteria|0)>0)&&autoTake('wisteria','你掛上一包紫藤花香包。')) f.wisteria=3; if(!f.nextBamboo&&autoTake('bamboo','你戴上竹蜻蜓。')) f.nextBamboo=1; if(!f.nextChocobo&&autoTake('chocobo','你吹響陸行鳥哨子。')) f.nextChocobo=1; if(!f.nextMap&&autoTake('map','你攤開劫盜地圖。')) f.nextMap=1; }
   { const T=body.trip, f=body.flags; if(f.nextBamboo){ T.bamboo=1; f.nextBamboo=0; say('gain','竹蜻蜓：這一趟每一步可以多拿一個採集點。'); } if(f.nextChocobo){ T.max+=3; f.nextChocobo=0; say('gain','陸行鳥跟在你身邊：這一趟多走 3 步。'); } if(f.nextMap){ T.map=1; f.nextMap=0; say('gain','劫盜地圖在你手裡展開。'); } }
   if(!body.regionFlags['triphint_'+r]){ body.regionFlags['triphint_'+r]=1; say('npc',TRIP[r].hint); }
   say('narr','你往'+REGIONS[r].depths[d-1]+'裡走。這一趟走 '+body.trip.max+' 步。');
@@ -2184,6 +2192,7 @@ function tripPick(c,i){ const T=body.trip; const d=T.d; const R=REGIONS[T.r]; co
     else if(k) say('narr',(k==='fire'?'熱氣':'寒氣')+'碰不到你。'); }
   const cont=()=>{ status();
   if(chance(c.fight||R.threat*.4)){ const mm=regionMon(T.r), lv=REGION_LV[T.r][d-1];
+    if(!((body.flags.wisteria|0)>0)&&!body.flags.torch&&autoTake('torch','你灑下聖水。')) body.flags.torch=1;
     /* 沒被發現：你看見牠，牠沒看見你。可以突襲（你先手），也可以悄悄走開 */
     const hid=(body.flags.wisteria|0)>0?'紫藤花的香味蓋住了你的氣息。':body.flags.torch?(body.flags.torch=0,'聖水的氣味還在你身上，魔物不想靠近。'):((aDef(eqA()).quiet||job().quiet)&&chance(.3))?'你壓低身子，貼著陰影走。':chance(.3*eatF('governor'))?'你的腳步沒有聲音，像影子一樣。':'';
     if(hid){ say('narr',hid+'前面有一隻'+mm.n+'，牠還沒發現你。'); setOptions([{t:'突襲'+mm.n+'（你先手）', ab:1, f:()=>{ say('narr','你從牠背後撲上去。'); ambushNext=1; body.tripFight=1; encounter(mm,lv); }},{t:'悄悄走開', f:()=>{ say('narr','你繞開了牠。'); tripEvent(); }}],'探索　'+tripStepText(),true); return; }
@@ -2848,6 +2857,8 @@ function encounter(force,lv,ret){
   shFight=shDeployed().map(k=>({k,hp:shMeta(k).hp})); body.shield=ssr('shield')?Math.round(body.hpMax*Math.min(.9,.1*ssrF('shield'))):0;
   mon=m; inCombat=true; guard=false; turnNo=0; execUsed=false; monSkip=false; pending=null; casting=null; skillCD=0; ready=false; body.blessFight=!!body.flags.blessed; body.flags.blessed=0; if(!body.mode||!modeList().includes(body.mode)) body.mode='attack';
   say('title',m.n+'出現了！'+(body.floor>1&&!force?'（第 '+body.floor+' 層）':''));
+  if(!body.flags.whet&&autoTake('whet','你喝下力量之藥。這一場攻擊力 ×1.5。')) body.flags.whet=1;
+  if(!body.flags.oiled&&autoTake('armoroil','你喝下守護之藥。這一場防禦加倍。')) body.flags.oiled=1;
   body.flags.seen=body.flags.seen||{}; if(!body.flags.seen[m.key]&&m.desc){ body.flags.seen[m.key]=1; say('narr',m.desc); }
   const seeStats=sysIs('omni')||sysIs('panel')||dimHas('scouter');
   say('combat',m.n+'｜Lv '+m.lv+'｜HP '+fmt(m.hp)+'｜攻速 '+mInterval(m).toFixed(1)+' 秒'+(seeStats?'｜攻擊力 '+m.atk+'｜防禦力 '+m.def:'')+((sysIs('omni')||dimHas('scouter')||dejaKnown(m))?'｜<span class="reveal w">'+(dejaKnown(m)&&!sysIs('omni')?'既視感・':'')+'弱點：'+m.weak+'</span>':''));
