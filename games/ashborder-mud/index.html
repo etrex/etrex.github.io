@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.60.2';
+const VERSION='2.60.3';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -1080,7 +1080,7 @@ function setOptions(list,hint,noExtras){
 /* ===== 數量交易：可重複的買賣都能輸入數量（一次性的裝備與劇情物品除外） ===== */
 function qtyMenu(q){
   const max=Math.max(0,Math.floor(q.max||0)); const unit=q.unit||'個';
-  const run=n=>{ n=Math.floor(Number(n)||0); if(n<1||n>max){ say('info','數量要在 1 到 '+max+' 之間。'); qtyMenu(q); return; } q.f(n); status(); q.back(); };
+  const run=n=>{ n=Math.floor(Number(n)||0); if(n<1||n>max){ say('info',max<1?'現在連 1 '+unit+'都不夠。':'數量要在 1 到 '+max+' 之間。'); qtyMenu(q); return; } q.f(n); status(); q.back(); };
   const o=[];
   [1,10,100,1000].filter(n=>n<max).forEach(n=>o.push({t:n+' '+unit+'（'+q.cost(n)+'）', f:()=>run(n)}));
   if(max>=1) o.push({t:'全部 '+max+' '+unit+'（'+q.cost(max)+'）', f:()=>run(max)});
@@ -1175,12 +1175,14 @@ function enhType(t,k){ return t==='C'?ACCS[k].slot:t; }
 function enhCost(t,k,n){ return Math.round(ENH_BASE[enhType(t,k)]*Math.pow(1.15,n)); }
 function enhCore(t,k,tier){ return (SHARP[tier].core?1:0)+(t==='C'&&/neck|ring/.test(ACCS[k].slot)?1:0); }
 function enhMax(t,k,inst,tier){ const T=SHARP[tier]; const n=inst.sharp||0, c1=enhCore(t,k,tier); let g=body.gold, c=body.cores, m=0; while(n+m<T.cap&&m<1000){ const cost=enhCost(t,k,n+m); if(cost>g||c1>c) break; g-=cost; c-=c1; m++; } return m; }
+function enhLack(t,k,n,c1){ const g=body.gold<enhCost(t,k,n), c=body.cores<c1; return g&&c?'（金幣、裂谷核不夠）':g?'（金幣不夠）':'（裂谷核不夠）'; }
 function enhName(t,k){ return t==='W'?WEAPONS[k].n:t==='A'?ARMORS[k].n:ACCS[k].n; }
 function enhMenu(tier,back){ const T=SHARP[tier]; const o=[]; const seen={};
   const add=(t,inst,where)=>{ const k=inst.key; const def=t==='W'?WEAPONS[k]:t==='A'?ARMORS[k]:ACCS[k]; if(!def) return; const n=inst.sharp||0; const g=t+':'+k+':'+n; if(seen[g]){ seen[g].c++; return; } const row={c:1}; seen[g]=row; const nm=enhName(t,k);
     if(n>=T.cap){ o.push({t:()=>'（'+nm+' +'+n+(row.c>1?' ×'+row.c:'')+'：'+T.who+'做不上去了，去找'+T.hint+'）', f:()=>{ sharpDone(tier); enhMenu(tier,back); }}); return; }
     const c1=enhCore(t,k,tier);
-    o.push({t:()=>(where?where+' ':'')+'強化 '+nm+' +'+n+(row.c>1?' ×'+row.c:'')+'（下一次 '+fmt(enhCost(t,k,n))+' 金'+(c1?'、裂谷核 '+c1:'')+'；每級 '+ENH_EFF[enhType(t,k)]+'）', f:()=>{ const m=enhMax(t,k,inst,tier);
+    o.push({t:()=>(where?where+' ':'')+'強化 '+nm+' +'+n+(row.c>1?' ×'+row.c:'')+'（下一次 '+fmt(enhCost(t,k,n))+' 金'+(c1?'、裂谷核 '+c1:'')+'；每級 '+ENH_EFF[enhType(t,k)]+'）'+(enhMax(t,k,inst,tier)<1?'　'+enhLack(t,k,n,c1):''), f:()=>{ const m=enhMax(t,k,inst,tier);
+      if(m<1){ say('info','強化 '+nm+' 下一級要 '+fmt(enhCost(t,k,n))+' 金'+(c1?'、裂谷核 '+c1:'')+'，你身上只有 '+fmt(body.gold)+' 金'+(c1?'、裂谷核 '+fmt(body.cores):'')+'。'); enhMenu(tier,back); return; }
       qtyMenu({title:'強化 '+nm+'（現在 +'+n+'）', unit:'級', max:m, cost:q=>{ let s=0; for(let i=0;i<q;i++) s+=enhCost(t,k,n+i); return fmt(s)+' 金'+(c1?'、裂谷核 '+c1*q:'')+'，到 +'+(n+q); }, note:'每強化一次，下一次貴一成五。'+(T.cap<Infinity?T.who+'最多做到 +'+T.cap+'。':'古爐沒有頂。'),
         f:q=>{ let s=0; for(let i=0;i<q;i++) s+=enhCost(t,k,n+i); body.gold-=s; body.cores-=c1*q; inst.sharp=n+q; say('gain',nm+' 強化到 +'+inst.sharp+'。攻擊 '+fmt(atkNow())+'，防禦 '+fmt(defNow())); if(inst.sharp>=T.cap) sharpDone(tier); }, back:()=>enhMenu(tier,back)}); }}); };
   (body.weapons||[]).forEach((w,i)=>add('W',w,i===body.wpn?'●':''));
