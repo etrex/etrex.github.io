@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.60.6';
+const VERSION='2.60.7';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -358,7 +358,7 @@ const SYSTEMS={
     {n:'肌肉記憶', d:()=>'每擊殺一隻，攻擊力永久 + 能力總和 ÷ 100（至少 1，目前 +'+(body?chU():1)+'）。離線狩獵也算。每 18 秒一次，沒有每日上限（'+growInfo('idle')+'）。'}]},
   forge:{name:'煉化系統', skills:[
     {n:'煉化', d:()=>'把裂谷核煉進身上的一件裝備，強化 +1：武器、防具、鞋子、手套 5 枚；項鍊、戒指 '+FORGE_JEWEL+' 枚（每級效果 +10%）。每 18 秒一次，沒有每日上限（'+growInfo('forge')+'）。'},
-    {n:'自煉', d:()=>'不用跑神殿或熔淵古爐，隨時自己提煉：裂谷核 '+CC_FORGE+' → 核晶 1（免金幣），核晶 '+SC_FORGE+' → 魂晶 1。到神殿、古爐也照這個價。'},
+    {n:'自煉', d:()=>'不用跑神殿或熔淵古爐，隨時自己提煉：裂谷核 '+CC_FORGE+' → 核晶 1（免金幣），核晶 '+SC_FORGE+' → 魂晶 1（免金幣）。到神殿、古爐也照這個價。'},
     {n:'器靈', d:()=>'每煉化 5 次，器靈覺醒一次：攻擊力永久 + 能力總和 ÷ 100（至少 1，目前 +'+(body?chU():1)+'；累積 +'+forgeAtk()+'）。'}]},
   trader:{name:'萬物交易系統', skills:[
     {n:'行情', d:()=>'所有交換管道和每個地方的存量對你透明。別人只看得出「缺貨」「貨很多」，你看得到數字。'},
@@ -964,11 +964,11 @@ function meditate(days,back){ if(!growReady('ancestor')){ say('info','閉關要�
 const FORGE_JEWEL=50;
 const CC_FORGE=50, SC_FORGE=50;
 function ccCost(){ return sysIs('forge')?{c:CC_FORGE,g:0}:{c:100,g:1000}; }
-function scCost(){ return sysIs('forge')?SC_FORGE:100; }
+function scCost(){ return sysIs('forge')?{c:SC_FORGE,g:0}:{c:100,g:100000}; }
 function refineCC(back,where){ const k=ccCost(); const n=Math.min(Math.floor(body.cores/k.c),k.g?Math.floor(body.gold/k.g):Infinity,craftMax(WT.corecrystal,k.c*WT.cores));
   return {t:where+'（裂谷核 '+k.c+(k.g?'、'+fmt(k.g)+' 金':'')+' → 核晶 1）', ab:1, dis:n<1, f:()=>qtyMenu({title:'提煉核晶', unit:'顆', max:n, cost:q=>'裂谷核 −'+fmt(q*k.c)+(k.g?'、'+fmt(q*k.g)+' 金':''), f:q=>{ body.cores-=q*k.c; body.gold-=q*k.g; craftRes('corecrystal',q); say('gain',fmt(q*k.c)+' 枚裂谷核壓成 '+q+' 顆核晶。不燙了，沉甸甸的。'); }, back})}; }
-function refineSC(back,where){ const c=scCost(); const n=Math.min(Math.floor((body.corecrystal|0)/c),craftMax(WT.soulcrystal,c*WT.corecrystal));
-  return {t:where+'（核晶 '+c+' → 魂晶 1，持有核晶 '+fmt(body.corecrystal|0)+'）', ab:1, dis:n<1, f:()=>qtyMenu({title:'提煉魂晶', unit:'顆', max:n, cost:q=>'核晶 −'+fmt(q*c), f:q=>{ body.corecrystal-=q*c; craftRes('soulcrystal',q); say('gain',fmt(q*c)+' 顆核晶化成 '+q+' 顆魂晶。魂晶在你手心裡是涼的。'); }, back})}; }
+function refineSC(back,where){ const {c,g}=scCost(); const n=Math.min(Math.floor((body.corecrystal|0)/c),g?Math.floor(body.gold/g):Infinity,craftMax(WT.soulcrystal,c*WT.corecrystal));
+  return {t:where+'（核晶 '+c+(g?'、'+fmt(g)+' 金':'')+' → 魂晶 1，持有核晶 '+fmt(body.corecrystal|0)+'）', ab:1, dis:n<1, f:()=>qtyMenu({title:'提煉魂晶', unit:'顆', max:n, cost:q=>'核晶 −'+fmt(q*c)+(g?'、'+fmt(q*g)+' 金':''), f:q=>{ body.corecrystal-=q*c; body.gold-=q*g; craftRes('soulcrystal',q); say('gain',fmt(q*c)+' 顆核晶化成 '+q+' 顆魂晶。魂晶在你手心裡是涼的。'); }, back})}; }
 function forgeAtk(){ if(!sysIs('forge')) return 0; if(soul.forgeAtkN===undefined) soul.forgeAtkN=Math.floor((soul.forges|0)/5); return soul.forgeAtkN; }
 function forgeCD(){ return gearOn('heartham')?GROW_CD/2:GROW_CD; }
 function forgeMenu(back){ const L=[]; const W=eqW(), A=eqA(); L.push({n:wDef(W).n,x:W,c:5,t:'武器'}); L.push({n:aDef(A).n,x:A,c:5,t:'防具'}); accWornInst().forEach(x=>{ const D=ACCS[x.key]; if(D) L.push({n:D.n,x,c:(D.slot==='neck'||D.slot==='ring')?FORGE_JEWEL:5,t:ASLOT[D.slot]}); });
