@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.61.0';
+const VERSION='2.62.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -307,9 +307,9 @@ const SYSTEMS={
     {n:'越級挑戰', d:()=>'擊殺等級比你高的敵人，經驗再 ×5（合計 ×25）。裂谷的魔物最高 Lv 50，過了 50 級就只剩 ×5。'},
     {n:'鍛骨', d:()=>'每擊殺一隻，HP 上限永久 + 能力總和 ÷ 100（至少 1，目前 +'+(body?chU():1)+'）。每 18 秒一次，沒有每日上限（'+growInfo('infinite')+'）。'}]},
   shadow:{name:'影之君主系統', skills:[
-    {n:'影子抽取', d:()=>'殺死的敵人有三分之一的機會變成你的影子，影子軍團沒有上限。影子就是那隻魔物：HP、攻擊、防禦、攻速都跟牠當魔物時一樣（看牠被你殺的時候是幾級）。你每次行動，影子們跟著出手。'+(body?'目前軍團 '+shTotal()+' 個，出戰 '+shDeployed().length+' 個'+(shDeployed().length?'，最強的是'+shLabel(shDeployed()[0])+'（Lv '+shMeta(shDeployed()[0]).lv+'，HP '+fmt(shMeta(shDeployed()[0]).hp)+'、攻擊 '+fmt(shMeta(shDeployed()[0]).atk)+'）':'')+'。':'')},
-    {n:'意志', d:()=>'影子不是用力氣使喚的，是用意志維繫。同時出戰的影子數 = 智力 ÷ 5 ＋ 影縛之環（目前 '+(body?shDeployN():0)+' 個'+(body&&shRingF()>0?'，其中影縛之環 +'+shRingN()+'（'+(Math.round(shRingF()*100)/100)+'）':'')+'），派出的是最強的那幾個。'},
-    {n:'影衛', d:()=>'魔物出手時，每個出戰的影子各自有 2% 的機會跳出來擋，可能好幾個一起擋。跳出來的影子吃下整擊，弱的在前，各自用牠當魔物時的 HP 和防禦去扛。被打不一定會散，HP 歸零才散掉，擋不完的才打到你。散掉的影子這場戰鬥不再出手，打完就回來。'},
+    {n:'影子抽取', d:()=>'殺死的敵人有三分之一的機會變成你的影子，影子軍團沒有上限。影子就是那隻魔物：HP、攻擊、防禦、攻速都跟牠當魔物時一樣（看牠被你殺的時候是幾級）。你每次行動時結算影子這段時間的出手：每隻照牠自己的攻速算打了幾下，所以影子的每秒傷害只看牠的攻擊 ÷ 攻速，跟你的攻速無關。'+(body?'目前軍團 '+shTotal()+' 個，出戰 '+shDeployed().length+' 個'+(shDeployed().length?'，排第一的是'+shLabel(shDeployed()[0])+'（Lv '+shMeta(shDeployed()[0]).lv+'，HP '+fmt(shMeta(shDeployed()[0]).hp)+'、攻擊 '+fmt(shMeta(shDeployed()[0]).atk)+'）':'')+'。':'')},
+    {n:'意志', d:()=>'影子不是用力氣使喚的，是用意志維繫。同時出戰的影子數 = 智力 ÷ 5 ＋ 影縛之環（目前 '+(body?shDeployN():0)+' 個'+(body&&shRingF()>0?'，其中影縛之環 +'+shRingN()+'（'+(Math.round(shRingF()*100)/100)+'）':'')+'），派哪幾隻看出戰策略（目前「'+SH_STRAT[shStrat()][0]+'」：'+SH_STRAT[shStrat()][1]+'），在戰鬥外調整。'},
+    {n:'影衛', d:()=>'魔物出手時，每個出戰的影子各自有 2% 的機會跳出來擋（命令「護主」時影子不出手，改成 20%；戰鬥中可以隨時改命令），可能好幾個一起擋。跳出來的影子吃下整擊，弱的在前，各自用牠當魔物時的 HP 和防禦去扛。被打不一定會散，HP 歸零才散掉，擋不完的才打到你。散掉的影子這場戰鬥不再出手，打完就回來。'},
     {n:'影之鍛', d:()=>'每持有一個影子，攻擊力永久 +1（目前 +'+shForge()+'）。'},
     {n:'每日任務', d:()=>{ const q=shq(); return '每現實日：擊殺 5、50、200 隻各領一次獎勵，看你的能力總和。今日擊殺 '+q.k+'。'+(body?'獎勵：5 隻 '+fmt(chGoldUnit()*20)+' 金與 '+Math.floor(ciS()/20)+' 核；50 隻 '+fmt(chGoldUnit()*150)+' 金與 '+Math.floor(ciS()/20)*3+' 核；200 隻 '+fmt(chGoldUnit()*500)+' 金與 '+Math.floor(ciS()/20)*10+' 核。':''); }},
     {n:'君主的軍勢', d:()=>'影子是靈魂的東西：轉生後不管締結什麼系統，影子軍團都跟著你出手，只是不再增加。可開啟連續狩獵：影子會替你找下一個獵物。'}]},
@@ -908,6 +908,16 @@ function shMeta(k){ const M=soul.shadowMeta||(soul.shadowMeta={}); if(M[k]&&M[k]
   const [key,l]=k.split('@'); const d=key==='king'?KING:key==='_old'?MONSTERS[0]:MONSTERS.find(x=>x.key===key)||MONSTERS[0];
   const L=Number(l)||d.lvl||1; const st=monStats(d,L); return M[k]={n:key==='_old'?'無名':((M[k]&&M[k].n)||d.n),lv:L,hp:st.hp,atk:st.atk,def:st.def,iv:d.iv||2}; }
 function shScore(k){ const m=shMeta(k); return m.atk/m.iv*m.hp; }
+/* 出戰策略（戰鬥外選，決定派哪幾隻）與命令（戰鬥中可改：進攻或護主） */
+const SH_STRAT={all:['綜合','攻擊 ÷ 攻速 × HP'],dps:['輸出','攻擊 ÷ 攻速'],tank:['肉盾','HP ×（防禦 + 1）']};
+function shStrat(){ return SH_STRAT[soul.shStrat]?soul.shStrat:'all'; }
+function shPick(k){ const m=shMeta(k), s=shStrat(); return s==='dps'?m.atk/m.iv:s==='tank'?m.hp*(m.def+1):shScore(k); }
+function shGuarding(){ return soul.shStance==='guard'; }
+function shArmyMenu(back){ const d=shDeployed();
+  const o=Object.keys(SH_STRAT).map(k=>({t:(shStrat()===k?'● ':'○ ')+'出戰策略：'+SH_STRAT[k][0]+'（'+SH_STRAT[k][1]+'）', ab:shStrat()===k, f:()=>{ soul.shStrat=k; save(); shArmyMenu(back); }}));
+  o.push({t:'命令：'+(shGuarding()?'護主（不出手，每隻 20% 跳出來擋）→ 改成進攻':'進攻（合擊，每隻 2% 跳出來擋）→ 改成護主'), f:()=>{ soul.shStance=shGuarding()?'atk':'guard'; save(); shArmyMenu(back); }});
+  o.push({t:'返回', f:back});
+  setOptions(o,'影子軍團 '+fmt(shTotal())+' 個，出戰 '+d.length+' 個：'+(d.length?shLabels(d):'—'),true); }
 function shName(k){ return shMeta(k).n; }
 function shLabel(k){ const n=shName(k); return /影子$/.test(n)?n:n+'的影子'; }
 function shLabels(ks){ const c={}; ks.forEach(k=>{ const n=shLabel(k); c[n]=(c[n]|0)+1; }); return Object.keys(c).map(n=>n+(c[n]>1?'（'+c[n]+' 個）':'')).join('、'); }
@@ -916,12 +926,12 @@ function shTotal(){ const b=shBag(); let n=0; for(const k in b) n+=b[k]; return 
 function shRingF(){ return body?accWornInst().filter(x=>x.key==='shadowbind').reduce((a,x)=>a+1+0.1*(x.sharp||0),0):0; }
 function shRingN(){ return Math.floor(shRingF()+1e-9); }
 function shDeployN(){ return body?Math.floor(stats().int/5)+shRingN():0; }
-function shDeployed(){ const b=shBag(); const ks=Object.keys(b).filter(k=>b[k]>0).sort((x,y)=>shScore(y)-shScore(x)); const out=[]; let N=shDeployN(); for(const k of ks){ for(let i=0;i<b[k]&&N>0;i++,N--) out.push(k); if(N<=0) break; } return out; }
+function shDeployed(){ const b=shBag(); const ks=Object.keys(b).filter(k=>b[k]>0).sort((x,y)=>shPick(y)-shPick(x)); const out=[]; let N=shDeployN(); for(const k of ks){ for(let i=0;i<b[k]&&N>0;i++,N--) out.push(k); if(N<=0) break; } return out; }
 /* 影子出手：每次你行動，每個影子打出牠當魔物時的傷害（魔物傷害公式：攻擊² ÷（攻擊 + 對方防禦）），再乘上這段時間牠能出手幾次（你的攻擊間隔 ÷ 牠的攻速）。 */
 function shDmgOf(list,D){ if(!body||!list.length) return 0; const T=pInterval(); return Math.max(1,Math.round(list.reduce((t,x)=>{ const m=shMeta(typeof x==='string'?x:x.k); return t+monDamage(m.atk*(0.85+Math.random()*.3),D||0)*T/m.iv; },0))); }
 /* 影衛：每個出戰影子獨立 2% 跳出來，一起吃下這一擊（弱的在前），每個影子用自己的 HP 和防禦去扛，HP 歸零才散。
    raw 是魔物這一擊的原始攻擊；回傳還有多少比例打到你身上。 */
-function shGuard(raw){ const g=shFight.filter(()=>chance(.02)); if(!g.length) return 1; g.sort((x,y)=>shScore(x.k)-shScore(y.k));
+function shGuard(raw){ const g=shFight.filter(()=>chance(shGuarding()?.2:.02)); if(!g.length) return 1; g.sort((x,y)=>shScore(x.k)-shScore(y.k));
   const names=shLabels(g.map(x=>x.k)); let left=raw, took=0, dead=[];
   for(const x of g){ if(left<=0) break; const m=shMeta(x.k); const dmg=monDamage(left,m.def); if(dmg<=x.hp){ x.hp-=Math.round(dmg); took+=dmg; left=0; } else { took+=x.hp; left*=1-x.hp/dmg; x.hp=0; dead.push(x); } }
   shFight=shFight.filter(x=>x.hp>0);
@@ -1414,6 +1424,7 @@ function peek(n){
   if(m.ex&&!body.facts['ex_'+m.ex]){ body.facts['ex_'+m.ex]=1; const e=EXCH.find(x=>x.id===m.ex); if(e) say('gain','情報：'+e.text); }
 }
 function townExtras(o,back){
+  if(shTotal()>0) o.push({t:'影子軍團（'+fmt(shTotal())+' 個｜出戰 '+shDeployN()+'｜'+SH_STRAT[shStrat()][0]+'｜'+(shGuarding()?'護主':'進攻')+'）', ab:1, f:()=>shArmyMenu(back)});
   if(sysIs('checkin')){ const t=timed('checkin'); const n=ciDay(); o.unshift({t:'簽到（第 '+n+' 天：'+fmt(ciGold(n))+' 金、'+ciCores(n)+' 核、攻擊力 +'+ciAtk(n)+'）'+tlabel('checkin'), ab:1, dis:t.left<=0, f:()=>{ useTimed('checkin'); doCheckin(); back(); }}); }
   if(sysIs('choice')){ o.unshift({t:'神級選擇（'+growInfo('choice',GROW_CD,Infinity)+'）', ab:1, dis:!growReady('choice',GROW_CD,Infinity), f:()=>choiceMenu(back)}); }
   if(sysIs('shop')){ o.unshift({t:'打開系統商城（積分 '+soul.points+'）', ab:1, f:()=>shopMenu(back)}); }
@@ -2945,7 +2956,7 @@ let skillCD=0;
 function jobSkill(){ return JSKILL[(body&&body.job)||'swordsman']||JSKILL.swordsman; }
 function skillReady(){ return skillCD<=0; }
 /* 影子跟著你出手：普通行動和技能都算 */
-function shAct(){ if(shFight.length&&mon){ const d=shDmgOf(shFight,mon.def); mon.hp-=d; say('combat','影子軍團（'+shFight.length+'）合擊：'+fmt(d)+' 傷害。'); } }
+function shAct(){ if(shFight.length&&mon&&!shGuarding()){ const d=shDmgOf(shFight,mon.def); mon.hp-=d; say('combat','影子軍團（'+shFight.length+'）合擊：'+fmt(d)+' 傷害。'); } }
 function doSkill(){ const S=jobSkill(); skillCD=S.cd-(S.id==='cleave'&&gearOn('cleaveguard')?3:0); turnNo++; let tot=0;
   shAct(); if(mon.hp<=0){ win(); return; }
   const hit=(mul,ignDef)=>{ const d=Math.max(1,Math.round(playerAtk()*mul-(ignDef===true?0:mon.def*(ignDef||1)))); mon.hp-=d; tot+=d; return d; };
@@ -3040,6 +3051,7 @@ function renderCombat(){
   if(!mon.duel&&dimHas('estus')&&(fx.estus|0)<3) o.push({t:'喝原素瓶（這場還能喝 '+(3-(fx.estus|0))+' 次，回 40% HP，0 秒）', ab:1, keep:true, f:()=>{ fx.estus=(fx.estus|0)+1; const h=Math.round(body.hpMax*.4); body.hp=Math.min(body.hpMax,body.hp+h); say('gain','你喝下原素瓶。火在胸口燒起來。HP +'+fmt(h)+'。'); status(); renderCombat(); }});
   Object.keys(ITEMS).filter(k=>!mon.duel&&ITEMS[k].fight&&itemN(k)>0).forEach(k=>o.push({t:(pending==='item:'+k?'● ':'')+'用'+ITEMS[k].n+' ×'+itemN(k)+'（'+(ITEMS[k].dim?'0':itemT(k).toFixed(1))+' 秒）：'+ITEMS[k].d, ab:!!ITEMS[k].dim, keep:true, f:()=>fightItem(k)}));
   if(ssr('exec')&&(execUsed|0)<Math.floor(ssrF('exec'))&&!isKing(mon)) o.push({t:'秒殺（SSR，這場還有 '+(Math.floor(ssrF('exec'))-(execUsed|0))+' 次）', ab:1, keep:true, f:()=>{ execUsed=(execUsed|0)+1; mon.hp=0; say('combat','一劍。'+mon.n+'還沒明白發生什麼事。'); win(); }});
+  if(shFight.length) o.push({t:'命令影子（'+shFight.length+' 個）：'+(shGuarding()?'● 護主，改成進攻':'● 進攻，改成護主'), keep:true, f:()=>{ soul.shStance=shGuarding()?'atk':'guard'; say('info',shGuarding()?'你低聲下令。影子們收起刀，貼到你身邊。':'你一揮手。影子們撲了出去。'); renderCombat(); save(); }});
   o.push({t:(body.autoAct?'● ':'○ ')+'自動行動（輪到你時自動重複上一次）', keep:true, f:()=>{ body.autoAct=!body.autoAct; if(body.autoAct&&ready){ ready=false; lastTick=Date.now(); playerAct(); if(inCombat) pT=pInterval(); } renderCombat(); save(); }});
   o.push({t:(body.autoSkill!==false?'● ':'○ ')+'自動行動時使用技能（'+jobSkill().n+'冷卻好了就放）', keep:true, f:()=>{ body.autoSkill=body.autoSkill===false; renderCombat(); save(); }});
   if(canChain()) o.push({t:(body.autoHunt?'● ':'○ ')+'連續狩獵（打完自動下一隻）', keep:true, f:()=>{ body.autoHunt=!body.autoHunt; renderCombat(); save(); }});
