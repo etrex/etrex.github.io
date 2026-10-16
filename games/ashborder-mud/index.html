@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.60.5';
+const VERSION='2.60.6';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -702,8 +702,8 @@ function ringSynthMenu(back){ const o=Object.keys(RING_RECIPE).map(r=>{ const R=
     body[R.mat]-=5; body.soulcrystal-=1; say('narr','五件'+ACCS[R.base].n+'在古爐裡熔成一灘光。你把魂晶丟進去，光縮成一個圈。'); giveAcc(r); worldEvent(soul.name+' 在熔淵古爐合成了「'+ACCS[r].n+'」'); status(); ringSynthMenu(back); }}; });
   o.push({t:'不合成了', f:back}); setOptions(o,'熔淵古爐　屬性戒指＝基底飾品 ×5（背包或倉庫裡多的，身上穿的不算）＋同款稀有素材 ×5＋魂晶 ×1',true); }
 function crystalMenu(back){
-  setOptions([refineSC(()=>crystalMenu(back),'提煉魂晶'),
-    {t:'合成屬性戒指', ab:1, f:()=>ringSynthMenu(()=>crystalMenu(back))},{t:'找爐守打造職業專屬裝備', ab:1, f:()=>forgeMaster(()=>crystalMenu(back))},{t:'離開古爐', f:back}],'熔淵古爐　核晶 '+fmt(body.corecrystal|0)+'｜魂晶 '+(body.soulcrystal|0),true); }
+  setOptions([refineCC(()=>crystalMenu(back),'提煉核晶'),refineSC(()=>crystalMenu(back),'提煉魂晶'),
+    {t:'合成屬性戒指', ab:1, f:()=>ringSynthMenu(()=>crystalMenu(back))},{t:'找爐守打造職業專屬裝備', ab:1, f:()=>forgeMaster(()=>crystalMenu(back))},{t:'離開古爐', f:back}],'熔淵古爐　裂谷核 '+fmt(body.cores)+'｜核晶 '+fmt(body.corecrystal|0)+'｜魂晶 '+(body.soulcrystal|0),true); }
 /* 專屬裝備：系統專屬的效果在哪個系統都算（影子、經驗、先手率到處有用；積分、閉關這類只在那個系統才有東西可加），職業專屬要對應職業才有效 */
 function gearOn(id){ if(!body) return 0; if(ARMORS[id]) return eqA().key===id?1:0; const D=ACCS[id]; if(!D) return 0; if(D.ownJob&&body.job!==D.ownJob) return 0; return accWorn(id); }
 const SYS_GEAR={shadow:'shadowbind',checkin:'checkinbadge',choice:'choiceeye',gacha:'pitycharm',devour:'gluttonfang',infinite:'leapboots',luck:'toad',shop:'vipcard',panel:'grindgloves',omni:'farsight',reflect:'thornmail',rezero:'memanchor',idle:'autogear',forge:'heartham',trader:'merchscale',ancestor:'cushion'};
@@ -2972,7 +2972,7 @@ N.rift=()=>{ lastNode=N.rift; autoHeal();
   const o=[];
   if(body.floor<TOP_FLOOR) o.push({t:'在這一層狩獵（攻速 '+pInterval().toFixed(1)+' 秒）', f:()=>{ if(envTick()) return; if(!canChain()) body.autoHunt=false; encounter(); }}); else o.push({t:'挑戰裂谷魔王', f:()=>{ if(envTick()) return; body.autoHunt=false; encounter(KING); }});
   envOptions(o,N.rift);
-  if(body.floor===7&&!riftClosed()){ o.push(enhOpt('forge',N.rift,'在熔淵古爐強化裝備')); o.push({t:'熔淵古爐：提煉魂晶、合成屬性戒指、找爐守', ab:1, f:()=>crystalMenu(N.rift)}); }
+  if(body.floor===7&&!riftClosed()){ o.push(enhOpt('forge',N.rift,'在熔淵古爐強化裝備')); o.push({t:'熔淵古爐：提煉核晶與魂晶、合成屬性戒指、找爐守', ab:1, f:()=>crystalMenu(N.rift)}); }
   o.push({t:'安全線 '+Math.round(body.stopHp*100)+'%（切換）', f:()=>{ body.stopHp=({0.5:0.3,0.3:0.1,0.1:0.5})[body.stopHp]||0.3; say('info','安全線設為 '+Math.round(body.stopHp*100)+'%。'+(sysIs('idle')?'離線狩獵也用這條線。':'')); N.rift(); }});
   if(canChain()) o.push({t:(body.autoHunt?'● ':'○ ')+'連續狩獵（'+(sysIs('idle')||sysIs('omni')||sysIs('shadow')?'你的能力':'影子軍團替你找下一隻')+'：打完自動下一隻）', ab:1, f:()=>{ body.autoHunt=!body.autoHunt; save(); N.rift(); }});
   o.push({t:(body.autoAct?'● ':'○ ')+'自動戰鬥（輪到你時重複上一次行動）', f:()=>{ body.autoAct=!body.autoAct; save(); N.rift(); }});
