@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.60.4';
+const VERSION='2.60.5';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -676,7 +676,7 @@ function accHas(st){ return accEq().some(D=>D[st]); }
 function accStat(k){ const D=ACCS[k]; const p=[]; if(D.stat) Object.keys(D.stat).forEach(s=>p.push(STAT_N[s]+' +'+D.stat[s])); if(D.atk) p.push('攻擊力 +'+D.atk); if(D.def) p.push('防禦力 +'+D.def); if(D.hp) p.push('HP +'+D.hp); if(D.spd) p.push('攻速 '+(D.spd>0?'+':'')+D.spd.toFixed(1)+' 秒'); return p.join('，'); }
 /* 強化過的飾品：把強化後的實際數值寫出來（desc 是 +0 的說明） */
 function accEffText(inst){ if(!inst||!inst.sharp) return ''; const D=ACCS[inst.key], E=accEff(inst), n=inst.sharp; const pc=x=>(Math.round(x*1000)/10)+'%'; const p=[];
-  if(D.stat) Object.keys(D.stat).forEach(s=>p.push(STAT_N[s]+' +'+Math.floor(D.stat[s]*(1+0.1*n)+1e-9)));
+  if(D.stat) Object.keys(D.stat).forEach(s=>p.push(STAT_N[s]+' +'+(Math.round(D.stat[s]*(1+0.1*n)*100)/100)));
   if(E.atk) p.push('攻擊力 +'+E.atk); if(E.def) p.push('防禦力 +'+E.def); if(E.hp) p.push('HP +'+E.hp); if(E.gold) p.push('擊殺金幣 +'+pc(E.gold)); if(E.crit) p.push('會心 +'+pc(E.crit)); if(E.ward) p.push('受到傷害 −'+pc(E.ward)); if(E.regen) p.push('出手回復 '+pc(E.regen)+' HP'); if(E.dodge) p.push('閃避 +'+pc(E.dodge)); if(E.spd) p.push('攻速 '+(E.spd>0?'+':'')+E.spd.toFixed(2)+' 秒');
   if(E.res) Object.keys(E.res).forEach(r=>p.push((RES_N[r]||r)+(E.res[r]>=1?'免疫':'抗性 '+pc(E.res[r]))));
   return p.length?'〔+'+n+' 實際：'+p.join('，')+'〕':''; }
