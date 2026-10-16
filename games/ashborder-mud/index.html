@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.60.0';
+const VERSION='2.60.1';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -959,10 +959,10 @@ const FORGE_JEWEL=50;
 const CC_FORGE=50, SC_FORGE=50;
 function ccCost(){ return sysIs('forge')?{c:CC_FORGE,g:0}:{c:100,g:1000}; }
 function scCost(){ return sysIs('forge')?SC_FORGE:100; }
-function refineCC(back,where){ const k=ccCost(); const n=Math.min(Math.floor(body.cores/k.c),k.g?Math.floor(body.gold/k.g):Infinity,fitR('corecrystal'));
-  return {t:where+'（裂谷核 '+k.c+(k.g?'、'+fmt(k.g)+' 金':'')+' → 核晶 1）', ab:1, dis:n<1, f:()=>qtyMenu({title:'提煉核晶', unit:'顆', max:n, cost:q=>'裂谷核 −'+fmt(q*k.c)+(k.g?'、'+fmt(q*k.g)+' 金':''), f:q=>{ body.cores-=q*k.c; body.gold-=q*k.g; addRes('corecrystal',q); say('gain',fmt(q*k.c)+' 枚裂谷核壓成 '+q+' 顆核晶。不燙了，沉甸甸的。'); }, back})}; }
-function refineSC(back,where){ const c=scCost(); const n=Math.min(Math.floor((body.corecrystal|0)/c),fitR('soulcrystal'));
-  return {t:where+'（核晶 '+c+' → 魂晶 1，持有核晶 '+fmt(body.corecrystal|0)+'）', ab:1, dis:n<1, f:()=>qtyMenu({title:'提煉魂晶', unit:'顆', max:n, cost:q=>'核晶 −'+fmt(q*c), f:q=>{ body.corecrystal-=q*c; addRes('soulcrystal',q); say('gain',fmt(q*c)+' 顆核晶化成 '+q+' 顆魂晶。魂晶在你手心裡是涼的。'); }, back})}; }
+function refineCC(back,where){ const k=ccCost(); const n=Math.min(Math.floor(body.cores/k.c),k.g?Math.floor(body.gold/k.g):Infinity,craftMax(WT.corecrystal,k.c*WT.cores));
+  return {t:where+'（裂谷核 '+k.c+(k.g?'、'+fmt(k.g)+' 金':'')+' → 核晶 1）', ab:1, dis:n<1, f:()=>qtyMenu({title:'提煉核晶', unit:'顆', max:n, cost:q=>'裂谷核 −'+fmt(q*k.c)+(k.g?'、'+fmt(q*k.g)+' 金':''), f:q=>{ body.cores-=q*k.c; body.gold-=q*k.g; craftRes('corecrystal',q); say('gain',fmt(q*k.c)+' 枚裂谷核壓成 '+q+' 顆核晶。不燙了，沉甸甸的。'); }, back})}; }
+function refineSC(back,where){ const c=scCost(); const n=Math.min(Math.floor((body.corecrystal|0)/c),craftMax(WT.soulcrystal,c*WT.corecrystal));
+  return {t:where+'（核晶 '+c+' → 魂晶 1，持有核晶 '+fmt(body.corecrystal|0)+'）', ab:1, dis:n<1, f:()=>qtyMenu({title:'提煉魂晶', unit:'顆', max:n, cost:q=>'核晶 −'+fmt(q*c), f:q=>{ body.corecrystal-=q*c; craftRes('soulcrystal',q); say('gain',fmt(q*c)+' 顆核晶化成 '+q+' 顆魂晶。魂晶在你手心裡是涼的。'); }, back})}; }
 function forgeAtk(){ if(!sysIs('forge')) return 0; if(soul.forgeAtkN===undefined) soul.forgeAtkN=Math.floor((soul.forges|0)/5); return soul.forgeAtkN; }
 function forgeCD(){ return gearOn('heartham')?GROW_CD/2:GROW_CD; }
 function forgeMenu(back){ const L=[]; const W=eqW(), A=eqA(); L.push({n:wDef(W).n,x:W,c:5,t:'武器'}); L.push({n:aDef(A).n,x:A,c:5,t:'防具'}); accWornInst().forEach(x=>{ const D=ACCS[x.key]; if(D) L.push({n:D.n,x,c:(D.slot==='neck'||D.slot==='ring')?FORGE_JEWEL:5,t:ASLOT[D.slot]}); });
@@ -1836,6 +1836,10 @@ function load(){ return CARRY.reduce((a,k)=>a+(body[k]||0)*WT[k],0)+Object.keys(
 function space(){ return Math.max(0,capOf()-load()); }
 function overNote(){ if(body&&load()>capOf()) say('info','背包超重了（'+load()+' / '+capOf()+'）：撿不了新東西。到住宅存起來、賣給武器店，或在「整理背包」丟掉。'); }
 function fitR(k){ return Math.floor(space()/(WT[k]||1)); }
+/* 製作：材料先扣掉再放成品，所以只看淨增加的格數（變輕的製作滿包、超重也能做） */
+function craftMax(outW,inW){ const net=outW-inW; return net<=0?Infinity:Math.floor(space()/net); }
+function craftRes(k,n){ body[k]=(body[k]|0)+n; body.flags.fullSaid=0; }
+function craftItem(k,n){ body.items=body.items||{}; body.items[k]=(body.items[k]||0)+n; }
 function fitI(k){ return Math.floor(space()/iW(k)); }
 function bagMigrate(){ if(body.bags) return; const old=body.coreCap||30; body.bags={}; body.capBonus=0; let ex=old-30;
   if(body.flags.campBag){ body.bags.cloth=1; ex-=15; } if(body.flags.sonDone){ body.bags.frame=1; ex-=15; }
@@ -2154,7 +2158,7 @@ const REGIONS={
         {t:'請老鐵匠強化裝備（所有裝備，最多 +25）', go:back=>enhMenu('mine',back)},
         {t:'打一把石斧（礦石 5）', req:()=>body.ore>=5, f:()=>{ body.ore-=5; giveWeapon('stoneaxe'); }},
         {t:'打一支鐵槍（礦石 6）', req:()=>body.ore>=6, f:()=>{ body.ore-=6; giveWeapon('ironspear'); }},
-        {t:'打一顆核晶炸彈（核晶 1、炸彈 1：攻擊 ×5 的傷害，無視防禦）', req:()=>(body.corecrystal|0)>=1&&itemN('bomb')>=1, f:()=>{ body.corecrystal--; body.items.bomb--; addItem('cbomb',1); say('gain','核晶炸彈 +1'); }},
+        {t:'打一顆核晶炸彈（核晶 1、炸彈 1：攻擊 ×5 的傷害，無視防禦）', req:()=>(body.corecrystal|0)>=1&&itemN('bomb')>=1&&craftMax(iW('cbomb'),WT.corecrystal+iW('bomb'))>=1, f:()=>{ body.corecrystal--; body.items.bomb--; craftItem('cbomb',1); say('gain','核晶炸彈 +1'); }},
         {t:'打一支雷鳴之槍（礦石 20、星鐵 1，攻擊力 +9、魔力 +12）', req:()=>body.ore>=20&&body.starmetal>=1, f:()=>{ body.ore-=20; body.starmetal-=1; say('npc','老鐵匠把星鐵敲進槍尖，屋頂上響了一聲雷。「這東西有脾氣。」'); giveWeapon('thunderspear'); }},
         {t:'打一把戰斧（礦石 8，攻擊力 +12、攻速慢 0.5 秒）', req:()=>body.ore>=8, f:()=>{ body.ore-=8; giveWeapon('axe'); }},
         {t:'打一把戰鎚（礦石 12）', req:()=>body.ore>=12, f:()=>{ body.ore-=12; giveWeapon('hammer'); }},
@@ -2420,7 +2424,7 @@ N.camp=()=>{ lastNode=N.camp; if(pendingEvent(N.camp)) return;
   if(fact('cure')&&!body.flags.cured) o.push({t:'交出 3 枚裂谷核與北村的灰葉草，請藥婆配藥', ab:1, dis:body.cores<3||!body.flags.northHerb||body.herbs<1, f:()=>{ body.cores-=3; body.herbs--; body.flags.cured=1; story(TXT.camp_brew); say('gain','獲得「萬靈藥」。拿去王座廳。'); status(); N.camp(); }});
   o.push({t:'請藥婆配藥水（2 株灰葉草）', dis:body.herbs<2, f:()=>{ body.herbs-=2; addItem('hpot',1); say('gain','藥水 +1。「草熬的，比市集的乾淨。」'); status(); N.camp(); }});
   if(!body.flags.antidote&&body.maxFloor>=4) o.push({t:'請藥婆配毒消草（5 株灰葉草）', dis:body.herbs<5, f:()=>{ body.herbs-=5; body.flags.antidote=1; say('gain','毒消草。「毒霧那種東西，草比金子有用。」'); status(); N.camp(); }});
-  o.push({t:'請藥婆配核晶藥（核晶 1、灰葉草 5：HP 全滿，這一場受到的傷害 −20%）', dis:(body.corecrystal|0)<1||body.herbs<5, f:()=>qtyMenu({title:'配核晶藥', unit:'瓶', max:Math.min(body.corecrystal|0,Math.floor(body.herbs/5),fitI('cpot')), cost:q=>'核晶 −'+q+'、灰葉草 −'+q*5, f:q=>{ body.corecrystal-=q; body.herbs-=q*5; addItem('cpot',q); say('gain','核晶藥 +'+q); }, back:N.camp})});
+  o.push({t:'請藥婆配核晶藥（核晶 1、灰葉草 5：HP 全滿，這一場受到的傷害 −20%）', dis:(body.corecrystal|0)<1||body.herbs<5, f:()=>qtyMenu({title:'配核晶藥', unit:'瓶', max:Math.min(body.corecrystal|0,Math.floor(body.herbs/5),craftMax(iW('cpot'),WT.corecrystal+5*WT.herbs)), cost:q=>'核晶 −'+q+'、灰葉草 −'+q*5, f:q=>{ body.corecrystal-=q; body.herbs-=q*5; craftItem('cpot',q); say('gain','核晶藥 +'+q); }, back:N.camp})});
   o.push({t:'請藥婆配回春藥（3 株灰葉草、1 枚裂谷核）', dis:body.herbs<3||body.cores<1, f:()=>{ body.herbs-=3; body.cores--; addItem('elixir',1); say('gain','回春藥 +1。比市集便宜多了。'); status(); N.camp(); }});
   o.push({t:'請藥婆在短劍上淬毒（5 株灰葉草，毒匕首）', dis:body.herbs<5, f:()=>{ body.herbs-=5; say('npc','藥婆把刀在鍋裡浸了一夜。「別舔。」'); giveWeapon('poisondagger'); status(); N.camp(); }});
   o.push({t:'請藥婆捲繃帶（1 株灰葉草，兩條）', dis:body.herbs<1, f:()=>{ body.herbs--; addItem('bandage',2); say('gain','藥草 +2'); status(); N.camp(); }});
