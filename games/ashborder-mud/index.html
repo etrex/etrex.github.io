@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.63.1';
+const VERSION='2.64.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -728,7 +728,9 @@ function forgeMaster(back){ say('npc',rnd(['爐守沒有抬頭。「三十年，
   o.push({t:'離開', f:back}); setOptions(o,'爐守　核晶 '+(body.corecrystal|0)+'｜金幣 '+fmt(body.gold),true); }
 const OFF_TROPHY={W:{gatekeeper:'giantaxe',firelizard:'dragonlance',shadowdog:'shadowblade',abysslord:'hellmace'},A:{gatekeeper:'giantplate',firelizard:'dragonscale',leech:'shadowleather'},C:{beast:'ogregauntlet',wolf:'windboots',worm:'dragonboots',snowwolf:'fangneck',bonespider:'lifeneck',crab:'ironring'}};
 function idleCap(){ return Math.min(24,8+Math.floor((soul.idleHours||0)/50))+(gearOn('autogear')?8:0); }
-function dropRare(){ const pool=RAND_ACC; say('narr','魔物的殘骸裡有東西在發光。'); giveAcc(rnd(pool)); }
+/* 連續狩獵時背包放不下的裝備就留在原地，不撿（不會超重，狩獵不會停） */
+function huntRoom(t,k){ if(!body.autoHunt||space()>=eqW8(t,k)) return true; say('info','背包滿了，'+eqName(t,k)+'留在原地（狩獵繼續）。'); return false; }
+function dropRare(){ const k=rnd(RAND_ACC); if(!huntRoom('C',k)) return; say('narr','魔物的殘骸裡有東西在發光。'); giveAcc(k); }
 function lootUp(){ return !!(wDef(eqW()).loot||job().loot||accHas('loot')); }
 /* 環境：進得去，但沒有免疫就一直掉血。抗性減傷；有系統的人可以用別的方式付錢通過。 */
 const ENV={fire:{n:'火',rate:.15},ice:{n:'冰',rate:.12},poison:{n:'毒',rate:.10},lightning:{n:'雷',rate:.20}};
@@ -3148,7 +3150,7 @@ async function win(){
   let nDrop=(ssr('loot')||lucky(Math.min(1,m.drop*lootMul()),'drop',m))?1:0; if(ssr('loot')) nDrop+=Math.floor(ssrF('loot')-1+1e-9); if(isKing(m))nDrop+=2; if(luckF()>0&&chance(luckF())){ luckSay('cores',m); nDrop+=1+Math.floor(Math.random()*3); }
   if(luckF()>0&&chance(luckF()*.02)){ let x; do{ x=chRoll(chance(.3)); }while(x.r==='N'); chApply(x); say('title','奇遇'); say('gain','你在'+m.n+'的殘骸裡踢到一個東西……'+chText(x)); }
   nDrop*=capM; const got=addRes('cores',nDrop); if(got) say('gain','獲得了裂谷核 ×'+got+'！');
-  if(!isKing(m)){ if(lucky(.25*lootMul(),'drop',m)){ const k=rnd(['hpot','hpot','smoke','bomb','whet','bandage','bandage','coredust','trap','ration']); if(addItem(k,1)>0) say('gain','你在牠身邊撿到一個'+ITEMS[k].n+'。'); } if(m.tier>=3&&lucky(RAND_P*lootMul(),'drop',m)) dropRare(); if(m.tier===4&&lucky(lootMul()/500,'drop',m)){ addRes('corecrystal',1); say('gain','★ '+m.n+'的身體裡凝著一顆核晶。核晶 +1'); } if(m.tier>=5&&lucky(lootMul()/500,'drop',m)){ addRes('soulcrystal',1); say('title','★ 魂晶 ★'); say('gain',m.n+'倒下時，牠的魂凝成一顆晶體。魂晶 +1'); } { const sr=statRingFor(m); if(sr&&lucky(1e-5*lootMul(),'drop',m)){ say('title','★ 傳說 ★'); say('narr',m.n+'倒下的地方，有一枚戒指在發光。'); giveAcc(sr); worldEvent(soul.name+' 從'+m.n+'身上撿到了「'+ACCS[sr].n+'」'); } } } else { addItem('hpot',2); say('gain','魔王的殘骸裡有兩瓶藥水。'); /* 這一世第一次擊倒魔王三件全給，之後每件各 5% */ const kf=!(body.flags.killed&&body.flags.killed.king); if(kf||chance(.05)){ say('narr','魔王的牙還在發燙。'); giveWeapon('fang'); } if(kf||chance(.05)) giveArmor('scale'); if(kf||chance(.05)){ say('narr','魔王的指骨上套著一枚戒指。'); giveAcc('kingring'); } if(lucky(lootMul()/500,'drop',m)){ addRes('soulcrystal',1); say('title','★ 魂晶 ★'); say('gain','魔王的魂凝成一顆魂晶。魂晶 +1'); } }
+  if(!isKing(m)){ if(lucky(.25*lootMul(),'drop',m)){ const k=rnd(['hpot','hpot','smoke','bomb','whet','bandage','bandage','coredust','trap','ration']); if(addItem(k,1)>0) say('gain','你在牠身邊撿到一個'+ITEMS[k].n+'。'); } if(m.tier>=3&&lucky(RAND_P*lootMul(),'drop',m)) dropRare(); if(m.tier===4&&lucky(lootMul()/500,'drop',m)){ addRes('corecrystal',1); say('gain','★ '+m.n+'的身體裡凝著一顆核晶。核晶 +1'); } if(m.tier>=5&&lucky(lootMul()/500,'drop',m)){ addRes('soulcrystal',1); say('title','★ 魂晶 ★'); say('gain',m.n+'倒下時，牠的魂凝成一顆晶體。魂晶 +1'); } { const sr=statRingFor(m); if(sr&&lucky(1e-5*lootMul(),'drop',m)&&huntRoom('C',sr)){ say('title','★ 傳說 ★'); say('narr',m.n+'倒下的地方，有一枚戒指在發光。'); giveAcc(sr); worldEvent(soul.name+' 從'+m.n+'身上撿到了「'+ACCS[sr].n+'」'); } } } else { addItem('hpot',2); say('gain','魔王的殘骸裡有兩瓶藥水。'); /* 這一世第一次擊倒魔王三件全給，之後每件各 5% */ const kf=!(body.flags.killed&&body.flags.killed.king); if((kf||chance(.05))&&huntRoom('W','fang')){ say('narr','魔王的牙還在發燙。'); giveWeapon('fang'); } if((kf||chance(.05))&&huntRoom('A','scale')) giveArmor('scale'); if((kf||chance(.05))&&huntRoom('C','kingring')){ say('narr','魔王的指骨上套著一枚戒指。'); giveAcc('kingring'); } if(lucky(lootMul()/500,'drop',m)){ addRes('soulcrystal',1); say('title','★ 魂晶 ★'); say('gain','魔王的魂凝成一顆魂晶。魂晶 +1'); } }
   let xp=killXp(m); if(ssr('xp')) xp=Math.round(xp*(1+.3*ssrF('xp'))); if(sysIs('infinite')&&m.lv>body.level) xp*=5; xp*=capM; if(m.metal){ xp*=100; say('gain','金屬史萊姆碎成一地亮片。經驗 ×100！'); } gainXp(xp);
   if(sysIs('devour')){ if(m.fm&&DEVOUR[m.fm]&&(body.eaten[m.fm]|0)<m.tier){ const st0=evoStage(); const first=!body.eaten[m.fm]; body.eaten[m.fm]=m.tier; say('gain','捕食：'+devText(m.fm,m.tier)+'。'+(first?'（'+eatN()+'/'+Object.keys(DEVOUR).length+' 種）':'吃到更高階的了，效果升級。')); const st=evoStage(); if(st>st0){ body.evolved=true; say('title',EVO[st][1]); say('gain','攻擊與 HP 上限 ×'+EVO[st][2]+'。'); } } if(soul.eatHpN===undefined) soul.eatHpN=soul.eats; soul.eats++; soul.eatHpN+=chU()*(gearOn('gluttonfang')?2:1); if(soul.eats%10===0) say('gain','血肉累積：HP 上限 +'+fmt(soul.eatHpN)+'。'); }
   if(sysIs('shadow')&&!m.noShadow){ shq().k++; if(chance(1/3)) shExtract(m); else say('info','影子從你指間散掉了。'); }
@@ -3162,9 +3164,9 @@ async function win(){
   if(sysIs('idle')){ const u=chU(); grow('idle','肌肉記憶：攻擊力永久 +'+u,()=>{ soul.permAtk+=u; }); }
   body.flags.killed=body.flags.killed||{}; body.flags.killed[m.key]=1;
   if(body.bounty) gqMigrate(); gqOnKill(m);
-  { const first={gatekeeper:'giantaxe',firelizard:'dragonlance',shadowdog:'shadowblade',abysslord:'hellmace'}[m.key]; if(first&&trophyRoll(m)){ say('narr',({gatekeeper:'獨眼巨人倒下的時候，手裡的斧頭砸出一個坑。',firelizard:'火龍的角斷了一根，還在發燙。',shadowdog:'地獄犬的影子沒有跟著牠消失。它凝成了一把刀。',abysslord:'深淵領主的鎚掉在地上，冷火還在燒。'})[m.key]); giveWeapon(first); } }
-  { const fa={gatekeeper:'giantplate',firelizard:'dragonscale',leech:'shadowleather'}[m.key]; if(fa&&trophyRoll(m)){ say('narr',({gatekeeper:'巨人的胸甲上有一道你砍出來的口子。除此之外完好。',firelizard:'火龍的鱗一片一片剝下來，還是燙的。',leech:'吸血蝙蝠的翼膜薄得透光，卻割不破。'})[m.key]); giveArmor(fa); } }
-  { const fc={beast:'ogregauntlet',wolf:'windboots',worm:'dragonboots',snowwolf:'fangneck',bonespider:'lifeneck',crab:'ironring'}[m.key]; if(fc&&trophyRoll(m)){ say('narr',({beast:'食人魔的手掌比你的頭還大。手骨是空心的。',wolf:'野狼死了，腳還在抽。你把牠四隻腳上的皮剝下來。',worm:'沙蟲的內壁又硬又滑，燒不起來。',snowwolf:'白狼的牙齒是白的，比雪白。',bonespider:'骷髏兵的胸腔裡掛著一條項鍊，還帶著體溫。它的體溫。',crab:'岩石魔像碎開，中間是一圈鐵。'})[m.key]); giveAcc(fc); } }
+  { const first={gatekeeper:'giantaxe',firelizard:'dragonlance',shadowdog:'shadowblade',abysslord:'hellmace'}[m.key]; if(first&&trophyRoll(m)&&huntRoom('W',first)){ say('narr',({gatekeeper:'獨眼巨人倒下的時候，手裡的斧頭砸出一個坑。',firelizard:'火龍的角斷了一根，還在發燙。',shadowdog:'地獄犬的影子沒有跟著牠消失。它凝成了一把刀。',abysslord:'深淵領主的鎚掉在地上，冷火還在燒。'})[m.key]); giveWeapon(first); } }
+  { const fa={gatekeeper:'giantplate',firelizard:'dragonscale',leech:'shadowleather'}[m.key]; if(fa&&trophyRoll(m)&&huntRoom('A',fa)){ say('narr',({gatekeeper:'巨人的胸甲上有一道你砍出來的口子。除此之外完好。',firelizard:'火龍的鱗一片一片剝下來，還是燙的。',leech:'吸血蝙蝠的翼膜薄得透光，卻割不破。'})[m.key]); giveArmor(fa); } }
+  { const fc={beast:'ogregauntlet',wolf:'windboots',worm:'dragonboots',snowwolf:'fangneck',bonespider:'lifeneck',crab:'ironring'}[m.key]; if(fc&&trophyRoll(m)&&huntRoom('C',fc)){ say('narr',({beast:'食人魔的手掌比你的頭還大。手骨是空心的。',wolf:'野狼死了，腳還在抽。你把牠四隻腳上的皮剝下來。',worm:'沙蟲的內壁又硬又滑，燒不起來。',snowwolf:'白狼的牙齒是白的，比雪白。',bonespider:'骷髏兵的胸腔裡掛著一條項鍊，還帶著體溫。它的體溫。',crab:'岩石魔像碎開，中間是一圈鐵。'})[m.key]); giveAcc(fc); } }
   if(body.flags.quest===1){ body.quest++; if(!body.questDone) say('info','討伐進度 '+Math.min(body.quest,10)+'/10'); if(body.quest>=10&&!body.questDone){ body.questDone=true; const r=NUM.killGold()*20; body.gold+=r; body.rep.crown+=30; say('gain','義務完成。王庫獎勵 '+r+' 金。稱號「裂谷討伐者」。'); addLuck(10,'完成任務'); } }
   if(soul.system.weak==='erode') growOld(1,true);
   body.flags.lastKillDay=body.day; addKill(); movePrice(-0.01);
