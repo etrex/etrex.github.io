@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.62.0';
+const VERSION='2.63.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -2985,7 +2985,7 @@ N.rift=()=>{ lastNode=N.rift; autoHeal();
   body.flags.riftVisits=(body.flags.riftVisits||0)+1;
   if(fact('sixth')&&!fact('sixth_path')&&body.flags.riftVisits>=6) learn('sixth_path','岩壁上有一條被藤蔓遮住的<b>小徑</b>。');
   const o=[];
-  if(body.floor<TOP_FLOOR) o.push({t:'在這一層狩獵（攻速 '+pInterval().toFixed(1)+' 秒）', f:()=>{ if(envTick()) return; if(!canChain()) body.autoHunt=false; encounter(); }}); else o.push({t:'挑戰裂谷魔王', f:()=>{ if(envTick()) return; body.autoHunt=false; encounter(KING); }});
+  if(body.floor<TOP_FLOOR) o.push({t:'在這一層狩獵（攻速 '+pInterval().toFixed(1)+' 秒）', f:()=>{ if(envTick()) return; if(!canChain()) body.autoHunt=false; encounter(); }}); else o.push({t:'挑戰裂谷魔王', f:()=>{ if(envTick()) return; if(!canChain()) body.autoHunt=false; encounter(KING); }});
   envOptions(o,N.rift);
   if(body.floor===7&&!riftClosed()){ o.push(enhOpt('forge',N.rift,'在熔淵古爐強化裝備')); o.push({t:'熔淵古爐：提煉核晶與魂晶、合成屬性戒指、找爐守', ab:1, f:()=>crystalMenu(N.rift)}); }
   o.push({t:'安全線 '+Math.round(body.stopHp*100)+'%（切換）', f:()=>{ body.stopHp=({0.5:0.3,0.3:0.1,0.1:0.5})[body.stopHp]||0.3; say('info','安全線設為 '+Math.round(body.stopHp*100)+'%。'+(sysIs('idle')?'離線狩獵也用這條線。':'')); N.rift(); }});
@@ -3148,7 +3148,7 @@ async function win(){
   let nDrop=(ssr('loot')||lucky(Math.min(1,m.drop*lootMul()),'drop',m))?1:0; if(ssr('loot')) nDrop+=Math.floor(ssrF('loot')-1+1e-9); if(isKing(m))nDrop+=2; if(luckF()>0&&chance(luckF())){ luckSay('cores',m); nDrop+=1+Math.floor(Math.random()*3); }
   if(luckF()>0&&chance(luckF()*.02)){ let x; do{ x=chRoll(chance(.3)); }while(x.r==='N'); chApply(x); say('title','奇遇'); say('gain','你在'+m.n+'的殘骸裡踢到一個東西……'+chText(x)); }
   nDrop*=capM; const got=addRes('cores',nDrop); if(got) say('gain','獲得了裂谷核 ×'+got+'！');
-  if(!isKing(m)){ if(lucky(.25*lootMul(),'drop',m)){ const k=rnd(['hpot','hpot','smoke','bomb','whet','bandage','bandage','coredust','trap','ration']); if(addItem(k,1)>0) say('gain','你在牠身邊撿到一個'+ITEMS[k].n+'。'); } if(m.tier>=3&&lucky(RAND_P*lootMul(),'drop',m)) dropRare(); if(m.tier===4&&lucky(lootMul()/500,'drop',m)){ addRes('corecrystal',1); say('gain','★ '+m.n+'的身體裡凝著一顆核晶。核晶 +1'); } if(m.tier>=5&&lucky(lootMul()/500,'drop',m)){ addRes('soulcrystal',1); say('title','★ 魂晶 ★'); say('gain',m.n+'倒下時，牠的魂凝成一顆晶體。魂晶 +1'); } { const sr=statRingFor(m); if(sr&&lucky(1e-5*lootMul(),'drop',m)){ say('title','★ 傳說 ★'); say('narr',m.n+'倒下的地方，有一枚戒指在發光。'); giveAcc(sr); worldEvent(soul.name+' 從'+m.n+'身上撿到了「'+ACCS[sr].n+'」'); } } } else { addItem('hpot',2); say('gain','魔王的殘骸裡有兩瓶藥水。'); say('narr','魔王的牙還在發燙。'); giveWeapon('fang'); giveArmor('scale'); say('narr','魔王的指骨上套著一枚戒指。'); giveAcc('kingring'); if(lucky(lootMul()/500,'drop',m)){ addRes('soulcrystal',1); say('title','★ 魂晶 ★'); say('gain','魔王的魂凝成一顆魂晶。魂晶 +1'); } }
+  if(!isKing(m)){ if(lucky(.25*lootMul(),'drop',m)){ const k=rnd(['hpot','hpot','smoke','bomb','whet','bandage','bandage','coredust','trap','ration']); if(addItem(k,1)>0) say('gain','你在牠身邊撿到一個'+ITEMS[k].n+'。'); } if(m.tier>=3&&lucky(RAND_P*lootMul(),'drop',m)) dropRare(); if(m.tier===4&&lucky(lootMul()/500,'drop',m)){ addRes('corecrystal',1); say('gain','★ '+m.n+'的身體裡凝著一顆核晶。核晶 +1'); } if(m.tier>=5&&lucky(lootMul()/500,'drop',m)){ addRes('soulcrystal',1); say('title','★ 魂晶 ★'); say('gain',m.n+'倒下時，牠的魂凝成一顆晶體。魂晶 +1'); } { const sr=statRingFor(m); if(sr&&lucky(1e-5*lootMul(),'drop',m)){ say('title','★ 傳說 ★'); say('narr',m.n+'倒下的地方，有一枚戒指在發光。'); giveAcc(sr); worldEvent(soul.name+' 從'+m.n+'身上撿到了「'+ACCS[sr].n+'」'); } } } else { addItem('hpot',2); say('gain','魔王的殘骸裡有兩瓶藥水。'); /* 這一世第一次擊倒魔王三件全給，之後每件各 10% */ const kf=!(body.flags.killed&&body.flags.killed.king); if(kf||chance(.1)){ say('narr','魔王的牙還在發燙。'); giveWeapon('fang'); } if(kf||chance(.1)) giveArmor('scale'); if(kf||chance(.1)){ say('narr','魔王的指骨上套著一枚戒指。'); giveAcc('kingring'); } if(lucky(lootMul()/500,'drop',m)){ addRes('soulcrystal',1); say('title','★ 魂晶 ★'); say('gain','魔王的魂凝成一顆魂晶。魂晶 +1'); } }
   let xp=killXp(m); if(ssr('xp')) xp=Math.round(xp*(1+.3*ssrF('xp'))); if(sysIs('infinite')&&m.lv>body.level) xp*=5; xp*=capM; if(m.metal){ xp*=100; say('gain','金屬史萊姆碎成一地亮片。經驗 ×100！'); } gainXp(xp);
   if(sysIs('devour')){ if(m.fm&&DEVOUR[m.fm]&&(body.eaten[m.fm]|0)<m.tier){ const st0=evoStage(); const first=!body.eaten[m.fm]; body.eaten[m.fm]=m.tier; say('gain','捕食：'+devText(m.fm,m.tier)+'。'+(first?'（'+eatN()+'/'+Object.keys(DEVOUR).length+' 種）':'吃到更高階的了，效果升級。')); const st=evoStage(); if(st>st0){ body.evolved=true; say('title',EVO[st][1]); say('gain','攻擊與 HP 上限 ×'+EVO[st][2]+'。'); } } if(soul.eatHpN===undefined) soul.eatHpN=soul.eats; soul.eats++; soul.eatHpN+=chU()*(gearOn('gluttonfang')?2:1); if(soul.eats%10===0) say('gain','血肉累積：HP 上限 +'+fmt(soul.eatHpN)+'。'); }
   if(sysIs('shadow')&&!m.noShadow){ shq().k++; if(chance(1/3)) shExtract(m); else say('info','影子從你指間散掉了。'); }
@@ -3178,7 +3178,7 @@ async function win(){
   if(body.fightRet==='north'){ body.fightRet=null; setOptions([{t:'回到村口', f:()=>N.north(true)}]); return; }
   if(body.tripFight&&body.trip){ body.tripFight=0; setOptions([{t:'繼續往前走', f:tripNext}],'探索　'+tripStepText()); return; }
   if(body.regionFight){ const r=body.regionFight; body.regionFight=null; setOptions([{t:'繼續探索', f:()=>N.region(r)},{t:'回王都（一天路程）', f:()=>{ spendDay('回王都'); N.market(); }}]); return; }
-  autoHeal(); if(canChain()&&body.autoHunt&&!isKing(m)&&load()<=capOf()&&body.hp>=body.hpMax*body.stopHp){ setOptions([{t:'停止連續狩獵', keep:true, f:()=>{ body.autoHunt=false; clearTimeout(nextT); endCombat(); N.rift(); }}],'1 秒後下一隻…'); nextT=setTimeout(()=>{ if(body.autoHunt&&!inCombat) encounter(); },1000); return; }
+  autoHeal(); if(canChain()&&body.autoHunt&&load()<=capOf()&&body.hp>=body.hpMax*body.stopHp){ setOptions([{t:'停止連續狩獵', keep:true, f:()=>{ body.autoHunt=false; clearTimeout(nextT); endCombat(); N.rift(); }}],'1 秒後下一隻…'); nextT=setTimeout(()=>{ if(body.autoHunt&&!inCombat) encounter(isKing(m)?KING:undefined); },1000); return; }
   if(body.autoHunt&&body.hp<body.hpMax*body.stopHp){ say('info','HP低於安全線，停止狩獵。'); body.autoHunt=false; }
   setOptions([{t:'繼續狩獵', f:()=>encounter(isKing(m)?KING:undefined)},{t:'返回王城', f:N.market}]);
 }
