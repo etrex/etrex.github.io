@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.66.2';
+const VERSION='2.67.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -561,7 +561,7 @@ const ARMORS={
   hunterplate:{n:'獵人皮鎧', type:'leather', def:8, gather:1, desc:'採集多一份。'},
   shadowleather:{n:'影之皮鎧', type:'leather', def:12, spd:-0.1, desc:'輕得像沒穿。攻速快 0.1 秒。'},
   // 鎖甲
-  chain:{n:'鎖子甲', type:'mail', def:6, desc:'雜貨攤買得到的鐵環衣。'},
+  chain:{n:'鎖子甲', type:'mail', def:6, desc:'武器店買得到的鐵環衣。'},
   heat:{n:'耐熱鎧', type:'mail', def:6, heat:1, res:{fire:1}, desc:'火免疫。焦土心和熔心都走得過。'},
   leafleather:{n:'焦葉皮甲', type:'leather', def:7, heat:1, res:{fire:1}, desc:'世界樹葉縫在夾層裡的皮甲。燒了三次都沒燒死的葉子，現在替你擋火。火免疫。'},
   starmail:{n:'星鐵鎖甲', type:'mail', def:10, res:{lightning:1}, desc:'星鐵打成的環，一環扣一環。雷打在上面，順著環走進地裡。雷免疫。'},
@@ -723,7 +723,7 @@ function workbench(back){ const o=[]; const known=Object.keys(SYS_GEAR).filter(k
   known.forEach(k=>{ const g=SYS_GEAR[k]; const D=ACCS[g]||ARMORS[g]; const [mk,mn]=SYS_MAT[k]; const ok=homeHave('corecrystal')>=20&&homeHave(mk)>=mn; o.push({t:'製作'+D.n+'（核晶 20、'+RES[mk]+' '+mn+'；背包加倉庫：核晶 '+fmt(homeHave('corecrystal'))+'、'+RES[mk]+' '+fmt(homeHave(mk))+'）：'+D.desc, ab:1, dis:!ok, f:()=>{ homeTakeRes('corecrystal',20); homeTakeRes(mk,mn); say('narr','你在工作台前坐了一整夜。核晶在你手裡慢慢變形。'); if(ARMORS[g]) giveArmor(g); else giveAcc(g); status(); workbench(back); }}); });
   o.push({t:'離開工作台', f:back}); setOptions(o,'工作台',true); }
 const JOB_GEAR=['cleaveguard','knightcrest','shadowstep','holybeads','hawkeye'];
-function forgeMaster(back){ meet('爐守'); say('npc',rnd(['爐守沒有抬頭。「三十年，我只替五種人打過東西。」','「核晶三十顆，金子一百萬。少一顆都不打。」','爐守用鉗子撥了撥火。「你是哪一種人？」','「我收過一個徒弟，手很穩。」爐守撥了撥火。「三十年前他替神殿打了一套鑿子，打完就下山了。聽說他兒子現在在王都磨劍。」']));
+function forgeMaster(back){ meet('爐守'); say('npc',rnd(['爐守沒有抬頭。「三十年，我只替五種人打過東西。」','「核晶三十顆，金子一百萬。少一顆都不打。」','爐守用鉗子撥了撥火。「你是哪一種人？」','「我收過一個徒弟，手很穩。」爐守撥了撥火。「三十年前他替神殿打了一套鑿子，打完就回到地面上，再也沒有下來過。聽說他兒子現在在王都磨劍。」']));
   const o=JOB_GEAR.map(g=>{ const D=ACCS[g]; return {t:'請爐守打造'+D.n+'（核晶 30、100 萬金）：'+D.desc+(D.ownJob===body.job?'':'（不是你的職業，戴了沒效果）'), ab:D.ownJob===body.job, dis:(body.corecrystal|0)<30||body.gold<1000000, f:()=>{ body.corecrystal-=30; body.gold-=1000000; say('narr','爐守打了三天三夜。最後一錘落下的時候，古爐的火暗了一下。'); giveAcc(g); worldEvent(soul.name+' 請熔淵古爐的爐守打造了「'+D.n+'」'); status(); forgeMaster(back); }}; });
   o.push({t:'離開', f:back}); setOptions(o,'爐守　核晶 '+(body.corecrystal|0)+'｜金幣 '+fmt(body.gold),true); }
 const OFF_TROPHY={W:{gatekeeper:'giantaxe',firelizard:'dragonlance',shadowdog:'shadowblade',abysslord:'hellmace'},A:{gatekeeper:'giantplate',firelizard:'dragonscale',leech:'shadowleather'},C:{beast:'ogregauntlet',wolf:'windboots',worm:'dragonboots',snowwolf:'fangneck',bonespider:'lifeneck',crab:'ironring'}};
@@ -907,7 +907,7 @@ function lvAtk(){ return 0; } function lvHp(){ return 0; } function lvDef(){ ret
    出戰數 = ⌊智力 ÷ 5⌋，派最強的（攻擊 ÷ 攻速 × HP 最大的）。舊存檔的 soul.shadows 轉成「無名影子」。 */
 function shBag(){ if(!soul.shadowBag){ soul.shadowBag={}; if(soul.shadows>0) soul.shadowBag._old=soul.shadows; } return soul.shadowBag; }
 function shMeta(k){ const M=soul.shadowMeta||(soul.shadowMeta={}); if(M[k]&&M[k].hp) return M[k];
-  const [key,l]=k.split('@'); const d=key==='king'?KING:key==='_old'?MONSTERS[0]:MONSTERS.find(x=>x.key===key)||MONSTERS[0];
+  const [key,l]=k.split('@'); const d=key==='king'?KING:key==='whitewolfking'?WOLF_KING:key==='_old'?MONSTERS[0]:MONSTERS.find(x=>x.key===key)||MONSTERS[0];
   const L=Number(l)||d.lvl||1; const st=monStats(d,L); return M[k]={n:key==='_old'?'無名':((M[k]&&M[k].n)||d.n),lv:L,hp:st.hp,atk:st.atk,def:st.def,iv:d.iv||2}; }
 function shScore(k){ const m=shMeta(k); return m.atk/m.iv*m.hp; }
 /* 出戰策略（戰鬥外選，決定派哪幾隻）與命令（戰鬥中可改：進攻或護主） */
@@ -949,7 +949,7 @@ function shExtract(m){ const k=m.key+'@'+m.lv; soul.shadowMeta=soul.shadowMeta||
   else say('gain','影子抽取成功：'+shLabel(k)+'（Lv '+m.lv+'，HP '+fmt(m.hpMax)+'、攻擊 '+fmt(m.atk)+'）。軍團 '+shTotal()+' 個，出戰 '+after.length+' 個。'); }
 function rzAtk(){ return 0; } function rzDef(){ if(!sysIs('rezero')) return 0; if(soul.rzDefN===undefined) soul.rzDefN=soul.returns|0; return soul.rzDefN; }
 function dejaCut(k){ return sysIs('rezero')?Math.min(.9,.1*((soul.rzDeja||{})[k]|0)):0; }
-function dejaName(k){ const d=k==='king'?KING:MONSTERS.find(x=>x.key===k); return d?d.n:k; }
+function dejaName(k){ const d=k==='king'?KING:k==='whitewolfking'?WOLF_KING:MONSTERS.find(x=>x.key===k); return d?d.n:k; }
 /* 死亡回歸：最後一次休息醒來時，把整個肉身記下來。死了就整個回到那時候，只有記憶留著：知道的事、圖鑑、走過的地形，以及靈魂上的記憶累積與既視感。 */
 function rzSnap(){ const s=JSON.parse(JSON.stringify(body,(k,v)=>k==='daySnap'?undefined:v)); s._full=1; body.daySnap=s; }
 const RZ_MEM_FLAGS=['owned','seen','killed','rareFound','terrain','used','been'];
@@ -1174,7 +1174,7 @@ function payQ(title,unit,res,each,back,f,limit){ qtyMenu({title, unit, max:capN(
 const SHARP={
   wshop:{cap:10, who:'年輕鐵匠', next:'「再打下去會崩。」年輕鐵匠把東西還給你。「東邊礦坑口有個老頭，逢三開爐，第三天、第六天、第九天。他的火比我的熱。」他停了一下。「他是我爸。別說是我叫你去的。」', hint:'東方礦坑口的老鐵匠逢三開爐'},
   mine:{cap:25, who:'老鐵匠', next:'「我的爐子只到這裡。」老鐵匠用拇指敲了敲。「南方港市的商會養著一個南方刀匠，他磨的是南方的鋼。你進得了商會，就找得到他。」', hint:'南方港市商會裡的南方刀匠'},
-  port:{cap:45, who:'南方刀匠', next:'「我的石頭磨不動它了。」南方刀匠把東西還給你。「你們北邊的裂谷，第七層，熔淵。三十年前有人在那裡打過劍，爐子還在。那種火沒有頂——前提是你站得住。」', hint:'裂谷第七層熔淵的古爐'},
+  port:{cap:45, who:'南方刀匠', next:'「我的石頭磨不動它了。」南方刀匠把東西還給你。「你們北邊的裂谷，第七層，熔淵。那裡有座古爐，看爐的人還在。那種火沒有頂——前提是你站得住。」', hint:'裂谷第七層熔淵的古爐'},
   forge:{cap:Infinity, who:'古爐', core:1},
 };
 function sharpCost(n){ return Math.round(30*Math.pow(1.15,n)); }
@@ -1824,7 +1824,7 @@ N.barracks=()=>{ lastNode=N.barracks; if(pendingEvent(N.barracks)) return;
   if(body.questDone&&!body.flags.act2Intro){ body.flags.act2Intro=1; talk(TXT.act2_intro); }
   const o=[];
   if(body.flags.newKnee&&!body.flags.kneeDone) o.push({t:'把新護膝給布蘭德', ab:1, f:()=>{ story(TXT.sq_knee_done); body.flags.kneeDone=1; body.rep.knight+=25; say('gain','騎士團聲望 +25'); say('npc','他把自己的劍解下來，遞給你。「新護膝配舊劍，不公平。你拿去。」'); giveWeapon('brand'); say('npc','「營房裡還有一副制式鎧，你穿得下。」'); giveArmor('knightplate'); status(); N.barracks(); }});
-  if(!body.flags.brandRing) o.push({t:'向布蘭德挑戰：「戒指只給打贏我的人。」（Lv 45，不能用道具，影子不出手）', ab:1, f:()=>{ talk('「我年輕的時候，有人給過我一枚戒指，說等我打贏他再拿走。他死了，戒指一直在我這。」布蘭德把劍拔出來。「現在輪到你。」'); body.duelFight=1; encounter(BRAND_DUEL,[45,45]); }});
+  if(!body.flags.brandRing) o.push({t:'向布蘭德挑戰：「戒指只給打贏我的人。」（Lv 45，不能用道具，影子不出手）', ab:1, f:()=>{ talk('「我年輕的時候，隊長把一枚戒指塞給我，說給一個比我強的人。他沒有回來，戒指一直在我這。」布蘭德把劍拔出來。「現在輪到你。」'); body.duelFight=1; encounter(BRAND_DUEL,[45,45]); }});
   if(!body.flags.escort) o.push({t:'請布蘭德護送你過'+(body.flags.kneeDone?'兩道門':'一道門')+'（需騎士團聲望 30，現在 '+body.rep.knight+'）', dis:body.rep.knight<30, f:()=>{ body.rep.knight-=30; body.flags.escort=body.flags.kneeDone?2:1; talk(TXT.barracks_escort); status(); N.barracks(); }});
   o.push({t:'買一套鋼鐵鎧甲（400 金，防禦力 +12，騎士團聲望 20）', dis:body.gold<400||body.rep.knight<20, f:()=>{ body.gold-=400; say('npc','布蘭德從架子上搬下一套鋼鐵鎧甲。「重。習慣了就不重。」'); giveArmor('plate'); status(); N.barracks(); }});
   if(body.rep.knight>=30&&!body.flags.flareGiven) o.push({t:'跟布蘭德要信號彈', f:()=>{ body.flags.flareGiven=1; addItem('flare',2); say('npc','「兩支。放了我們就來。別浪費。」'); say('gain','信號彈 +2'); status(); N.barracks(); }});
@@ -1933,7 +1933,7 @@ const PEOPLE={
   '南方商人':{n:'薩伊德',at:'王城市集',d:'在市集擺攤的南方商人，商隊頭子拉希德的堂弟。商路斷了的這三個月，是他在養一家子。',intro:'「薩伊德。」他的手指沒有離開算盤。「南方人的名字，你記不住也沒關係，記得價錢就好。」'},
   '商隊頭子':{n:'拉希德',at:'南方哨站',d:'南方商隊的頭子，薩伊德的堂兄。派了六個人去清路，回來四個，沒回來的其中一個是茉拉的丈夫卡爾。',intro:'「拉希德。」他朝路的方向抬了抬下巴。「這條路是我的。至少以前是。」'},
   '藥婆':{n:'瑪莎',g:'f',at:'難民營',d:'難民營的藥婆。三十多年前是宮廷醫師，神殿掌權後被排擠出宮，回北村用灰葉草救人。御醫霍爾是她在北村教出來的，後來坐上了她當年的位子。收留了在逃難路上失去爸媽的小莉。',intro:'「叫我瑪莎就好。」她攪著鍋。「大家都叫我藥婆。」'},
-  '地窖老人':{n:'葛林',at:'難民營',d:'縮在帳篷角落的老人，在雪原住了六十年。三十年前帶神殿的人去過舊祭壇。孫子是凍湖的渡船人尤恩。',intro:'「葛林。」他的聲音很輕。「以前是北村的鹽商。現在什麼都不是。」'},
+  '地窖老人':{n:'葛林',at:'難民營',d:'縮在地窖角落的老人，在雪原住了六十年。三十年前帶神殿的人去過舊祭壇。孫子是凍湖的渡船人尤恩。',intro:'「葛林。」他的聲音很輕。「以前是雪原的鹽商。現在什麼都不是。」'},
   '難民孩子':{n:'小莉',g:'f',at:'難民營',d:'八歲左右的女孩。爸爸死在北村那一晚，媽媽死在逃難的路上，藥婆收留了她。樵夫巴特的兒子是她的朋友。',intro:'「我叫小莉。」她拉了拉你的袖子。「我住在藥婆的帳篷裡。」'},
   '獵人':{n:'柯爾',at:'灰燼森林',d:'森林裡的獵人，守林人艾隆的兒子。不打鹿，打狼，父子十年沒說話。',intro:'「柯爾。」他頭也沒抬。「林子裡只有一個獵人，叫獵人就夠了。」'},
   '守林人':{n:'艾隆',at:'灰燼森林・深林口',d:'守著深林口的人，獵人柯爾的父親。十年前把打狼的兒子趕了出去。',intro:'「艾隆。」他擋在路中間。「守林人。你要過去，先過我這關。」'},
@@ -1948,7 +1948,7 @@ const PEOPLE={
   '南方刀匠':{n:'哈桑',at:'南方港市・商會',d:'商會養的南方刀匠，磨的是南方的鋼。',intro:'「哈桑。」他把你的劍放在磨石上。「北邊的鐵太軟了。我替你磨硬一點。」'},
   '工頭':{n:'杜根',at:'東方礦坑',d:'礦坑的工頭，守著升降籠。礦工代表雷夫是他弟弟。',intro:'「杜根。」他堵在籠子前面。「這裡我說了算。」'},
   '礦工':{t:'礦工代表',n:'雷夫',at:'東方礦坑',d:'替礦工們說話的人，工頭杜根的弟弟。',intro:'「雷夫。」他抹了一把臉上的灰。「大家推我出來說話。」'},
-  '老鐵匠':{n:'伍德',at:'東方礦坑口',d:'礦坑口的老鐵匠，逢三開爐，其他日子在蘿絲的酒館喝酒。三十年前是爐守葛倫的徒弟，替神殿打了一套挖核的鑿子後就下山了。兒子托比在王都，兩人不說話。',intro:'「伍德。打了一輩子鐵。」他翻過你的劍看了看。「王都那家店磨的。那小子的手法。」他沒有再說下去。'},
+  '老鐵匠':{n:'伍德',at:'東方礦坑口',d:'礦坑口的老鐵匠，逢三開爐，其他日子在蘿絲的酒館喝酒。三十年前是爐守葛倫的徒弟，替神殿打了一套挖核的鑿子後就回到地面上，再也不碰那座爐。兒子托比在王都，兩人不說話。',intro:'「伍德。打了一輩子鐵。」他翻過你的劍看了看。「王都那家店磨的。那小子的手法。」他沒有再說下去。'},
   '爐守':{n:'葛倫',at:'裂谷第七層・熔淵古爐',d:'熔淵古爐的爐守。三十年只替五種人打過東西。伍德是他唯一的徒弟。',intro:'「葛倫。」爐守沒有抬頭。「看爐子的。」'},
   '第六勇者':{n:'瑟恩',at:'裂谷',d:'第六次召喚來的勇者。沒有把十隻殺完，所以還活著。'},
 };
@@ -2117,7 +2117,7 @@ const REGION_GATES={
     {who:'守林人', enter:'往深林走', text:TXT.region_gate.forest1,
      say:{gold:'「金子？行。這麼多年也該有人付我薪水。」他讓開了。', cores:'他把裂谷核放進嘴裡咬了一下。「真貨。深林裡的東西怕這個。」', points:'系統替你買了一張獵人地圖。老人瞇起眼：「你怎麼會有這個？」', people:'難民營的孩子替你說過話。老人哼了一聲：「他們說你不是來打獵的。」', luck:'一隻鹿從深林裡走出來，停在你身邊。老人放下弓。「牠替你擔保。」'}},
     {who:'焦土的火', enter:'往焦土心走', text:TXT.region_gate.forest2,
-     say:{gold:'你買下整批獸皮裹在腳上，一路踩過去。貴，但有用。', cores:'裂谷核在熱土上發出紅光，火像認識它一樣往兩邊退。', points:'系統給了你一雙不會燒起來的鞋。別問它哪來的。', people:'獵人們替你在熱土上鋪了一條石頭路。他們說這是還你的。', luck:'今天剛好下了三十年來第一場雨。'}}],
+     say:{gold:'你買下整批獸皮裹在腳上，一路踩過去。貴，但有用。', cores:'裂谷核在熱土上發出紅光，火像認識它一樣往兩邊退。', points:'系統給了你一雙不會燒起來的鞋。別問它哪來的。', people:'難民營的人替你在熱土上鋪了一條石頭路。他們說這是還你的。', luck:'今天剛好下了三十年來第一場雨。'}}],
   snow:[
     {who:'渡船人', enter:'往凍湖走', text:TXT.region_gate.snow1,
      say:{gold:'他數了三遍。「上船。」', cores:'他把核收進懷裡。「這個能讓我過冬。上船。」', points:'系統標出了一條冰夠厚的路。你走過去，渡船人在後面罵。', people:'「北村的人說你埋了他們的人。」他把槳遞給你。「不收錢。」', luck:'湖面在你面前結成一條路。渡船人跪下了。'}},
@@ -2179,8 +2179,8 @@ const REGIONS={
       {t:'雪地裡有一具穿著騎士鎧甲的屍體，握著一封信。', once:'knight', o:[
         {t:'讀信', done:1, f:()=>{ addRes('relics',1); say('gain','遺物 +1。信上寫：「奧文說魔物是神的考驗。我不信。」'); body.rep.knight+=5; say('gain','騎士團聲望 +5（你替他們帶回了名字）'); }},
         {t:'埋了他', done:1, f:()=>{ spendDay('埋葬'); body.rep.people+=5; addLuck(5,'善行'); say('gain','民心 +5'); }}]},
-      {t:'一個倖存的老人躲在地窖裡，已經三天沒吃東西。', once:'cellar', o:[
-        {t:'分他糧食（20 金）', done:1, req:()=>body.gold>=20, f:()=>{ body.gold-=20; body.rep.people+=8; say('gain','民心 +8。他告訴你舊祭壇在凍湖對岸。'); body.regionFlags.snowHint=1; }},
+      {t:'一個倖存的獵戶躲在地窖裡，已經三天沒吃東西。', once:'cellar', o:[
+        {t:'分他糧食（20 金）', done:1, req:()=>body.gold>=20, f:()=>{ body.gold-=20; body.rep.people+=8; say('gain','民心 +8。他告訴你舊祭壇在凍湖對岸——營裡那個葛林，當年就是從這裡帶神殿的人過去的。'); body.regionFlags.snowHint=1; }},
         {t:'帶他回難民營（一天）', done:1, f:()=>{ spendDay('護送'); body.rep.people+=15; addLuck(5,'善行'); say('gain','民心 +15'); }},
         {t:'離開', f:()=>{}}]},
       {t:'雪暴來了。', o:[
@@ -2285,8 +2285,8 @@ const TRIP={
   t:[{id:'house', via:{'house': ['隔壁還有一間，門半開著', '巷子底有一座小祠堂'], 'drift': ['雪堆後面露出一截屋頂', '腳印通往一間半塌的木屋']}, tag:'遺物，可能有東西躲著', give:{relics:[0,1]}, fight:.25,
       n:['一間屋頂還在的廢屋','半塌的木屋，門板被雪壓彎了','一座小祠堂，神像的臉被鑿掉了','幾間連在一起的空屋，窗子都破了'],
       out:['屋裡大多被翻過了，牆角還壓著一點東西。','你在灶台底下摸到一個布包。','祠堂的供桌上還擺著幾樣東西。','空屋裡什麼都沒留下，除了地板下的一個暗格。']},
-     {id:'lake', via:{'house': ['村子的盡頭就是湖岸，冰上有洞', '漁夫的小棚就在屋子後面'], 'drift': ['腳印一路通到湖邊', '雪堆的另一邊是結冰的湖'], 'lake': ['沿著湖岸往前，冰上插著幾根釣竿', '湖岸彎進去，冰上鑿了一排洞']}, tag:'魚乾', give:{fish:[1,3]},
-      n:['凍湖的岸邊，冰上有洞','湖面上插著幾根釣竿，人不見了','冰上有一排鑿好的洞','湖邊有一間漁夫的小棚'],
+     {id:'lake', via:{'house': ['村子的盡頭就是湖岸，冰上有洞', '釣魚人的小棚就在屋子後面'], 'drift': ['腳印一路通到湖邊', '雪堆的另一邊是結冰的湖'], 'lake': ['沿著湖岸往前，冰上插著幾根釣竿', '湖岸彎進去，冰上鑿了一排洞']}, tag:'魚乾', give:{fish:[1,3]},
+      n:['凍湖的岸邊，冰上有洞','湖面上插著幾根釣竿，人不見了','冰上有一排鑿好的洞','湖邊有一間釣魚人的小棚'],
       out:['冰洞邊凍著幾條魚。','釣竿還掛著魚，主人大概不會回來了。','你在冰洞裡撈了一陣。','棚子裡掛著一串風乾的魚。']},
      {id:'drift', via:{'house': ['屋後的雪地上有一串腳印', '廢屋的窗下有拖行的痕跡'], 'drift': ['腳印往雪原深處去了', '雪越來越深，前面有東西在動'], 'lake': ['湖岸的雪上有野獸來喝水的痕跡']}, tag:'獸皮，可能撞見野獸', give:{pelts:[1,2]}, fight:.35,
       n:['雪堆後面有一串腳印','雪地上有拖行的痕跡','遠處有白色的東西在動','一堆骨頭露在雪外面'],
@@ -2313,9 +2313,9 @@ const TRIP={
   special:{n:['岩壁裡有一塊是冷的，黑得發亮','熱氣裡突然有一陣涼，來自一塊黑色的石頭','岩縫裡嵌著一塊鐵，上面沒有鏽'],
            out:['你用鎬敲了很久才把它敲下來。它比同樣大的礦石重三倍。','那塊石頭是冷的，在滾燙的岩壁裡冷得不合道理。你把它撬了出來。','你把那塊鐵挖出來，它在燈下泛著藍光。']},
   t:[{id:'vein', via:{'vein': ['礦脈往深處延伸，顏色越來越深', '岩壁上又出現一道紅褐色的紋'], 'coal': ['煤層底下露出一條鐵色的礦脈'], 'shaft': ['廢巷道的牆上還看得到礦脈']}, tag:'礦石', give:{ore:[1,2]},
-      n:['一條礦脈，石頭是鐵色的','岩壁上有一道紅褐色的紋','礦工留下的鎬還插在牆上','一堆剛炸開的碎石'],
+      n:['一條礦脈，石頭是鐵色的','岩壁上有一道紅褐色的紋','有人留下的鎬還插在牆上','一堆剛炸開的碎石'],
       out:['礦脈很淺，敲幾下就掉。','你順著紋路敲下一塊塊礦石。','你借用了那把鎬。','碎石裡挑得出好礦。']},
-     {id:'coal', via:{'vein': ['礦脈旁邊是一層黑色的岩層', '礦工留下的礦車裡裝滿了炭'], 'coal': ['煤層越挖越厚，空氣都是灰的']}, tag:'炭', give:{coal:[1,2]},
+     {id:'coal', via:{'vein': ['礦脈旁邊是一層黑色的岩層', '有人留下的礦車裡裝滿了炭'], 'coal': ['煤層越挖越厚，空氣都是灰的']}, tag:'炭', give:{coal:[1,2]},
       n:['一層黑色的岩層，摸了手會黑','空氣裡有煤灰的味道','一輛翻倒的礦車，灑了一地黑','巷道的牆是黑的，一碰就掉渣'],
       out:['煤層很鬆，一扒就是一堆。','你循著味道找到一堆炭。','你把灑出來的炭裝回袋子。','牆上的炭一碰就掉。']},
      {id:'shaft', via:{'vein': ['礦脈的盡頭是一條封起來的巷道', '支架塌了一半的廢巷道就在旁邊'], 'shaft': ['廢巷道往下分岔，一邊沒有燈', '巷道深處有滴水聲，還有別的聲音']}, tag:'礦石，可能有東西住在裡面', give:{ore:[1,3]}, fight:.3,
@@ -2672,7 +2672,7 @@ function guildRank(){ const p=body.guildPts||0; let r='F'; GUILD_RANK.forEach(([
 const G_RANKS=GUILD_RANK.map(x=>x[0]);
 function rankIdx(r){ return G_RANKS.indexOf(r); }
 function gqMax(){ const i=rankIdx(guildRank()); return i<=1?2:i<=3?3:4; }
-const DELIVER=[{to:'北門難民營',who:'藥婆',what:'一包乾淨的布'},{to:'神殿',who:'書記官',what:'一封封了蠟的信'},{to:'南方哨站',who:'哨站的隊長',what:'一袋補給'},{to:'騎士團營房',who:'布蘭德',what:'一箱磨刀石'},{to:'灰燼森林',who:'獵人',what:'一捆新的套索'},{to:'北方雪原',who:'廢村的守夜人',what:'一罐燈油'},{to:'南方港市',who:'漁夫',what:'一包修網的線'},{to:'東方礦坑',who:'工頭',what:'一盒燈芯'},{to:'北方空村',who:'空村裡唯一亮著燈的人家',what:'一包種子'}];
+const DELIVER=[{to:'北門難民營',who:'藥婆',what:'一包乾淨的布'},{to:'神殿',who:'書記官',what:'一封封了蠟的信'},{to:'南方哨站',who:'哨站的隊長',what:'一袋補給'},{to:'騎士團營房',who:'布蘭德',what:'一箱磨刀石'},{to:'灰燼森林',who:'獵人',what:'一捆新的套索'},{to:'北方雪原',who:'廢村的守夜人',what:'一罐燈油'},{to:'南方港市',who:'漁夫',what:'一包修網的線'},{to:'東方礦坑',who:'工頭',what:'一盒燈芯'},{to:'北方空村',who:'村口石頭下的空屋（藥婆託放的）',what:'一包種子'}];
 const ITEM_REQ=[['hpot',3,5],['bandage',5,8],['bomb',2,4],['trap',2,3],['smoke',2,3],['whet',2,3],['armoroil',2,3]];
 /* 裝備委託：只收拿得到第二件的東西（師傅打造、商人賣、魔物掉），不收 NPC 白送的禮物 */
 const EQ_SRC={
@@ -2953,7 +2953,7 @@ const MONSTERS=[
   {n:'火龍',key:'firelizard',fm:'core',fam:'beast',lvl:46,hp:30,atk:7.5,def:1.5,gh:1.185,ga:1.16,gd:1.185,iv:1.8,tier:5,drop:1,weak:'喉囊',region:'mine',depths:[3],desc:'熔心的主人。牠的鱗是黑的，鱗縫裡是火。牠不是這裡最老的東西，但是最餓的。'},
 ];
 const BRAND_DUEL={n:'布蘭德',key:'brandduel',fm:'none',fam:'man',lvl:45,hp:40,atk:9,def:3,gh:1.185,ga:1.16,gd:1.185,iv:1.5,tier:5,drop:0,weak:'左膝',desc:'他把護膝綁緊，劍尖朝下。「不准用藥，不准叫你那些影子。只有你跟我。」',duel:1,noShadow:1};
-const WOLF_KING={n:'白狼王',key:'wolfking',fm:'forestwolf',fam:'dog',hp:60,atk:12,def:3,gh:1.185,ga:1.155,gd:1.185,iv:0.9,tier:5,drop:1,weak:'後腿的舊傷',desc:'牠比雪還白，站在焦土上，一點灰都沒沾。',wolfKing:1};
+const WOLF_KING={n:'白狼王',key:'whitewolfking',fm:'forestwolf',fam:'dog',hp:60,atk:12,def:3,gh:1.185,ga:1.155,gd:1.185,iv:0.9,tier:5,drop:1,weak:'後腿的舊傷',desc:'牠比雪還白，站在焦土上，一點灰都沒沾。',wolfKing:1};
 const KING={n:'裂谷魔王',key:'king',fm:'king',fam:'king',lvl:50,hp:42,atk:9.6,def:2.4,gh:1.185,ga:1.16,gd:1.185,iv:2.0,tier:5,drop:1,weak:'心口',desc:'牠坐在倒過來的王座上。牠在看你，用奧文的眼神。'};
 function MON(k){ return MONSTERS.find(m=>m.key===k)||MONSTERS[0]; }
 function isKing(m){ return !!(m&&m.key==='king'); }
