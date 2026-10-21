@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.71.0';
+const VERSION='2.72.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -558,6 +558,7 @@ const ARMORS={
   leather:{n:'皮之鎧', type:'leather', def:2, any:1, desc:'召喚時穿在身上的。'},
   tavernvest:{n:'酒館的皮背心', type:'leather', def:2, any:1, excl:1, desc:'蘿絲用舊圍裙改的，口袋很多。誰都能穿。'},
   shopcoat:{n:'道具店的工作外套', type:'cloth', def:2, any:1, excl:1, desc:'口袋裡總是多一瓶藥水。誰都能穿。'},
+  expedleather:{n:'討伐隊的皮甲', type:'leather', def:4, any:1, excl:1, desc:'三年前討伐隊發的皮甲，背後有一道爪痕。誰都能穿。'},
   northcoat:{n:'北村的羊毛襖', type:'cloth', def:2, any:1, excl:1, res:{ice:.3}, desc:'母親縫的，逃出來那晚穿在身上。冰抗性三成，誰都能穿。'},
   fur:{n:'毛皮斗篷', type:'leather', def:4, cold:1, res:{ice:1}, desc:'冰免疫。走冰面不會凍死。'},
   hunter:{n:'硬皮鎧', type:'leather', def:5, desc:'獵人硝的皮，比旅人的厚一倍。'},
@@ -1000,7 +1001,7 @@ function refDef(){ return soul.permDef||0; }
 /* 防禦 =（防具 + 加固 + 永久加成 + 職業 + 飾品）× 體力倍率（跟 HP 同一條：1.15^(0.8 ×(體力 − 18) ÷ 2)），所以防禦會跟著魔物一起長 */
 function defBase(){ return aDef(eqA()).def+(eqA().sharp||0)+(body.armorPlus||0)+lvDef()+rzDef()+refDef()+(job().def||0)+accSum('def'); }
 function defNow(){ if(!body) return 0; const d=defBase()*vitMul(stats().vit)*(1+.3*eatF('golem')+.1*eatF('tunnel')); return Math.round(body.flags.oiled?d*2:d); }
-function hpMaxNow(){ let m=baseHp()*evoMul()*realmMul()*(1+.2*eatF('giant'))*(body.talent==='vit'?1.1:1)*(inCombat&&fx.hpMul||1); if(soul.system.weak==='frail') m-=NUM.frail(); return Math.max(10,Math.round(m)); }
+function hpMaxNow(){ let m=baseHp()*evoMul()*realmMul()*(1+.2*eatF('giant'))*(body.talent==='vit'?1.1:1)*(body.possess==='jonas'?.8:1)*(inCombat&&fx.hpMul||1); if(soul.system.weak==='frail') m-=NUM.frail(); return Math.max(10,Math.round(m)); }
 function weakDesc(w){ const d=WEAK[w].desc; return typeof d==='function'?d():d; }
 
 /* ============================================================
@@ -1310,6 +1311,21 @@ const QUESTS=[
   {t:()=>'你也看見了白袍。跟小莉說好，要作證就一起站上去。', done:()=>body.flags.witnessReady},
   {t:()=>'證人有了。揭發神殿，替北村討回公道。', done:()=>body.flags.ending==='expose', fail:()=>!!body.flags.ending&&body.flags.ending!=='expose'}],
  end:'北村在重建。你和小莉在井邊種下了第一叢灰葉草。', failEnd:'灰燼邊境的故事結束了。北村的事，沒有人說出來。'},
+{id:'pq_pip', soul:1, name:'魂線：茉拉察覺了', start:()=>poss('pip')&&body.flags.hall, stages:[
+  {t:()=>'茉拉看你的眼神不太對。回道具店看看。', done:()=>body.flags.pipNoticed},
+  {t:()=>'皮普一直想去南方，看姊夫倒在哪裡。替他去：打通商路，沿路找卡爾的車。', done:()=>body.flags.carlFound},
+  {t:()=>'帶著卡爾的信回道具店。告訴茉拉你不是皮普，或者繼續當皮普。', done:()=>body.flags.pipChoice}],
+ end:'你替皮普把信帶回家了。'},
+{id:'pq_jass', soul:1, name:'魂線：三十年前沒說的話', start:()=>poss('jass')&&body.flags.hall, stages:[
+  {t:()=>'你和布蘭德是那十個人裡唯二回來的。去營房找他。', done:()=>body.flags.jassBrand1},
+  {t:()=>'下到裂谷第 5 層，找到隊長倒下的地方。', done:()=>body.flags.captainFound},
+  {t:()=>'回營房。要不要告訴布蘭德，那天抓住隊長手臂的是你？', done:()=>body.flags.jassChoice}],
+ end:'三十年前的事，你替賈斯做了決定。'},
+{id:'pq_jonas', soul:1, name:'魂線：我不是他', start:()=>poss('jonas')&&body.flags.hall, stages:[
+  {t:()=>'回酒館。蘿絲在等。', done:()=>body.flags.jonasMet},
+  {t:()=>'上樓，打開最裡面那間房。', done:()=>body.flags.jonasRoom},
+  {t:()=>'去見布蘭德和葛瑞塔。這張臉欠他們一句話，他們也欠這張臉一句。', done:()=>body.flags.jonasBrand&&body.flags.jonasGreta}],
+ end:'這張臉欠的話，都說完了。'},
 {id:'sq_father', name:'獵人與守林人', start:()=>(body.talked['獵人']||0)>=4, stages:[
   {t:()=>'獵人和守林人十年沒說話。守林人在深林口，跟他談談。', done:()=>(body.talked['守林人']||0)>=2},
   {t:()=>'守林人說：「他要是還打獵，就拿五張皮來。」', done:()=>body.flags.fatherDone}],
@@ -1349,10 +1365,10 @@ function checkQuests(){
 }
 function renderQuests(){
   const c=document.getElementById('questCard'); if(!body||!body.qs){ c.innerHTML='<h2>任務</h2><div class="slot"><span>還沒有任務。</span></div>'; return; }
-  const rows=QUESTS.filter(q=>body.qs[q.id]!==undefined).map(q=>{ const v=body.qs[q.id]; const cls='q'+(q.main||q.fam?' main':'')+(typeof v!=='number'?' done':''); const txt=v==='done'?'✓ '+q.end:v==='fail'?'✗ '+(q.failEnd||'失敗'):q.stages[v].t(); return '<div class="'+cls+'"><b>'+q.name+'</b><span>'+esc(txt)+'</span></div>'; });
+  const rows=QUESTS.filter(q=>body.qs[q.id]!==undefined).map(q=>{ const v=body.qs[q.id]; const cls='q'+(q.main||q.fam||q.soul?' main':'')+(typeof v!=='number'?' done':''); const txt=v==='done'?'✓ '+q.end:v==='fail'?'✗ '+(q.failEnd||'失敗'):q.stages[v].t(); return '<div class="'+cls+'"><b>'+q.name+'</b><span>'+esc(txt)+'</span></div>'; });
   c.innerHTML='<h2>任務</h2>'+(rows.length?rows.join(''):'<div class="slot"><span>還沒有任務。</span></div>');
 }
-function showJournal(){ if(!body||!body.qs) return; const l=QUESTS.filter(q=>body.qs[q.id]!==undefined).map(q=>{ const v=body.qs[q.id]; return (q.main?'【主線】':q.fam?'【家線】':'【支線】')+q.name+'：'+(v==='done'?'完成。'+q.end:v==='fail'?'失敗。'+(q.failEnd||''):q.stages[v].t()); }); (body.gq||[]).forEach(q=>l.push('【公會】'+q.title+'（'+gqProgress(q)+(gqReady(q)?'，可以回報':'')+'）：'+q.hint)); say('info',l.length?l.join('\n'):'還沒有任務。'); }
+function showJournal(){ if(!body||!body.qs) return; const l=QUESTS.filter(q=>body.qs[q.id]!==undefined).map(q=>{ const v=body.qs[q.id]; return (q.main?'【主線】':q.fam?'【家線】':q.soul?'【魂線】':'【支線】')+q.name+'：'+(v==='done'?'完成。'+q.end:v==='fail'?'失敗。'+(q.failEnd||''):q.stages[v].t()); }); (body.gq||[]).forEach(q=>l.push('【公會】'+q.title+'（'+gqProgress(q)+(gqReady(q)?'，可以回報':'')+'）：'+q.hint)); say('info',l.length?l.join('\n'):'還沒有任務。'); }
 /* ===== 世界事件：日子往前走，世界不等你 ===== */
 function worldTick(){
   const d=body.day; const ev=body.flags.ev||(body.flags.ev={});
@@ -1805,7 +1821,8 @@ const N={};
 N.hall=()=>{ lastNode=N.hall; if(pendingEvent(N.hall)) return;
   place('召喚大殿');
   if(!body.flags.hall){ body.flags.hall=1;
-    if(body.family){ story(TXT.hall1_local); talk(TXT.hall1_owen_local); if(fam('tavern')) say('npc','穿鎧甲的男人離開了石柱，走到圓邊。「喬納斯的孩子。」布蘭德說。他沒有笑，也沒有移開眼睛。'); else if(fam('north')) say('narr','書記官抬起頭看你。他也是北村出來的。他看你的眼神，像在看一個他很久以前就認識的人。');
+    if(body.possess){ story(TXT['hall_'+body.possess]); talk(TXT.hall1_owen_local); say('info','召喚陣把這具身體拉了過來：第七勇者，'+body.age+' 歲，等級 '+body.level+'。義務：討伐裂谷魔物 10 隻。'); }
+    else if(body.family){ story(TXT.hall1_local); talk(TXT.hall1_owen_local); if(fam('tavern')) say('npc','穿鎧甲的男人離開了石柱，走到圓邊。「喬納斯的孩子。」布蘭德說。他沒有笑，也沒有移開眼睛。'); else if(fam('north')) say('narr','書記官抬起頭看你。他也是北村出來的。他看你的眼神，像在看一個他很久以前就認識的人。');
       say('info','召喚陣選中了你：第七勇者，'+body.age+' 歲，等級 '+body.level+'。義務：討伐裂谷魔物 10 隻。'); }
     else { story(TXT.hall1); talk(TXT.hall1_owen);
     say('info','肉身生成完畢：第七勇者，'+body.age+' 歲，等級 '+body.level+'。義務：討伐裂谷魔物 10 隻。'); } sys('hello');
@@ -1845,7 +1862,10 @@ N.barracks=()=>{ lastNode=N.barracks; if(pendingEvent(N.barracks)) return;
   if(!body.flags.barracks){ body.flags.barracks=1; story(TXT.barracks1); talk(TXT.barracks1_brand); if(fam('tavern')) say('npc','「喬納斯是我帶下去的。」布蘭德把油布疊好，看著你，沒有躲開。「你要恨，就恨我。別恨裂谷——裂谷不在乎。」'); body.armorPlus=(body.armorPlus||0)+2; say('gain','布蘭德的護膝：防禦力 +2'); if(!fact('sixth')) talk(TXT.barracks_six); learn('sixth'); }
   else say('narr',rnd(TXT.barracks_re));
   if(body.questDone&&!body.flags.act2Intro){ body.flags.act2Intro=1; talk(TXT.act2_intro); }
+  if(poss('jass')&&!body.flags.jassBrand1){ body.flags.jassBrand1=1; story(TXT.jass_brand1); checkQuests(); }
   const o=[];
+  if(poss('jass')&&body.flags.captainFound&&!body.flags.jassChoice){ o.push({t:'告訴布蘭德：那天抓住隊長手臂的，是你', ab:1, f:()=>{ body.flags.jassChoice=1; body.flags.jassTell=1; story(TXT.jass_tell); body.rep.knight+=20; say('gain','騎士團聲望 +20'); checkQuests(); N.barracks(); }}); o.push({t:'只告訴他：隊長倒下的地方找到了', ab:1, f:()=>{ body.flags.jassChoice=1; body.flags.jassTell=0; story(TXT.jass_keep); checkQuests(); N.barracks(); }}); }
+  if(poss('jonas')&&body.flags.jonasMet&&!body.flags.jonasBrand) o.push({t:'讓布蘭德把那三年的話說完', ab:1, f:()=>{ body.flags.jonasBrand=1; story(TXT.jonas_brand_p); body.rep.knight+=15; say('gain','騎士團聲望 +15'); checkQuests(); N.barracks(); }});
   if(fam('tavern')&&body.flags.jonasRoom&&!body.flags.jonasBrand) o.push({t:'告訴布蘭德，你打開了樓上那間房', ab:1, f:()=>{ body.flags.jonasBrand=1; story(TXT.jonas_brand); body.rep.knight+=15; say('gain','騎士團聲望 +15'); N.barracks(); }});
   if(body.flags.newKnee&&!body.flags.kneeDone) o.push({t:'把新護膝給布蘭德', ab:1, f:()=>{ story(TXT.sq_knee_done); body.flags.kneeDone=1; body.rep.knight+=25; say('gain','騎士團聲望 +25'); say('npc','他把自己的劍解下來，遞給你。「新護膝配舊劍，不公平。你拿去。」'); giveWeapon('brand'); say('npc','「營房裡還有一副制式鎧，你穿得下。」'); giveArmor('knightplate'); status(); N.barracks(); }});
   if(!body.flags.brandRing) o.push({t:'向布蘭德挑戰：「戒指只給打贏我的人。」（Lv 45，不能用道具，影子不出手）', ab:1, f:()=>{ talk('「我年輕的時候，隊長把一枚戒指塞給我，說給一個比我強的人。他沒有回來，戒指一直在我這。」布蘭德把劍拔出來。「現在輪到你。」'); body.duelFight=1; encounter(BRAND_DUEL,[45,45]); }});
@@ -2078,7 +2098,7 @@ function talkOptions(where,back){
   return {t:'找人說話（'+here.map(n=>n.n).join('、')+'）', f:()=>{
     const o=here.map(n=>({t:n.n, f:()=>{ const c=body.talked[n.n]||0; body.talked[n.n]=c+1; if(n.n!=='第六勇者') meet(n.n);
       if(n.cond&&!n.cond()){ say('npc',n.lines[0]); say('info',n.condText); back(); return; }
-      const EL=endLines(n); let cc=c, LL=n.lines; if(EL){ body.talkedEnd=body.talkedEnd||{}; cc=body.talkedEnd[n.n]||0; body.talkedEnd[n.n]=cc+1; LL=EL; }
+      const EL=endLines(n); let cc=c, LL=possLines(n.n)||n.lines; if(EL){ body.talkedEnd=body.talkedEnd||{}; cc=body.talkedEnd[n.n]||0; body.talkedEnd[n.n]=cc+1; LL=EL; }
       say('npc',LL[Math.min(cc,LL.length-1)]); if(n.onTalk) n.onTalk();
       [n.sched,n.sched2].filter(Boolean).forEach(k=>{ if(!body.facts['sched_'+k]&&c>=1){ body.facts['sched_'+k]=1; say('gain','情報：'+CRAFT[k].hint); } });
       const rv=n.reveals.filter(id=>!body.facts['ex_'+id]);
@@ -2555,7 +2575,7 @@ N.south=()=>{ lastNode=N.south;
     o.push({t:'談判：用真相和民心說服他', ab:fact('truth')&&body.rep.people>=20, dis:!(fact('truth')&&body.rep.people>=20), f:()=>{ openRoute(TXT.route_talk); }});
     if(sysIs('luck')&&soul.luck>=40) o.push({t:'氣運：跟他賭一把', ab:1, f:()=>{ openRoute('你們擲骰子。你連贏七把。他把骰子扔進火裡。「路給你。別再來了。」'); }});
   }
-  if(fact('route')&&fam('item')&&!body.flags.carlFound) o.push({t:'沿著商路往南走一段，找父親的車', ab:1, f:()=>{ body.flags.carlFound=1; story(TXT.carl_found); say('gain','獲得：父親沒寄出的信'); checkQuests(); N.south(); }});
+  if(fact('route')&&(fam('item')||poss('pip'))&&!body.flags.carlFound) o.push({t:'沿著商路往南走一段，找父親的車', ab:1, f:()=>{ body.flags.carlFound=1; story(TXT.carl_found); say('gain','獲得：父親沒寄出的信'); checkQuests(); N.south(); }});
   if(fact('route')&&!caravanIn()) chiefOptions(o,N.south);
   { const t=talkOptions('south',N.south); if(t) o.push(t); const x=exchangeOptions('south',N.south); if(x) o.push(x); }
   omniOptions(o,'south',N.south,caravanIn()?[]:['商隊頭子']);
@@ -2586,6 +2606,7 @@ function ending(k){
   say('title','結局：'+T);
   if(k==='leave'){ story(TXT.end_leave); const e=TXT.epi; const ps=[body.flags.kingCured?e.cured:body.flags.kingDead?e.dead:e.sick]; if(fact('ledger')) ps.push(e.exposed); if(fact('witness')) ps.push(e.witness); if(body.flags.sixthPath) ps.push(e.sixth); if(body.rep.people>=30) ps.push(e.people); if(ps.length===1) ps.push(e.none); story(ps.join('\n\n')); } else story(TXT.end[k]);
   { const fq={tavern:'fq_tavern',item:'fq_item',north:'fq_north'}[body.family]; if(fq&&body.qs&&(body.qs[fq]==='done'||(fq==='fq_north'&&k==='expose'&&body.flags.witnessReady))) story(TXT.fam_epi[body.family]); }
+  { const se={pip:body.flags.pipChoice?(body.flags.pipTruth?'pip_truth':'pip_keep'):null,jass:body.flags.jassChoice?(body.flags.jassTell?'jass_tell':'jass_keep'):null,jonas:body.flags.jonasMet&&body.qs&&body.qs.pq_jonas==='done'?(body.flags.jonasTruth?'jonas_truth':'jonas_pretend'):null}[body.possess]; if(se) story(TXT.soul_epi[se]); }
   body.flags.ending=k; body.floor=1; body.autoHunt=false; body.idleArmed=false; soul.endings=soul.endings||[]; if(!soul.endings.includes(k)) soul.endings.push(k); body.rep.crown+=50; addLuck(30,'改變一個世界');
   say('gain','稱號：「'+({seal:'守誓者',expose:'揭幕者',release:'開門人',leave:'過客'})[k]+'」。灰燼邊境的故事在你手上'+(k==='leave'?'停了':'寫完了')+'。');
   sysText('一個世界結束了。你還在。這就是有系統的意思。');
@@ -2610,9 +2631,11 @@ N.market=()=>{ lastNode=N.market; if(pendingEvent(N.market)) return;
   omniOptions(o,'market',N.market,caravanIn()?['南方商人','商隊頭子']:['南方商人']); townExtras(o,N.market); setOptions(o);
 };
 function stallMenu(){ lastNode=stallMenu; place('王城市集 · 道具店');
-  if(!body.flags.stall){ body.flags.stall=1; if(fam('item')) story(TXT.home_stall); else { story(TXT.market_stall); meet('道具店老闆娘'); meet('皮普'); } } else say('narr',rnd(fam('item')?TXT.home_stall_re:TXT.stall_re));
+  if(!body.flags.stall){ body.flags.stall=1; if(fam('item')) story(TXT.home_stall); else { story(TXT.market_stall); meet('道具店老闆娘'); meet('皮普'); } } else say('narr',rnd(fam('item')?TXT.home_stall_re:poss('pip')?TXT.stall_re.filter(x=>!/皮普/.test(x)).concat(['茉拉：「箱子搬了沒？」她頭也不抬。']):TXT.stall_re));
+  if(poss('pip')&&!body.flags.pipNoticed){ body.flags.pipNoticed=1; story(TXT.pip_noticed); checkQuests(); }
   if(fam('item')&&body.flags.carlFound&&!body.flags.carlHome){ body.flags.carlHome=1; story(TXT.carl_home); checkQuests(); }
   const o=[];
+  if(poss('pip')&&body.flags.carlFound&&!body.flags.pipChoice){ o.push({t:'把卡爾的信放在櫃台上，告訴茉拉：「我不是皮普。」', ab:1, f:()=>{ body.flags.pipChoice=1; body.flags.pipTruth=1; story(TXT.pip_truth); checkQuests(); stallMenu(); }}); o.push({t:'把卡爾的信放在櫃台上，什麼也不說', ab:1, f:()=>{ body.flags.pipChoice=1; body.flags.pipTruth=0; story(TXT.pip_keep); checkQuests(); stallMenu(); }}); }
   Object.keys(ITEMS).filter(k=>ITEMS[k].price>0).forEach(k=>{ const p=iPrice(k); o.push({t:'買'+ITEMS[k].n+'（'+fmt(p)+' 金）'+ITEMS[k].d+'　持有 '+itemN(k), dis:body.gold<p, f:()=>buyQ('買'+ITEMS[k].n,'個',p,stallMenu,n=>{ addItem(k,n); say('gain',ITEMS[k].n+' +'+n); },fitI(k))}); });
   /* 遞增價格：先算 n 件的總價，再決定最多買幾件 */
   const ladderMax=(costOf,cap)=>{ let n=0; while(n<cap&&costOf(n+1)<=body.gold) n++; return n; };
@@ -2786,6 +2809,7 @@ N.guild=()=>{ lastNode=N.guild; place('王城市集 · 冒險者公會'); gqMigr
   if(!body.flags.guild){ body.flags.guild=1; story(TXT.guild1); if(fam('tavern')) say('npc','她看清你的臉，手停了一下。「蘿絲家的。」她把左手收到櫃台下面。「規矩一樣。殺不了就別接。」'); meet('公會長'); } else say('narr',rnd(TXT.guild_re));
   say('info','公會等級 <b>'+guildRank()+'</b>（完成委託 '+(body.guildPts||0)+' 點）｜手上委託 '+body.gq.length+' / '+gqMax());
   const o=[];
+  if(poss('jonas')&&body.flags.jonasMet&&!body.flags.jonasGreta) o.push({t:'讓葛瑞塔看看你', ab:1, f:()=>{ body.flags.jonasGreta=1; story(TXT.jonas_greta_p); body.guildPts=(body.guildPts||0)+5; say('gain','公會點數 +5'); checkQuests(); N.guild(); }});
   if(fam('tavern')&&body.flags.jonasRoom&&!body.flags.jonasGreta) o.push({t:'把父親留下的紙給葛瑞塔看', ab:1, f:()=>{ body.flags.jonasGreta=1; story(TXT.jonas_greta); body.guildPts=(body.guildPts||0)+5; say('gain','公會點數 +5'); N.guild(); }});
   const finish=q=>{ body.gold+=q.gold; body.rep.people+=1; const r0=guildRank(); body.guildPts=(body.guildPts||0)+(q.pts||1); gqAfter(q,r0); body.gq=body.gq.filter(x=>x!==q); say('gain','委託完成：'+q.title+'。金幣 +'+fmt(q.gold)+'，民心 +1。'); if(guildRank()!==r0) say('title','公會等級提升：'+guildRank()); status(); N.guild(); };
   body.gq.forEach(q=>{ if(gqReady(q)&&q.type==='equip') o.push({t:'回報：'+q.title+'（領 '+fmt(q.gold)+' 金，選一件交出）', ab:1, f:()=>{ const L=spareMatches(q.crit); setOptions(L.map(m=>({t:'交出 '+eqName(m.t,m.inst.key)+(m.inst.sharp?' +'+m.inst.sharp:'')+'（賣給武器店約 '+fmt(eqSellPrice(m.t,m.inst.key))+' 金）', f:()=>{ takeSpare(m); say('info','你交出了'+eqName(m.t,m.inst.key)+(m.inst.sharp?' +'+m.inst.sharp:'')+'。'); finish(q); }})).concat([{t:'算了，再想想', f:N.guild}]),'要交哪一件？（只列出符合條件、身上沒穿的）',true); }});
@@ -2833,12 +2857,14 @@ N.auction=()=>{ lastNode=N.auction; place('王城市集 · 拍賣所');
 };
 /* 酒館：休息與傳聞 */
 N.tavern=()=>{ lastNode=N.tavern; place('王城市集 · 酒館');
-  if(!body.flags.tavern){ body.flags.tavern=1; if(fam('tavern')) story(TXT.home_tavern); else { story(TXT.tavern1); meet('酒館老闆娘'); meet('老兵'); } } else say('narr',rnd(fam('tavern')?TXT.home_tavern_re.concat(TXT.tavern_re):TXT.tavern_re));
+  if(poss('jonas')&&!body.flags.jonasMet){ body.flags.tavern=1; story(TXT.jonas_tavern); setOptions([{t:'「蘿絲。我回來了。」', ab:1, f:()=>{ body.flags.jonasMet=1; body.flags.jonasTruth=0; story(TXT.jonas_pretend); checkQuests(); N.tavern(); }},{t:'「我不是他。」', ab:1, f:()=>{ body.flags.jonasMet=1; body.flags.jonasTruth=1; story(TXT.jonas_truth); checkQuests(); N.tavern(); }}],'蘿絲在等你說話。',true); return; }
+  if(!body.flags.tavern){ body.flags.tavern=1; if(fam('tavern')) story(TXT.home_tavern); else { story(TXT.tavern1); meet('酒館老闆娘'); meet('老兵'); } } else say('narr',rnd(fam('tavern')?TXT.home_tavern_re.concat(TXT.tavern_re):poss('jass')?TXT.tavern_re.filter(x=>!/賈斯/.test(x)):poss('jonas')?TXT.tavern_re.filter(x=>!/樓上|蘿絲收錢/.test(x)).concat(['蘿絲替你溫了一壺酒。她坐在對面看你喝，不說話。']):TXT.tavern_re));
   const o=[];
+  if(poss('jonas')&&body.flags.jonasMet&&!body.flags.jonasRoom) o.push({t:'上樓，打開最裡面那間房', ab:1, f:()=>{ body.flags.jonasRoom=1; story(TXT.jonas_room_p); giveAcc('jonasneck'); checkQuests(); N.tavern(); }});
   if(fam('tavern')&&body.flags.jonasFound&&!body.flags.jonasHome) o.push({t:'把父親的徽章交給蘿絲', ab:1, f:()=>{ body.flags.jonasHome=1; story(TXT.jonas_home); checkQuests(); N.tavern(); }});
   if(fam('tavern')&&body.flags.jonasHome&&!body.flags.jonasRoom) o.push({t:'上樓，打開最裡面那間房', ab:1, f:()=>{ body.flags.jonasRoom=1; story(TXT.jonas_room); giveAcc('jonasneck'); checkQuests(); N.tavern(); }});
   { const free=fam('tavern'); o.push({t:(sysIs('ancestor')?'閉關一天（攻擊力永久 +1）':free?'回樓上睡一晚（家裡不收錢，回滿HP）':'住一晚（10 金，回滿HP）'), ab:sysIs('ancestor'), dis:!sysIs('ancestor')&&!free&&body.gold<10, f:()=>{ if(!sysIs('ancestor')&&!free) body.gold-=10; rest(); N.tavern(); }}); }
-  o.push({t:'請角落的老人喝一杯，聽他說（5 金）', dis:body.gold<5, f:()=>{ body.gold-=5; body.flags.rumors=(body.flags.rumors||0)+1; if(!canSeeWorld()&&worldLog.length&&chance(.4)){ const e=worldLog[worldLog.length-1].t; say('npc','老人壓低聲音：「'+e.replace(/^\S+ /,'有人').replace(/\d[\d,]*/g,'很多')+'。」'); } else say('npc',TXT.tavern_rumors[(body.flags.rumors-1)%TXT.tavern_rumors.length]); status(); N.tavern(); }});
+  o.push({t:poss('jass')?'請角落的醉漢喝一杯，聽他說（5 金）':'請角落的老人喝一杯，聽他說（5 金）', dis:body.gold<5, f:()=>{ body.gold-=5; body.flags.rumors=(body.flags.rumors||0)+1; if(!canSeeWorld()&&worldLog.length&&chance(.4)){ const e=worldLog[worldLog.length-1].t; say('npc','老人壓低聲音：「'+e.replace(/^\S+ /,'有人').replace(/\d[\d,]*/g,'很多')+'。」'); } else { const R=poss('jass')?TXT.tavern_rumors.filter(x=>!/我是其中一個|三年前布蘭德帶了/.test(x)):TXT.tavern_rumors; say('npc',R[(body.flags.rumors-1)%R.length]); } status(); N.tavern(); }});
   { const t=talkOptions('market',N.tavern); if(t) o.push(t); }
   o.push({t:'回市集', f:N.market});
   townExtras(o,N.tavern); setOptions(o,'酒館　金幣 '+body.gold);
@@ -2997,7 +3023,7 @@ const TOP_FLOOR=10;
 /* 檢定：每一道門都不看攻擊力 */
 function canFirst(){ return ssr('first')||eatT('wolf')>=5||sysIs('ancestor')||(sysIs('rezero')&&(body.flags.gateDeaths||0)>=3)||body.flags.escort; }
 const GATES={
-  1:{name:'守門者', text:TXT.gate[1], check:()=>{ if(canFirst()) return {ok:true,why:'你比它先動。它甚至沒看清你。'}; if(defNow()>=12) return {ok:true,why:'它的第一擊砸在你身上，你的防禦撐住了。'}; if(sysIs('rezero')){ body.flags.gateDeaths=(body.flags.gateDeaths||0)+1; if(body.flags.gateDeaths>=3) return {ok:true,why:'它動了——但你已經死過三次，知道它什麼時候動。你比它早半步。'}; return {ok:false,lethal:true,why:'它先動了。（死亡回歸：你記住了這一次。'+body.flags.gateDeaths+'/3）'}; } return {ok:false,lethal:true,why:'它先動了。你的攻擊再高也來不及揮出去。'}; }, hint:'布蘭德說過：「打不過守門者的人，要嘛比它快，要嘛比它硬，要嘛有我在。」'},
+  1:{name:'守門者', text:TXT.gate[1], check:()=>{ if(poss('jonas')) return {ok:true,why:'你記得牠。牠咬穿布蘭德膝蓋的那一天，你就在旁邊。牠轉頭之前會先低一下肩——你在牠低肩的那一瞬間走了過去。'}; if(canFirst()) return {ok:true,why:'你比它先動。它甚至沒看清你。'}; if(defNow()>=12) return {ok:true,why:'它的第一擊砸在你身上，你的防禦撐住了。'}; if(sysIs('rezero')){ body.flags.gateDeaths=(body.flags.gateDeaths||0)+1; if(body.flags.gateDeaths>=3) return {ok:true,why:'它動了——但你已經死過三次，知道它什麼時候動。你比它早半步。'}; return {ok:false,lethal:true,why:'它先動了。（死亡回歸：你記住了這一次。'+body.flags.gateDeaths+'/3）'}; } return {ok:false,lethal:true,why:'它先動了。你的攻擊再高也來不及揮出去。'}; }, hint:'布蘭德說過：「打不過守門者的人，要嘛比它快，要嘛比它硬，要嘛有我在。」'},
   2:{name:'認路', text:TXT.gate[2], check:()=>{ if(fact('truth')||sysIs('omni')) return {ok:true,why:'你知道該往哪走。'}; if(sysIs('luck')&&soul.luck>=20) return {ok:true,why:'你隨手一摸，摸到了唯一鬆動的石頭。'}; return {ok:false,why:'你找不到路。這裡需要的是知道，不是力氣。'}; }, hint:'這裡沒有路可以找，只有路可以知道。'},
   3:{name:'血稅', text:TXT.gate[3], check:()=>{ if(body.flags.corekey) return {ok:true,why:'你把核鑰按在門上。十五枚核一齊亮起來，門開了。鑰匙還在你手裡。'}; return {ok:false,why:'門不收金幣，也不收命。它認一把用十五枚裂谷核打成的鑰匙。'}; }, hint:'坑口的鐵匠看過這種門。「十五枚核、三十塊礦，我替你打一把鑰匙。」'},
   4:{name:'毒霧', text:TXT.gate[4], check:()=>{ if(resist('poison')>=1) return {ok:true,why:aDef(eqA()).sealed?'法袍把霧擋在外面。奧文沒有騙你。':'霧碰不到你。'}; return {ok:true,why:'霧鑽進來了。你每走一步都在掉血——回頭是來得及的。'}; }, hint:'藥婆說她見過人從毒霧裡走出來——身體不一樣的人，或者喝了她的藥的人。'},
@@ -3067,6 +3093,7 @@ N.rift=()=>{ lastNode=N.rift; autoHeal();
   const o=[];
   if(body.floor<TOP_FLOOR) o.push({t:'在這一層狩獵（攻速 '+pInterval().toFixed(1)+' 秒）', f:()=>{ if(envTick()) return; if(!canChain()) body.autoHunt=false; encounter(); }}); else o.push({t:'挑戰裂谷魔王', f:()=>{ if(envTick()) return; if(!canChain()) body.autoHunt=false; encounter(KING); }});
   envOptions(o,N.rift);
+  if(body.floor===5&&poss('jass')&&body.flags.jassBrand1&&!body.flags.captainFound) o.push({t:'找到三十年前隊長倒下的那道斜坡', ab:1, f:()=>{ body.flags.captainFound=1; story(TXT.jass_captain); say('gain','獲得：生鏽的騎士團護腕'); checkQuests(); N.rift(); }});
   if(body.floor===2&&fam('tavern')&&!body.flags.jonasFound) o.push({t:'沿著斷崖往下，找父親留下的痕跡', ab:1, f:()=>{ body.flags.jonasFound=1; story(TXT.jonas_found); say('gain','獲得：喬納斯的徽章'); checkQuests(); N.rift(); }});
   if(body.floor===7&&!riftClosed()){ o.push(enhOpt('forge',N.rift,'在熔淵古爐強化裝備')); o.push({t:'熔淵古爐：提煉核晶與魂晶、合成屬性戒指、找爐守', ab:1, f:()=>crystalMenu(N.rift)}); }
   o.push({t:'安全線 '+Math.round(body.stopHp*100)+'%（切換）', f:()=>{ body.stopHp=({0.5:0.3,0.3:0.1,0.1:0.5})[body.stopHp]||0.3; say('info','安全線設為 '+Math.round(body.stopHp*100)+'%。'+(sysIs('idle')?'離線狩獵也用這條線。':'')); N.rift(); }});
@@ -3354,7 +3381,7 @@ async function contractWith(s){ s.cd={}; s.idleFrom=Date.now();
   sys('hello');
   story(TXT.world_intro);
   worldEvent(soul.name+' 締結了「'+s.name+'」，降生於灰燼邊境');
-  setOptions([{t:'以投胎的方式降生（先生在艾許蘭，十六歲時被召喚陣找到）', f:rebornMenu},{t:'以勇者召喚的方式降生', f:()=>{ say('narr','光點問了最後一個問題：「你在上一個世界，握的是什麼？」'); setOptions(Object.keys(JOBS).map(k=>({t:JOBS[k].n+'：'+JOBS[k].desc, f:()=>birth(k)})),'職業決定你能用哪幾種武器。'+(allWeapons()?'你的系統讓你不受這個限制。':'銅之劍、勇者之劍、魔劍誰都能用。'),true); }}]);
+  setOptions([{t:'以投胎的方式降生（先生在艾許蘭，十六歲時被召喚陣找到）', f:rebornMenu},{t:'以魂穿的方式降生（住進這個世界某個人的身體）', f:possessMenu},{t:'以勇者召喚的方式降生', f:()=>{ say('narr','光點問了最後一個問題：「你在上一個世界，握的是什麼？」'); setOptions(Object.keys(JOBS).map(k=>({t:JOBS[k].n+'：'+JOBS[k].desc, f:()=>birth(k)})),'職業決定你能用哪幾種武器。'+(allWeapons()?'你的系統讓你不受這個限制。':'銅之劍、勇者之劍、魔劍誰都能用。'),true); }}]);
 }
 /* 投胎：靈魂先生在艾許蘭，十六歲那年冬天被召喚陣找到，一樣是第七勇者。家人與熟人一開始就認得。 */
 const FAMILIES={
@@ -3368,6 +3395,25 @@ const CHILD_GEAR={
   north:[null,null,[{i:{trap:2}},{r:{herbs:5}},{w:'club'}],[{w:'woodspear',i:{trap:1}},{w:'woodstaff',r:{herbs:5}},{w:'woodspear',i:{bandage:3}}]]};
 const JOB_BASIC={swordsman:'club',knight:'woodspear',thief:'knife',priest:'woodstaff',hunter:'woodspear'};
 function gearLabel(g){ if(!g) return ''; const p=[]; if(g.w) p.push(WEAPONS[g.w].n); Object.keys(g.i||{}).forEach(k=>p.push(ITEMS[k].n+' ×'+g.i[k])); Object.keys(g.r||{}).forEach(k=>p.push(RES[k]+' ×'+g.r[k])); return p.join('、'); }
+/* 魂穿：住進這個世界某個人的身體。召喚陣循著靈魂，把那具身體拉進大殿，一樣是第七勇者。 */
+const POSSESS={
+  pip:{n:'皮普',d:'道具店的跑腿，茉拉的弟弟',how:'奪舍',age:20,job:'thief',level:5,w:['dagger'],a:'shopcoat',items:{hpot:3},cap:20,stat:{agi:4},know:['道具店老闆娘','商隊頭子','南方商人'],visited:['stall','market'],perk:'20 歲；敏捷 +4、背包 +20；短劍、工作外套、藥水 3 瓶。'},
+  jass:{n:'賈斯',d:'酒館角落的老兵，三十年前第一批下裂谷的倖存者',how:'奪舍',age:58,job:'knight',level:10,w:['iron'],a:'chain',know:['布蘭德','酒館老闆娘','公會長'],visited:['tavern','market'],facts:{brand_knee:'布蘭德的左膝，是三年前在斷崖口被守門者咬穿的。'},perk:'等級 10；鐵之劍、鎖子甲；知道布蘭德的舊傷。58 歲：攻擊力只剩六成多，而且會繼續老。'},
+  jonas:{n:'喬納斯',d:'蘿絲的丈夫，三年前死在斷崖口',how:'借屍還魂',age:38,job:'swordsman',level:8,w:['jonasaxe'],a:'expedleather',know:['酒館老闆娘','布蘭德','公會長','老兵'],perk:'38 歲、等級 8；喬納斯的短斧、討伐隊的皮甲；知道斷崖口的守門者怎麼過。屍體：HP 上限 −20%。'}};
+const POSSESS_LINES={
+  jonas:{'布蘭德':['「你身上的灰，我拍不乾淨。」布蘭德說。「三年了，我每天晚上都夢到那道斜坡。現在你站在這裡，我還是會夢到。」','「營房裡還有七個人要吃飯。」布蘭德說。「三年前是十二個。你知道少的那幾個是誰。」他頓了一下。「你知道嗎？你知道的東西，跟他一樣多嗎？」','布蘭德擦著劍。「斷崖口那道門，你這次過得去。」他說。「你記得牠。我也記得。」']},
+  jass:{'布蘭德':['「你喝少了。」布蘭德說。「三十年來第一次看你喝這麼少。召喚陣把你的酒量也換掉了？」','「十個人。」布蘭德說。「我每年冬至都會數一次名字。數到隊長的時候，總要停一下。你呢？你數到誰會停？」','布蘭德把劍收進鞘裡。「你以前不敢下去。現在你是勇者了。」他看著你。「賈斯，你到底在怕什麼？三十年了。」']},
+  pip:{'商隊頭子':['「你終於來了。」商隊頭子說。「上次你來找我，說要跟車。我叫你回去。現在你是勇者了，我叫不動你了。」','商隊頭子看了你很久。「你跟上次不一樣。」他說。「上次你的眼睛在找你姊夫。現在你的眼睛在找別的東西。」','「錢的事，」商隊頭子壓低聲音，「你姊姊知道是我吧。」你點頭。他把帽子往下拉。']}};
+function possLines(name){ const P=body&&body.possess&&POSSESS_LINES[body.possess]; return P&&P[name]; }
+function poss(k){ return !!(body&&body.possess===k); }
+function possessMenu(){ story(TXT.possess_intro); setOptions(Object.keys(POSSESS).map(k=>{ const P=POSSESS[k]; return {t:P.n+'（'+P.how+'）：'+P.d, f:()=>{ story(TXT['wake_'+k]); say('info','這具身體：'+P.perk); say('narr','這具身體的手，最熟的是什麼？'); setOptions(Object.keys(JOBS).map(j=>({t:JOBS[j].n+(P.job===j?'（他本來的）':'')+'：'+JOBS[j].desc, ab:P.job===j, f:()=>possessBirth(k,j)})),'職業決定你能用哪幾種武器。',true); }}; }),'選一具身體。',true); }
+function possessBirth(k,jobKey){ const P=POSSESS[k]; body=newBody(); body.job=jobKey; body.possess=k; body.age=P.age; body.level=P.level;
+  body.weapons=P.w.map(w=>({key:w,sharp:0})); body.armors=[{key:P.a}]; body.arm=0; Object.keys(P.items||{}).forEach(i=>body.items[i]=(body.items[i]||0)+P.items[i]); if(P.cap) body.capBonus=(body.capBonus|0)+P.cap; if(P.stat){ body.statAdd=Object.assign({},P.stat); }
+  Object.keys(P.facts||{}).forEach(f=>body.facts[f]=1); (P.visited||[]).forEach(v=>body.flags[v]=1);
+  soul.met=soul.met||{}; P.know.forEach(x=>soul.met[x]=1);
+  if(!body.weapons.some(w=>canUse(w))) body.weapons.push({key:JOB_BASIC[jobKey],sharp:0});
+  { let bi=0; body.weapons.forEach((w,i)=>{ if(canUse(w)&&(!canUse(body.weapons[bi])||wDef(w).atk>wDef(body.weapons[bi]).atk)) bi=i; }); body.wpn=bi; }
+  if(sysIs('ancestor')) body.age=Math.max(body.age,25); body.hpMax=hpMaxNow(); body.hp=body.hpMax; if(sysIs('rezero')) rzSnap(); clearLog(); status(); N.hall(); }
 function fam(k){ return !!(body&&body.family===k); }
 function rebornMenu(){ story(TXT.reborn_intro); setOptions(Object.keys(FAMILIES).map(k=>({t:FAMILIES[k].n+'：'+FAMILIES[k].d, f:()=>childStage(k,0,{s:{},last:null,job:null})})),'選一個家。',true); }
 /* 成長：四個階段，每階段一個選擇，累積基礎能力；最多的那一項決定出身天賦（同分看最後一次選的） */
