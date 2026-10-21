@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.67.0';
+const VERSION='2.68.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -511,6 +511,7 @@ const WEAPONS={
   // 斧鎚：重
   club:{n:'木棒', type:'heavy', atk:3, spd:0.4, desc:'攻速慢 0.4 秒。'},
   stoneaxe:{n:'石斧', type:'heavy', atk:6, spd:0.5, desc:'攻速慢 0.5 秒。'},
+  jonasaxe:{n:'喬納斯的短斧', type:'heavy', atk:5, spd:0.2, any:1, excl:1, desc:'父親掛在酒館牆上的短斧，斧柄刻著他的名字。誰都能用，攻速慢 0.2 秒。'},
   axe:{n:'戰斧', type:'heavy', atk:12, spd:0.5, desc:'攻速慢 0.5 秒，但一擊砍得深，對厚皮的東西划算。'},
   hammer:{n:'戰鎚', type:'heavy', atk:15, spd:0.6, stun:.25, desc:'攻速慢 0.6 秒。震：四分之一的機會打得敵人下一擊落空。'},
   giantaxe:{n:'巨人之斧', type:'heavy', atk:20, spd:0.7, stun:.25, desc:'獨眼巨人的斧。攻速慢 0.7 秒。震。'},
@@ -792,7 +793,7 @@ function giveWeapon(k){ body.weapons.push({key:k,sharp:0}); ownedMark('W',k); co
 function addItem(k,n){ body.items=body.items||{}; if(n<=0){ body.items[k]=(body.items[k]||0)+n; return n; } const can=Math.min(n,fitI(k)); body.items[k]=(body.items[k]||0)+can; if(can<n){ if(!body.autoHunt) say('info','背包滿了，'+ITEMS[k].n+'只裝得下 '+can+'，還有 '+(n-can)+' 放在腳邊。'); overAdd('items',k,n-can); } return can; }
 function itemN(k){ return (body&&body.items&&body.items[k])||0; }
 function itemsText(){ const l=Object.keys(ITEMS).filter(k=>itemN(k)>0).map(k=>ITEMS[k].n+' ×'+itemN(k)); return l.length?l.join('、'):'無'; }
-function iPrice(k){ return ITEMS[k].price; }
+function iPrice(k){ return fam('item')?Math.round(ITEMS[k].price*.9):ITEMS[k].price; }
 /* 自動使用：背包裡有、開關打開、Buff 還沒在身上，就在該用的時候自動用掉 */
 const AUTO_USE={ration:'戰鬥外補血：回復不會溢出就用（第一順位，回 30%）', bandage:'戰鬥外補血：回復不會溢出就用（第二順位，回 25%）', hpot:'戰鬥外補血：回復不會溢出就用（第三順位，回 50%）', torch:'探索中要遇到魔物時自動灑（牠不會發現你）', whet:'每場戰鬥開場自動喝（攻擊 ×1.5）', armoroil:'每場戰鬥開場自動喝（防禦 ×2）', wisteria:'開始探索時，香味散了就自動換一包', bamboo:'開始探索時自動戴上', chocobo:'開始探索時自動吹哨', map:'開始探索時自動攤開'};
 function autoOn(k){ return !!(body&&body.autoUse&&body.autoUse[k]); }
@@ -1115,7 +1116,7 @@ const capN=(a,b)=>Math.min(a==null?1e9:a,b);
 function buyQ(title,unit,price,back,f,limit){ qtyMenu({title, unit, max:capN(limit,Math.floor(body.gold/price)), cost:n=>fmt(price*n)+' 金', f:n=>{ body.gold-=price*n; f(n); }, back}); }
 /* 賣東西：資源賣給市集的收購商，道具半價賣回道具店。價錢都比在別處買進低，不能買低賣高。稀有素材收購商不收，去拍賣所委託。 */
 const SELL={herbs:15,pelts:25,relics:60,ore:12,grain:4,salt:6,timber:6,fish:4,ink:15,coal:6};
-function itemSell(k){ if(ITEMS[k]&&ITEMS[k].dim) return dimSell(k==='dragonball'?1000:DIM[k].pts); if(k==='flare') return 0; if(k==='elixir') return 25; return Math.floor((ITEMS[k].price||0)/2); }
+function itemSell(k){ if(ITEMS[k]&&ITEMS[k].dim) return dimSell(k==='dragonball'?1000:DIM[k].pts); if(k==='flare') return 0; if(k==='elixir') return 25; return Math.floor((ITEMS[k].price||0)*(fam('item')?.6:.5)); }
 /* ===== 南方商行 =====
    每週（七天）換一次：本週南方貨（限量的稀有素材）、本週收購單（兩種資源，高價、限量）。
    另外可以投資下一趟商隊（七天後回來，可能賺也可能被劫），或花一天護送商隊（路上會遇敵）。 */
@@ -1784,8 +1785,10 @@ const N={};
 N.hall=()=>{ lastNode=N.hall; if(pendingEvent(N.hall)) return;
   place('召喚大殿');
   if(!body.flags.hall){ body.flags.hall=1;
-    story(TXT.hall1); talk(TXT.hall1_owen);
-    say('info','肉身生成完畢：第七勇者，'+body.age+' 歲，等級 '+body.level+'。義務：討伐裂谷魔物 10 隻。'); sys('hello');
+    if(body.family){ story(TXT.hall1_local); talk(TXT.hall1_owen_local); if(fam('tavern')) say('npc','穿鎧甲的男人離開了石柱，走到圓邊。「喬納斯的孩子。」布蘭德說。他沒有笑，也沒有移開眼睛。'); else if(fam('north')) say('narr','書記官抬起頭看你。他也是北村出來的。他看你的眼神，像在看一個他很久以前就認識的人。');
+      say('info','召喚陣選中了你：第七勇者，'+body.age+' 歲，等級 '+body.level+'。義務：討伐裂谷魔物 10 隻。'); }
+    else { story(TXT.hall1); talk(TXT.hall1_owen);
+    say('info','肉身生成完畢：第七勇者，'+body.age+' 歲，等級 '+body.level+'。義務：討伐裂谷魔物 10 隻。'); } sys('hello');
   } else say('narr',rnd(body.flags.kingDead?TXT.hall_dead_re:TXT.hall_re));
   const o=[];
   o.push({t:npcGone('奧文')?'去王座廳':'跟奧文去王座廳見國王', f:N.throne});
@@ -1819,7 +1822,7 @@ N.throne=()=>{ lastNode=N.throne; if(pendingEvent(N.throne)) return;
 };
 N.barracks=()=>{ lastNode=N.barracks; if(pendingEvent(N.barracks)) return;
   place('騎士團營房');
-  if(!body.flags.barracks){ body.flags.barracks=1; story(TXT.barracks1); talk(TXT.barracks1_brand); body.armorPlus=(body.armorPlus||0)+2; say('gain','布蘭德的護膝：防禦力 +2'); if(!fact('sixth')) talk(TXT.barracks_six); learn('sixth'); }
+  if(!body.flags.barracks){ body.flags.barracks=1; story(TXT.barracks1); talk(TXT.barracks1_brand); if(fam('tavern')) say('npc','「喬納斯是我帶下去的。」布蘭德把油布疊好，看著你，沒有躲開。「你要恨，就恨我。別恨裂谷——裂谷不在乎。」'); body.armorPlus=(body.armorPlus||0)+2; say('gain','布蘭德的護膝：防禦力 +2'); if(!fact('sixth')) talk(TXT.barracks_six); learn('sixth'); }
   else say('narr',rnd(TXT.barracks_re));
   if(body.questDone&&!body.flags.act2Intro){ body.flags.act2Intro=1; talk(TXT.act2_intro); }
   const o=[];
@@ -2478,7 +2481,7 @@ N.temple=()=>{ lastNode=N.temple; if(pendingEvent(N.temple)) return;
 };
 N.camp=()=>{ lastNode=N.camp; if(pendingEvent(N.camp)) return;
   place('北門難民營');
-  if(!body.flags.camp){ body.flags.camp=1; story(TXT.camp1); meet('藥婆'); }
+  if(!body.flags.camp){ body.flags.camp=1; if(fam('north')) story(TXT.home_camp); else { story(TXT.camp1); meet('藥婆'); } }
   else say('narr',rnd(body.flags.oldDead?TXT.camp_old_re:TXT.camp_re));
   const o=[];
   clerkOptions(o,N.camp,'camp');
@@ -2520,7 +2523,7 @@ N.north=(again)=>{ lastNode=N.north;
 };
 N.south=()=>{ lastNode=N.south;
   place('南方哨站');
-  if(!body.flags.south){ body.flags.south=1; spendDay('走到南方哨站'); story(TXT.south1); }
+  if(!body.flags.south){ body.flags.south=1; spendDay('走到南方哨站'); story(TXT.south1); if(fam('item')) say('npc','商隊頭子看見你，摘下了帽子。「卡爾的孩子。」他說。「……錢的事，你母親知道吧。」你點頭。他把帽子戴回去，戴得很低。'); }
   else if(caravanIn()){ if(!body.flags.southAfter){ body.flags.southAfter=1; story(TXT.south_after); } else say('narr',rnd(TXT.south_after_re)); }
   else say('narr',rnd(TXT.south_re));
   const o=[];
@@ -2582,7 +2585,7 @@ N.market=()=>{ lastNode=N.market; if(pendingEvent(N.market)) return;
   omniOptions(o,'market',N.market,caravanIn()?['南方商人','商隊頭子']:['南方商人']); townExtras(o,N.market); setOptions(o);
 };
 function stallMenu(){ lastNode=stallMenu; place('王城市集 · 道具店');
-  if(!body.flags.stall){ body.flags.stall=1; story(TXT.market_stall); meet('道具店老闆娘'); meet('皮普'); } else say('narr',rnd(TXT.stall_re));
+  if(!body.flags.stall){ body.flags.stall=1; if(fam('item')) story(TXT.home_stall); else { story(TXT.market_stall); meet('道具店老闆娘'); meet('皮普'); } } else say('narr',rnd(fam('item')?TXT.home_stall_re:TXT.stall_re));
   const o=[];
   Object.keys(ITEMS).filter(k=>ITEMS[k].price>0).forEach(k=>{ const p=iPrice(k); o.push({t:'買'+ITEMS[k].n+'（'+fmt(p)+' 金）'+ITEMS[k].d+'　持有 '+itemN(k), dis:body.gold<p, f:()=>buyQ('買'+ITEMS[k].n,'個',p,stallMenu,n=>{ addItem(k,n); say('gain',ITEMS[k].n+' +'+n); },fitI(k))}); });
   /* 遞增價格：先算 n 件的總價，再決定最多買幾件 */
@@ -2754,7 +2757,7 @@ function boardMenu(){ boardRefresh(); const o=body.board.list.map(p=>({t:gqLabel
   o.push({t:'不看了', f:N.guild});
   setOptions(o,'委託欄　手上 '+(body.gq||[]).length+' / '+gqMax()+' 件（'+guildRank()+' 級）。比你高一級的單子也能接，再高就不行。每張掛三天。',true); }
 N.guild=()=>{ lastNode=N.guild; place('王城市集 · 冒險者公會'); gqMigrate(); boardRefresh();
-  if(!body.flags.guild){ body.flags.guild=1; story(TXT.guild1); meet('公會長'); } else say('narr',rnd(TXT.guild_re));
+  if(!body.flags.guild){ body.flags.guild=1; story(TXT.guild1); if(fam('tavern')) say('npc','她看清你的臉，手停了一下。「蘿絲家的。」她把左手收到櫃台下面。「規矩一樣。殺不了就別接。」'); meet('公會長'); } else say('narr',rnd(TXT.guild_re));
   say('info','公會等級 <b>'+guildRank()+'</b>（完成委託 '+(body.guildPts||0)+' 點）｜手上委託 '+body.gq.length+' / '+gqMax());
   const o=[];
   const finish=q=>{ body.gold+=q.gold; body.rep.people+=1; const r0=guildRank(); body.guildPts=(body.guildPts||0)+(q.pts||1); gqAfter(q,r0); body.gq=body.gq.filter(x=>x!==q); say('gain','委託完成：'+q.title+'。金幣 +'+fmt(q.gold)+'，民心 +1。'); if(guildRank()!==r0) say('title','公會等級提升：'+guildRank()); status(); N.guild(); };
@@ -2803,9 +2806,9 @@ N.auction=()=>{ lastNode=N.auction; place('王城市集 · 拍賣所');
 };
 /* 酒館：休息與傳聞 */
 N.tavern=()=>{ lastNode=N.tavern; place('王城市集 · 酒館');
-  if(!body.flags.tavern){ body.flags.tavern=1; story(TXT.tavern1); meet('酒館老闆娘'); meet('老兵'); } else say('narr',rnd(TXT.tavern_re));
+  if(!body.flags.tavern){ body.flags.tavern=1; if(fam('tavern')) story(TXT.home_tavern); else { story(TXT.tavern1); meet('酒館老闆娘'); meet('老兵'); } } else say('narr',rnd(fam('tavern')?TXT.home_tavern_re.concat(TXT.tavern_re):TXT.tavern_re));
   const o=[];
-  o.push({t:(sysIs('ancestor')?'閉關一天（攻擊力永久 +1）':'住一晚（10 金，回滿HP）'), ab:sysIs('ancestor'), dis:!sysIs('ancestor')&&body.gold<10, f:()=>{ if(!sysIs('ancestor')) body.gold-=10; rest(); N.tavern(); }});
+  { const free=fam('tavern'); o.push({t:(sysIs('ancestor')?'閉關一天（攻擊力永久 +1）':free?'回樓上睡一晚（家裡不收錢，回滿HP）':'住一晚（10 金，回滿HP）'), ab:sysIs('ancestor'), dis:!sysIs('ancestor')&&!free&&body.gold<10, f:()=>{ if(!sysIs('ancestor')&&!free) body.gold-=10; rest(); N.tavern(); }}); }
   o.push({t:'請角落的老人喝一杯，聽他說（5 金）', dis:body.gold<5, f:()=>{ body.gold-=5; body.flags.rumors=(body.flags.rumors||0)+1; if(!canSeeWorld()&&worldLog.length&&chance(.4)){ const e=worldLog[worldLog.length-1].t; say('npc','老人壓低聲音：「'+e.replace(/^\S+ /,'有人').replace(/\d[\d,]*/g,'很多')+'。」'); } else say('npc',TXT.tavern_rumors[(body.flags.rumors-1)%TXT.tavern_rumors.length]); status(); N.tavern(); }});
   { const t=talkOptions('market',N.tavern); if(t) o.push(t); }
   o.push({t:'回市集', f:N.market});
@@ -3321,9 +3324,16 @@ async function contractWith(s){ s.cd={}; s.idleFrom=Date.now();
   sys('hello');
   story(TXT.world_intro);
   worldEvent(soul.name+' 締結了「'+s.name+'」，降生於灰燼邊境');
-  setOptions([{t:'以勇者召喚的方式降生', f:()=>{ say('narr','光點問了最後一個問題：「你在上一個世界，握的是什麼？」'); setOptions(Object.keys(JOBS).map(k=>({t:JOBS[k].n+'：'+JOBS[k].desc, f:()=>birth(k)})),'職業決定你能用哪幾種武器。'+(allWeapons()?'你的系統讓你不受這個限制。':'銅之劍、勇者之劍、魔劍誰都能用。'),true); }}]);
+  setOptions([{t:'以投胎的方式降生（先生在艾許蘭，十六歲時被召喚陣找到）', f:rebornMenu},{t:'以勇者召喚的方式降生', f:()=>{ say('narr','光點問了最後一個問題：「你在上一個世界，握的是什麼？」'); setOptions(Object.keys(JOBS).map(k=>({t:JOBS[k].n+'：'+JOBS[k].desc, f:()=>birth(k)})),'職業決定你能用哪幾種武器。'+(allWeapons()?'你的系統讓你不受這個限制。':'銅之劍、勇者之劍、魔劍誰都能用。'),true); }}]);
 }
-function birth(jobKey){ body=newBody(); body.job=jobKey; JOB_START[jobKey].forEach(k=>body.weapons.push({key:k,sharp:0})); if(sysIs('ancestor')) body.age=25; body.hpMax=hpMaxNow(); body.hp=body.hpMax; if(sysIs('rezero')) rzSnap(); clearLog(); status(); N.hall(); }
+/* 投胎：靈魂先生在艾許蘭，十六歲那年冬天被召喚陣找到，一樣是第七勇者。家人與熟人一開始就認得。 */
+const FAMILIES={
+  tavern:{n:'生在王城市集的酒館',d:'老闆娘蘿絲與冒險者喬納斯的孩子',child:'child_tavern',know:['酒館老闆娘','老兵','布蘭德','公會長'],start:b=>{ b.weapons.push({key:'jonasaxe',sharp:0}); },perk:'酒館住宿免費；起始武器「喬納斯的短斧」（誰都能用）。'},
+  item:{n:'生在王城市集的道具店',d:'獨眼的茉拉與跑商的卡爾的孩子，舅舅是皮普',child:'child_item',know:['道具店老闆娘','皮普','商隊頭子'],start:b=>{ b.items.hpot=(b.items.hpot||0)+5; },perk:'道具店買東西九折、賣回給茉拉多一成；起始藥水 5 瓶。'},
+  north:{n:'生在北村',d:'種灰葉草的人家，今年冬天北村出事時跟小莉一起被藥婆收留',child:'child_north',know:['藥婆','難民孩子','地窖老人'],start:b=>{ b.rep.people+=20; b.herbs+=10; },perk:'民心 +20、起始灰葉草 10 株；藥婆、小莉、葛林一開始就認得你。'}};
+function fam(k){ return !!(body&&body.family===k); }
+function rebornMenu(){ story(TXT.reborn_intro); setOptions(Object.keys(FAMILIES).map(k=>({t:FAMILIES[k].n+'：'+FAMILIES[k].d, f:()=>{ story(TXT[FAMILIES[k].child]); say('info','出身加成：'+FAMILIES[k].perk); say('narr','十六年裡，你學會的是什麼？'); setOptions(Object.keys(JOBS).map(j=>({t:JOBS[j].n+'：'+JOBS[j].desc, f:()=>birth(j,k)})),'職業決定你能用哪幾種武器。',true); }})),'選一個家。',true); }
+function birth(jobKey,family){ body=newBody(); body.job=jobKey; JOB_START[jobKey].forEach(k=>body.weapons.push({key:k,sharp:0})); if(family&&FAMILIES[family]){ body.family=family; body.age=16; FAMILIES[family].start(body); soul.met=soul.met||{}; FAMILIES[family].know.forEach(k=>soul.met[k]=1); } if(sysIs('ancestor')) body.age=25; body.hpMax=hpMaxNow(); body.hp=body.hpMax; if(sysIs('rezero')) rzSnap(); clearLog(); status(); N.hall(); }
 
 /* 記住最後一個主畫面怎麼重畫：整理背包之後回到那裡（重畫才會拿到最新的數量） */
 let curBuild=null;
