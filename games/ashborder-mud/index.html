@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.70.0';
+const VERSION='2.71.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -556,6 +556,9 @@ const ARMORS={
   bishoprobe:{n:'大主教法衣', type:'cloth', def:12, ward:.15, regen:.02, res:{poison:.5,lightning:.5}, desc:'受到的傷害再減一成五，每次出手回復 2% HP。毒與雷抗性五成。'},
   // 皮甲
   leather:{n:'皮之鎧', type:'leather', def:2, any:1, desc:'召喚時穿在身上的。'},
+  tavernvest:{n:'酒館的皮背心', type:'leather', def:2, any:1, excl:1, desc:'蘿絲用舊圍裙改的，口袋很多。誰都能穿。'},
+  shopcoat:{n:'道具店的工作外套', type:'cloth', def:2, any:1, excl:1, desc:'口袋裡總是多一瓶藥水。誰都能穿。'},
+  northcoat:{n:'北村的羊毛襖', type:'cloth', def:2, any:1, excl:1, res:{ice:.3}, desc:'母親縫的，逃出來那晚穿在身上。冰抗性三成，誰都能穿。'},
   fur:{n:'毛皮斗篷', type:'leather', def:4, cold:1, res:{ice:1}, desc:'冰免疫。走冰面不會凍死。'},
   hunter:{n:'硬皮鎧', type:'leather', def:5, desc:'獵人硝的皮，比旅人的厚一倍。'},
   apron:{n:'礦工服', type:'leather', def:5, ore:1, desc:'採礦每次多一塊。'},
@@ -3355,15 +3358,22 @@ async function contractWith(s){ s.cd={}; s.idleFrom=Date.now();
 }
 /* 投胎：靈魂先生在艾許蘭，十六歲那年冬天被召喚陣找到，一樣是第七勇者。家人與熟人一開始就認得。 */
 const FAMILIES={
-  tavern:{n:'生在王城市集的酒館',d:'老闆娘蘿絲與冒險者喬納斯的孩子',know:['酒館老闆娘','老兵','布蘭德','公會長'],start:b=>{ b.weapons.push({key:'jonasaxe',sharp:0}); },perk:'酒館住宿免費；起始武器「喬納斯的短斧」（誰都能用）。'},
-  item:{n:'生在王城市集的道具店',d:'獨眼的茉拉與跑商的卡爾的孩子，舅舅是皮普',know:['道具店老闆娘','皮普','商隊頭子'],start:b=>{ b.items.hpot=(b.items.hpot||0)+5; },perk:'道具店買東西九折、賣回給茉拉多一成；起始藥水 5 瓶。'},
-  north:{n:'生在北村',d:'種灰葉草的人家，今年冬天北村出事時跟小莉一起被藥婆收留',know:['藥婆','難民孩子','地窖老人'],start:b=>{ b.rep.people+=20; b.herbs+=10; },perk:'民心 +20、起始灰葉草 10 株；藥婆、小莉、葛林一開始就認得你。'}};
+  tavern:{armor:'tavernvest',n:'生在王城市集的酒館',d:'老闆娘蘿絲與冒險者喬納斯的孩子',know:['酒館老闆娘','老兵','布蘭德','公會長'],start:b=>{ b.weapons.push({key:'jonasaxe',sharp:0}); },perk:'酒館住宿免費；起始武器「喬納斯的短斧」（誰都能用）。'},
+  item:{armor:'shopcoat',n:'生在王城市集的道具店',d:'獨眼的茉拉與跑商的卡爾的孩子，舅舅是皮普',know:['道具店老闆娘','皮普','商隊頭子'],start:b=>{ b.items.hpot=(b.items.hpot||0)+5; },perk:'道具店買東西九折、賣回給茉拉多一成；起始藥水 5 瓶。'},
+  north:{armor:'northcoat',n:'生在北村',d:'種灰葉草的人家，今年冬天北村出事時跟小莉一起被藥婆收留',know:['藥婆','難民孩子','地窖老人'],start:b=>{ b.rep.people+=20; b.herbs+=10; },perk:'民心 +20、起始灰葉草 10 株；藥婆、小莉、葛林一開始就認得你。'}};
+/* 成長給的起始裝備：只有 8～12 歲、13～16 歲兩個階段給。w 武器、i 道具、r 資源。 */
+const CHILD_GEAR={
+  tavern:[null,null,[{w:'club'},{w:'knife'},{i:{smoke:2}}],[{i:{whet:2}},{w:'woodspear',i:{bandage:3}},{w:'dagger'}]],
+  item:[null,null,[{i:{hpot:2}},{w:'knife'},{w:'club'}],[{w:'woodstaff',i:{hpot:3}},{w:'dagger',i:{smoke:2}},{w:'club',i:{bandage:3}}]],
+  north:[null,null,[{i:{trap:2}},{r:{herbs:5}},{w:'club'}],[{w:'woodspear',i:{trap:1}},{w:'woodstaff',r:{herbs:5}},{w:'woodspear',i:{bandage:3}}]]};
+const JOB_BASIC={swordsman:'club',knight:'woodspear',thief:'knife',priest:'woodstaff',hunter:'woodspear'};
+function gearLabel(g){ if(!g) return ''; const p=[]; if(g.w) p.push(WEAPONS[g.w].n); Object.keys(g.i||{}).forEach(k=>p.push(ITEMS[k].n+' ×'+g.i[k])); Object.keys(g.r||{}).forEach(k=>p.push(RES[k]+' ×'+g.r[k])); return p.join('、'); }
 function fam(k){ return !!(body&&body.family===k); }
 function rebornMenu(){ story(TXT.reborn_intro); setOptions(Object.keys(FAMILIES).map(k=>({t:FAMILIES[k].n+'：'+FAMILIES[k].d, f:()=>childStage(k,0,{s:{},last:null,job:null})})),'選一個家。',true); }
 /* 成長：四個階段，每階段一個選擇，累積基礎能力；最多的那一項決定出身天賦（同分看最後一次選的） */
 const STAT_KEYS=['str','vit','agi','int'];
 function childStage(f,i,plan){ const L=TXT.childhood[f], st=L[i]; say('title',st.age); if(st.world) say('info',st.world); story(st.text);
-  setOptions(st.o.map(c=>({t:c.t+'（'+Object.keys(c.s).map(k=>STAT_N[k]+' +'+c.s[k]).join('、')+'）', f:()=>{ say('narr',c.r); Object.keys(c.s).forEach(k=>plan.s[k]=(plan.s[k]||0)+c.s[k]); plan.last=Object.keys(c.s)[0]; if(c.job) plan.job=c.job; if(i+1<L.length) childStage(f,i+1,plan); else childEnd(f,plan); }})),st.q,true); }
+  setOptions(st.o.map((c,ci)=>{ const g=(CHILD_GEAR[f][i]||[])[ci]; return {t:c.t+'（'+Object.keys(c.s).map(k=>STAT_N[k]+' +'+c.s[k]).join('、')+(g?'；'+gearLabel(g):'')+'）', f:()=>{ say('narr',c.r); if(g){ plan.gear=(plan.gear||[]).concat([g]); } Object.keys(c.s).forEach(k=>plan.s[k]=(plan.s[k]||0)+c.s[k]); plan.last=Object.keys(c.s)[0]; if(c.job) plan.job=c.job; if(i+1<L.length) childStage(f,i+1,plan); else childEnd(f,plan); }}; }),st.q,true); }
 function childTalent(plan){ const mx=Math.max(...STAT_KEYS.map(k=>plan.s[k]||0)); const top=STAT_KEYS.filter(k=>(plan.s[k]||0)===mx); return top.includes(plan.last)?plan.last:top[0]; }
 function childEnd(f,plan){ const tal=childTalent(plan), T=TXT.talents[tal];
   say('title','十六年');
@@ -3372,7 +3382,9 @@ function childEnd(f,plan){ const tal=childTalent(plan), T=TXT.talents[tal];
   say('info','出身加成：'+FAMILIES[f].perk);
   say('narr','十六年裡，你學會的是什麼？');
   setOptions(Object.keys(JOBS).map(j=>({t:JOBS[j].n+(plan.job===j?'（推薦）':'')+'：'+JOBS[j].desc, ab:plan.job===j, f:()=>birth(j,f,plan)})),'職業決定你能用哪幾種武器。推薦的是你最後那幾年在做的事，選別的也可以。',true); }
-function birth(jobKey,family,plan){ body=newBody(); body.job=jobKey; JOB_START[jobKey].forEach(k=>body.weapons.push({key:k,sharp:0})); if(family&&FAMILIES[family]){ body.family=family; body.age=16; FAMILIES[family].start(body); soul.met=soul.met||{}; FAMILIES[family].know.forEach(k=>soul.met[k]=1); if(plan){ body.statAdd=body.statAdd||{}; STAT_KEYS.forEach(k=>{ if(plan.s[k]) body.statAdd[k]=(body.statAdd[k]||0)+plan.s[k]; }); body.talent=childTalent(plan); } } if(sysIs('ancestor')) body.age=25; body.hpMax=hpMaxNow(); body.hp=body.hpMax; if(sysIs('rezero')) rzSnap(); clearLog(); status(); N.hall(); }
+function birth(jobKey,family,plan){ body=newBody(); body.job=jobKey; if(family&&FAMILIES[family]){ body.weapons=[]; body.armors=[{key:FAMILIES[family].armor}]; body.arm=0; ((plan&&plan.gear)||[]).forEach(g=>{ if(g.w) body.weapons.push({key:g.w,sharp:0}); Object.keys(g.i||{}).forEach(k=>body.items[k]=(body.items[k]||0)+g.i[k]); Object.keys(g.r||{}).forEach(k=>body[k]=(body[k]||0)+g.r[k]); }); } else JOB_START[jobKey].forEach(k=>body.weapons.push({key:k,sharp:0})); if(family&&FAMILIES[family]){ body.family=family; body.age=16; FAMILIES[family].start(body); soul.met=soul.met||{}; FAMILIES[family].know.forEach(k=>soul.met[k]=1); if(plan){ body.statAdd=body.statAdd||{}; STAT_KEYS.forEach(k=>{ if(plan.s[k]) body.statAdd[k]=(body.statAdd[k]||0)+plan.s[k]; }); body.talent=childTalent(plan); }
+    if(!body.weapons.some(w=>canUse(w))) body.weapons.push({key:JOB_BASIC[jobKey],sharp:0});
+    { let bi=0; body.weapons.forEach((w,i)=>{ if(canUse(w)&&(!canUse(body.weapons[bi])||wDef(w).atk>wDef(body.weapons[bi]).atk)) bi=i; }); body.wpn=bi; } } if(sysIs('ancestor')) body.age=25; body.hpMax=hpMaxNow(); body.hp=body.hpMax; if(sysIs('rezero')) rzSnap(); clearLog(); status(); N.hall(); }
 
 /* 記住最後一個主畫面怎麼重畫：整理背包之後回到那裡（重畫才會拿到最新的數量） */
 let curBuild=null;
