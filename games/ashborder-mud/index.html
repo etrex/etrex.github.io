@@ -171,7 +171,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.68.0';
+const VERSION='2.69.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -626,6 +626,7 @@ const ACCS={
   insulgloves:{n:'絕緣手套', slot:'gloves', def:1, res:{lightning:.6}, desc:'包了樹脂的手套。雷抗性六成。'},
   // 項鍊（稀有）
   fangneck:{n:'狼牙項鍊', slot:'neck', atk:5, crit:.1, desc:'會心一成。'},
+  jonasneck:{n:'喬納斯的護身符', slot:'neck', hp:30, def:2, excl:1, sys:1, desc:'父親每次下裂谷都戴著。三年前那一趟，他忘了戴。'},
   wardneck:{n:'守護項鍊', slot:'neck', def:3, ward:.1, desc:'受到的傷害再減一成。'},
   royalneck:{n:'王家項鍊', slot:'neck', def:5, hp:20, desc:'HP 上限 +20。'},
   lifeneck:{n:'生命項鍊', slot:'neck', hp:40, regen:.02, desc:'HP 上限 +40，每次出手回復 2% HP。'},
@@ -1290,6 +1291,22 @@ const QUESTS=[
   {t:()=>'他要你下到第四層，看血池裡的東西。', done:()=>body.flags.sawPool||body.flags.fl4},
   {t:()=>'你看見了。回去告訴他。', done:()=>body.flags.sixthReady}],
  end:'第六勇者站起來了。「你決定的時候，來找我。我們一起下去。」'},
+{id:'fq_tavern', fam:1, name:'家線：把父親帶回家', start:()=>fam('tavern')&&body.flags.hall, stages:[
+  {t:()=>'父親三年前沒有從斷崖口回來。通過斷崖口，到裂谷第 2 層找他留下的東西。', done:()=>body.flags.jonasFound},
+  {t:()=>'你找到了父親的徽章，岩壁上刻著他最後的字。帶回酒館給蘿絲。', done:()=>body.flags.jonasHome},
+  {t:()=>'蘿絲把鑰匙推給你。樓上最裡面那間房，你要自己去開。', done:()=>body.flags.jonasRoom}],
+ end:'你戴上了父親忘了戴的護身符。布蘭德和葛瑞塔也許想知道這件事。'},
+{id:'fq_item', fam:1, name:'家線：走完父親沒走完的路', start:()=>fam('item')&&body.flags.hall, stages:[
+  {t:()=>'父親死在南方商路的中段。去南方哨站找商隊頭子拉希德。', done:()=>body.flags.south},
+  {t:()=>'商路還斷著。打通它——父親沒走完的路，最好由你親手清。', done:()=>fact('route')},
+  {t:()=>'商路通了。沿著路往南走一段，找父親的車。', done:()=>body.flags.carlFound},
+  {t:()=>'你找到了父親沒寄出的信。帶回道具店給茉拉。', done:()=>body.flags.carlHome}],
+ end:'皮普跟著下一趟商隊出發了。茉拉收下了拉希德的錢，第一次說了謝謝。商隊收你的核，給的價更好。'},
+{id:'fq_north', fam:1, name:'家線：替北村討回公道', start:()=>fam('north')&&body.flags.hall, stages:[
+  {t:()=>'回北村看看你家。', done:()=>body.flags.northHome},
+  {t:()=>'你也看見了白袍。跟小莉說好，要作證就一起站上去。', done:()=>body.flags.witnessReady},
+  {t:()=>'證人有了。揭發神殿，替北村討回公道。', done:()=>body.flags.ending==='expose', fail:()=>!!body.flags.ending&&body.flags.ending!=='expose'}],
+ end:'北村在重建。你和小莉在井邊種下了第一叢灰葉草。', failEnd:'灰燼邊境的故事結束了。北村的事，沒有人說出來。'},
 {id:'sq_father', name:'獵人與守林人', start:()=>(body.talked['獵人']||0)>=4, stages:[
   {t:()=>'獵人和守林人十年沒說話。守林人在深林口，跟他談談。', done:()=>(body.talked['守林人']||0)>=2},
   {t:()=>'守林人說：「他要是還打獵，就拿五張皮來。」', done:()=>body.flags.fatherDone}],
@@ -1329,10 +1346,10 @@ function checkQuests(){
 }
 function renderQuests(){
   const c=document.getElementById('questCard'); if(!body||!body.qs){ c.innerHTML='<h2>任務</h2><div class="slot"><span>還沒有任務。</span></div>'; return; }
-  const rows=QUESTS.filter(q=>body.qs[q.id]!==undefined).map(q=>{ const v=body.qs[q.id]; const cls='q'+(q.main?' main':'')+(typeof v!=='number'?' done':''); const txt=v==='done'?'✓ '+q.end:v==='fail'?'✗ '+(q.failEnd||'失敗'):q.stages[v].t(); return '<div class="'+cls+'"><b>'+q.name+'</b><span>'+esc(txt)+'</span></div>'; });
+  const rows=QUESTS.filter(q=>body.qs[q.id]!==undefined).map(q=>{ const v=body.qs[q.id]; const cls='q'+(q.main||q.fam?' main':'')+(typeof v!=='number'?' done':''); const txt=v==='done'?'✓ '+q.end:v==='fail'?'✗ '+(q.failEnd||'失敗'):q.stages[v].t(); return '<div class="'+cls+'"><b>'+q.name+'</b><span>'+esc(txt)+'</span></div>'; });
   c.innerHTML='<h2>任務</h2>'+(rows.length?rows.join(''):'<div class="slot"><span>還沒有任務。</span></div>');
 }
-function showJournal(){ if(!body||!body.qs) return; const l=QUESTS.filter(q=>body.qs[q.id]!==undefined).map(q=>{ const v=body.qs[q.id]; return (q.main?'【主線】':'【支線】')+q.name+'：'+(v==='done'?'完成。'+q.end:v==='fail'?'失敗。'+(q.failEnd||''):q.stages[v].t()); }); (body.gq||[]).forEach(q=>l.push('【公會】'+q.title+'（'+gqProgress(q)+(gqReady(q)?'，可以回報':'')+'）：'+q.hint)); say('info',l.length?l.join('\n'):'還沒有任務。'); }
+function showJournal(){ if(!body||!body.qs) return; const l=QUESTS.filter(q=>body.qs[q.id]!==undefined).map(q=>{ const v=body.qs[q.id]; return (q.main?'【主線】':q.fam?'【家線】':'【支線】')+q.name+'：'+(v==='done'?'完成。'+q.end:v==='fail'?'失敗。'+(q.failEnd||''):q.stages[v].t()); }); (body.gq||[]).forEach(q=>l.push('【公會】'+q.title+'（'+gqProgress(q)+(gqReady(q)?'，可以回報':'')+'）：'+q.hint)); say('info',l.length?l.join('\n'):'還沒有任務。'); }
 /* ===== 世界事件：日子往前走，世界不等你 ===== */
 function worldTick(){
   const d=body.day; const ev=body.flags.ev||(body.flags.ev={});
@@ -1826,6 +1843,7 @@ N.barracks=()=>{ lastNode=N.barracks; if(pendingEvent(N.barracks)) return;
   else say('narr',rnd(TXT.barracks_re));
   if(body.questDone&&!body.flags.act2Intro){ body.flags.act2Intro=1; talk(TXT.act2_intro); }
   const o=[];
+  if(fam('tavern')&&body.flags.jonasRoom&&!body.flags.jonasBrand) o.push({t:'告訴布蘭德，你打開了樓上那間房', ab:1, f:()=>{ body.flags.jonasBrand=1; story(TXT.jonas_brand); body.rep.knight+=15; say('gain','騎士團聲望 +15'); N.barracks(); }});
   if(body.flags.newKnee&&!body.flags.kneeDone) o.push({t:'把新護膝給布蘭德', ab:1, f:()=>{ story(TXT.sq_knee_done); body.flags.kneeDone=1; body.rep.knight+=25; say('gain','騎士團聲望 +25'); say('npc','他把自己的劍解下來，遞給你。「新護膝配舊劍，不公平。你拿去。」'); giveWeapon('brand'); say('npc','「營房裡還有一副制式鎧，你穿得下。」'); giveArmor('knightplate'); status(); N.barracks(); }});
   if(!body.flags.brandRing) o.push({t:'向布蘭德挑戰：「戒指只給打贏我的人。」（Lv 45，不能用道具，影子不出手）', ab:1, f:()=>{ talk('「我年輕的時候，隊長把一枚戒指塞給我，說給一個比我強的人。他沒有回來，戒指一直在我這。」布蘭德把劍拔出來。「現在輪到你。」'); body.duelFight=1; encounter(BRAND_DUEL,[45,45]); }});
   if(!body.flags.escort) o.push({t:'請布蘭德護送你過'+(body.flags.kneeDone?'兩道門':'一道門')+'（需騎士團聲望 30，現在 '+body.rep.knight+'）', dis:body.rep.knight<30, f:()=>{ body.rep.knight-=30; body.flags.escort=body.flags.kneeDone?2:1; talk(TXT.barracks_escort); status(); N.barracks(); }});
@@ -2491,7 +2509,7 @@ N.camp=()=>{ lastNode=N.camp; if(pendingEvent(N.camp)) return;
   o.push({t:'請藥婆把世界樹葉封成護符（世界樹葉 3、灰葉草 10）', dis:body.worldleaf<3||body.herbs<10, f:()=>{ body.worldleaf-=3; body.herbs-=10; say('npc','藥婆把葉子放在掌心，葉脈的光照亮她的皺紋。「還活著。掛在心口，它會替你長肉。」'); giveAcc('leafneck'); status(); N.camp(); }});
   if(fact('cure')) o.push({t:'請藥婆做一條解毒項鍊（灰葉草 30、裂谷核 15）', dis:body.herbs<30||body.cores<15, f:()=>{ body.herbs-=30; body.cores-=15; say('npc','藥婆把草搗碎，和核的粉一起封進一個小囊。「掛著。霧碰不到你。」'); giveAcc('antidoteneck'); status(); N.camp(); }});
   if(body.cores>0) o.push({t:'把裂谷核給藥婆入藥（每枚民心 +5，持有 '+body.cores+'）', f:()=>payQ('裂谷核給藥婆','枚','cores',1,N.camp,n=>{ body.rep.people+=5*n; body.flags.charity=(body.flags.charity||0)+n; say('gain','裂谷核 −'+n+'，民心 +'+5*n+'。藥婆把核收進懷裡。「這東西能入藥，你知道嗎。」'); })});
-  if(fact('witness')&&!body.flags.witnessReady) o.push({t:'問孩子願不願意站上證人席（民心 30，並跟孩子談過兩次）', ab:1, dis:!(body.rep.people>=30&&(body.talked['難民孩子']||0)>=2), f:()=>{ story(TXT.witness_ready); body.flags.witnessReady=1; N.camp(); }});
+  if(fact('witness')&&!body.flags.witnessReady){ const nf=fam('north'); o.push({t:nf?'跟小莉說好，一起站上證人席（民心 20，並跟她談過一次）':'問孩子願不願意站上證人席（民心 30，並跟孩子談過兩次）', ab:1, dis:!(body.rep.people>=(nf?20:30)&&(body.talked['難民孩子']||0)>=(nf?1:2)), f:()=>{ if(nf) story(TXT.north_witness); story(TXT.witness_ready); body.flags.witnessReady=1; checkQuests(); N.camp(); }}); }
   if(qActive('sq_son')&&!body.flags.sonDone) o.push({t:'把三根木材帶給樵夫的兒子', dis:body.timber<3, f:()=>{ body.timber-=3; body.flags.sonDone=1; body.flags.charity=(body.flags.charity||0)+1; story(TXT.sq_son_done); body.rep.people+=8; say('gain','民心 +8'); if(!bagN('frame')){ say('npc','樵夫把他年輕時用的背架給了你。'); giveBag('frame'); } else { body.capBonus=(body.capBonus|0)+10; say('gain','樵夫幫你的背架多綁了兩條帶子：背包 +10'); } status(); N.camp(); }});
   if(body.rep.people>=10&&!fact('witness')) o.push({t:'聽孩子們說話', f:()=>{ talk(TXT.camp_witness); learn('witness','孩子看見神殿的人在裂谷邊點火，然後魔物才出來。'); N.camp(); }});
   if(fact('king_ill')){ if(!fact('cure')) o.push({t:'問藥婆國王的病', f:()=>{ talk(TXT.camp_cure); learn('cure','藥方：三枚裂谷核加北村的灰葉草。'); N.camp(); }}); }
@@ -2510,7 +2528,8 @@ N.camp=()=>{ lastNode=N.camp; if(pendingEvent(N.camp)) return;
 N.north=(again)=>{ lastNode=N.north;
   place('北方空村');
   if(!again) spendDay('往返北村');
-  if(!body.flags.north){ body.flags.north=1; story(TXT.north); } else say('narr','村子還是沒有人。鍋還在灶上，井裡還有水。風還是從裂谷的方向吹來。');
+  let homeShown=false; if(fam('north')&&!body.flags.northHome){ homeShown=true; body.flags.northHome=1; if(!body.flags.north){ body.flags.north=1; story(TXT.north); } story(TXT.north_home); checkQuests(); }
+  if(homeShown){} else if(!body.flags.north){ body.flags.north=1; story(TXT.north); } else say('narr','村子還是沒有人。鍋還在灶上，井裡還有水。風還是從裂谷的方向吹來。');
   const o=[];
   if(!body.flags.northHerb) o.push({t:'到井邊採灰葉草', f:()=>{ story(TXT.north_well); body.flags.northHerb=1; addRes('herbs',2); say('gain','北村的灰葉草 +2'); status(); N.north(true); }});
   if(!body.flags.northStone) o.push({t:'看村口那塊石頭', f:()=>{ story(TXT.north_stone); body.flags.northStone=1; learn('witness','村口的石頭上有燒過的痕跡和一枚神殿的徽章。魔物來之前，這裡先有火。'); status(); N.north(true); }});
@@ -2533,6 +2552,7 @@ N.south=()=>{ lastNode=N.south;
     o.push({t:'談判：用真相和民心說服他', ab:fact('truth')&&body.rep.people>=20, dis:!(fact('truth')&&body.rep.people>=20), f:()=>{ openRoute(TXT.route_talk); }});
     if(sysIs('luck')&&soul.luck>=40) o.push({t:'氣運：跟他賭一把', ab:1, f:()=>{ openRoute('你們擲骰子。你連贏七把。他把骰子扔進火裡。「路給你。別再來了。」'); }});
   }
+  if(fact('route')&&fam('item')&&!body.flags.carlFound) o.push({t:'沿著商路往南走一段，找父親的車', ab:1, f:()=>{ body.flags.carlFound=1; story(TXT.carl_found); say('gain','獲得：父親沒寄出的信'); checkQuests(); N.south(); }});
   if(fact('route')&&!caravanIn()) chiefOptions(o,N.south);
   { const t=talkOptions('south',N.south); if(t) o.push(t); const x=exchangeOptions('south',N.south); if(x) o.push(x); }
   omniOptions(o,'south',N.south,caravanIn()?[]:['商隊頭子']);
@@ -2543,7 +2563,7 @@ N.south=()=>{ lastNode=N.south;
 function chiefOptions(o,back){
   const tag='';
   o.push({t:tag+'跟商隊頭子買一把曲刀（300 金）', dis:body.gold<300, f:()=>{ body.gold-=300; say('npc','「南方的鋼。別拿去砍柴。」'); giveWeapon('scimitar'); status(); back(); }});
-  o.push({t:tag+'跟商隊做生意（裂谷核每枚 '+Math.round(world.price*1.6)+' 金，持有 '+body.cores+'）', dis:body.cores<1, f:()=>{ const p=Math.round(world.price*1.6); sellQ('跟商隊做生意','枚',body.cores,p,back,n=>{ body.cores-=n; say('gain','賣出 '+n+' 枚，金幣 +'+fmt(p*n)); }); }});
+  o.push({t:tag+'跟商隊做生意（裂谷核每枚 '+Math.round(world.price*cvCoreMul())+' 金，持有 '+body.cores+'）', dis:body.cores<1, f:()=>{ const p=Math.round(world.price*cvCoreMul()); sellQ('跟商隊做生意','枚',body.cores,p,back,n=>{ body.cores-=n; say('gain','賣出 '+n+' 枚，金幣 +'+fmt(p*n)); }); }});
 }
 function clerkOptions(o,back,here){
   const clerkHere=(here==='camp')===(body.flags.ledgerHow==='steal'); if(!clerkHere) return;
@@ -2552,6 +2572,7 @@ function clerkOptions(o,back,here){
   if(fact('names')&&!body.flags.g_sage&&!hasW('sagestaff')) o.push({t:'書記官有東西要給你', f:()=>{ body.flags.g_sage=1; say('npc','書記官把靠在牆邊的杖拿過來。「我父親的。北村的。你比我更用得上。」'); giveWeapon('sagestaff'); back(); }});
   if(fact('names')&&body.regionFlags.relicRead&&!fact('mold')&&!body.flags.vaultKnown) o.push({t:'問書記官遺物上的記號', ab:1, f:()=>{ talk(TXT.vault_ask); body.flags.vaultKnown=1; back(); }});
 }
+function cvCoreMul(){ return body&&body.qs&&body.qs.fq_item==='done'?1.9:1.6; }
 function openRoute(text){ story(text); learn('route','南方商路已通。商隊願意用高價收你的裂谷核。'); body.rep.crown+=15; body.rep.people+=10; say('gain','王室聲望 +15，民心 +10'); addLuck(10,'打通商路'); status(); N.south(); }
 
 /* ===== 結局 ===== */
@@ -2561,6 +2582,7 @@ function ending(k){
   const T={seal:'封印',expose:'揭發',release:'放歸',leave:'離開'}[k];
   say('title','結局：'+T);
   if(k==='leave'){ story(TXT.end_leave); const e=TXT.epi; const ps=[body.flags.kingCured?e.cured:body.flags.kingDead?e.dead:e.sick]; if(fact('ledger')) ps.push(e.exposed); if(fact('witness')) ps.push(e.witness); if(body.flags.sixthPath) ps.push(e.sixth); if(body.rep.people>=30) ps.push(e.people); if(ps.length===1) ps.push(e.none); story(ps.join('\n\n')); } else story(TXT.end[k]);
+  { const fq={tavern:'fq_tavern',item:'fq_item',north:'fq_north'}[body.family]; if(fq&&body.qs&&(body.qs[fq]==='done'||(fq==='fq_north'&&k==='expose'&&body.flags.witnessReady))) story(TXT.fam_epi[body.family]); }
   body.flags.ending=k; body.floor=1; body.autoHunt=false; body.idleArmed=false; soul.endings=soul.endings||[]; if(!soul.endings.includes(k)) soul.endings.push(k); body.rep.crown+=50; addLuck(30,'改變一個世界');
   say('gain','稱號：「'+({seal:'守誓者',expose:'揭幕者',release:'開門人',leave:'過客'})[k]+'」。灰燼邊境的故事在你手上'+(k==='leave'?'停了':'寫完了')+'。');
   sysText('一個世界結束了。你還在。這就是有系統的意思。');
@@ -2586,6 +2608,7 @@ N.market=()=>{ lastNode=N.market; if(pendingEvent(N.market)) return;
 };
 function stallMenu(){ lastNode=stallMenu; place('王城市集 · 道具店');
   if(!body.flags.stall){ body.flags.stall=1; if(fam('item')) story(TXT.home_stall); else { story(TXT.market_stall); meet('道具店老闆娘'); meet('皮普'); } } else say('narr',rnd(fam('item')?TXT.home_stall_re:TXT.stall_re));
+  if(fam('item')&&body.flags.carlFound&&!body.flags.carlHome){ body.flags.carlHome=1; story(TXT.carl_home); checkQuests(); }
   const o=[];
   Object.keys(ITEMS).filter(k=>ITEMS[k].price>0).forEach(k=>{ const p=iPrice(k); o.push({t:'買'+ITEMS[k].n+'（'+fmt(p)+' 金）'+ITEMS[k].d+'　持有 '+itemN(k), dis:body.gold<p, f:()=>buyQ('買'+ITEMS[k].n,'個',p,stallMenu,n=>{ addItem(k,n); say('gain',ITEMS[k].n+' +'+n); },fitI(k))}); });
   /* 遞增價格：先算 n 件的總價，再決定最多買幾件 */
@@ -2760,6 +2783,7 @@ N.guild=()=>{ lastNode=N.guild; place('王城市集 · 冒險者公會'); gqMigr
   if(!body.flags.guild){ body.flags.guild=1; story(TXT.guild1); if(fam('tavern')) say('npc','她看清你的臉，手停了一下。「蘿絲家的。」她把左手收到櫃台下面。「規矩一樣。殺不了就別接。」'); meet('公會長'); } else say('narr',rnd(TXT.guild_re));
   say('info','公會等級 <b>'+guildRank()+'</b>（完成委託 '+(body.guildPts||0)+' 點）｜手上委託 '+body.gq.length+' / '+gqMax());
   const o=[];
+  if(fam('tavern')&&body.flags.jonasRoom&&!body.flags.jonasGreta) o.push({t:'把父親留下的紙給葛瑞塔看', ab:1, f:()=>{ body.flags.jonasGreta=1; story(TXT.jonas_greta); body.guildPts=(body.guildPts||0)+5; say('gain','公會點數 +5'); N.guild(); }});
   const finish=q=>{ body.gold+=q.gold; body.rep.people+=1; const r0=guildRank(); body.guildPts=(body.guildPts||0)+(q.pts||1); gqAfter(q,r0); body.gq=body.gq.filter(x=>x!==q); say('gain','委託完成：'+q.title+'。金幣 +'+fmt(q.gold)+'，民心 +1。'); if(guildRank()!==r0) say('title','公會等級提升：'+guildRank()); status(); N.guild(); };
   body.gq.forEach(q=>{ if(gqReady(q)&&q.type==='equip') o.push({t:'回報：'+q.title+'（領 '+fmt(q.gold)+' 金，選一件交出）', ab:1, f:()=>{ const L=spareMatches(q.crit); setOptions(L.map(m=>({t:'交出 '+eqName(m.t,m.inst.key)+(m.inst.sharp?' +'+m.inst.sharp:'')+'（賣給武器店約 '+fmt(eqSellPrice(m.t,m.inst.key))+' 金）', f:()=>{ takeSpare(m); say('info','你交出了'+eqName(m.t,m.inst.key)+(m.inst.sharp?' +'+m.inst.sharp:'')+'。'); finish(q); }})).concat([{t:'算了，再想想', f:N.guild}]),'要交哪一件？（只列出符合條件、身上沒穿的）',true); }});
     else if(gqReady(q)) o.push({t:'回報：'+q.title+'（領 '+fmt(q.gold)+' 金）', ab:1, f:()=>{ if(q.type==='gather') body[q.res]-=q.need; if(q.type==='item') body.items[q.item]-=q.need; if(q.type==='equip'){ const m=spareMatch(q.crit); if(!m){ N.guild(); return; } takeSpare(m); say('info','你交出了'+eqName(m.t,m.inst.key)+(m.inst.sharp?' +'+m.inst.sharp:'')+'。'); } body.gold+=q.gold; body.rep.people+=1; const r0=guildRank(); body.guildPts=(body.guildPts||0)+(q.pts||1); gqAfter(q,r0); body.gq=body.gq.filter(x=>x!==q); say('gain','委託完成：'+q.title+'。金幣 +'+fmt(q.gold)+'，民心 +1。'); if(guildRank()!==r0) say('title','公會等級提升：'+guildRank()); status(); N.guild(); }});
@@ -2808,6 +2832,8 @@ N.auction=()=>{ lastNode=N.auction; place('王城市集 · 拍賣所');
 N.tavern=()=>{ lastNode=N.tavern; place('王城市集 · 酒館');
   if(!body.flags.tavern){ body.flags.tavern=1; if(fam('tavern')) story(TXT.home_tavern); else { story(TXT.tavern1); meet('酒館老闆娘'); meet('老兵'); } } else say('narr',rnd(fam('tavern')?TXT.home_tavern_re.concat(TXT.tavern_re):TXT.tavern_re));
   const o=[];
+  if(fam('tavern')&&body.flags.jonasFound&&!body.flags.jonasHome) o.push({t:'把父親的徽章交給蘿絲', ab:1, f:()=>{ body.flags.jonasHome=1; story(TXT.jonas_home); checkQuests(); N.tavern(); }});
+  if(fam('tavern')&&body.flags.jonasHome&&!body.flags.jonasRoom) o.push({t:'上樓，打開最裡面那間房', ab:1, f:()=>{ body.flags.jonasRoom=1; story(TXT.jonas_room); giveAcc('jonasneck'); checkQuests(); N.tavern(); }});
   { const free=fam('tavern'); o.push({t:(sysIs('ancestor')?'閉關一天（攻擊力永久 +1）':free?'回樓上睡一晚（家裡不收錢，回滿HP）':'住一晚（10 金，回滿HP）'), ab:sysIs('ancestor'), dis:!sysIs('ancestor')&&!free&&body.gold<10, f:()=>{ if(!sysIs('ancestor')&&!free) body.gold-=10; rest(); N.tavern(); }}); }
   o.push({t:'請角落的老人喝一杯，聽他說（5 金）', dis:body.gold<5, f:()=>{ body.gold-=5; body.flags.rumors=(body.flags.rumors||0)+1; if(!canSeeWorld()&&worldLog.length&&chance(.4)){ const e=worldLog[worldLog.length-1].t; say('npc','老人壓低聲音：「'+e.replace(/^\S+ /,'有人').replace(/\d[\d,]*/g,'很多')+'。」'); } else say('npc',TXT.tavern_rumors[(body.flags.rumors-1)%TXT.tavern_rumors.length]); status(); N.tavern(); }});
   { const t=talkOptions('market',N.tavern); if(t) o.push(t); }
@@ -3038,6 +3064,7 @@ N.rift=()=>{ lastNode=N.rift; autoHeal();
   const o=[];
   if(body.floor<TOP_FLOOR) o.push({t:'在這一層狩獵（攻速 '+pInterval().toFixed(1)+' 秒）', f:()=>{ if(envTick()) return; if(!canChain()) body.autoHunt=false; encounter(); }}); else o.push({t:'挑戰裂谷魔王', f:()=>{ if(envTick()) return; if(!canChain()) body.autoHunt=false; encounter(KING); }});
   envOptions(o,N.rift);
+  if(body.floor===2&&fam('tavern')&&!body.flags.jonasFound) o.push({t:'沿著斷崖往下，找父親留下的痕跡', ab:1, f:()=>{ body.flags.jonasFound=1; story(TXT.jonas_found); say('gain','獲得：喬納斯的徽章'); checkQuests(); N.rift(); }});
   if(body.floor===7&&!riftClosed()){ o.push(enhOpt('forge',N.rift,'在熔淵古爐強化裝備')); o.push({t:'熔淵古爐：提煉核晶與魂晶、合成屬性戒指、找爐守', ab:1, f:()=>crystalMenu(N.rift)}); }
   o.push({t:'安全線 '+Math.round(body.stopHp*100)+'%（切換）', f:()=>{ body.stopHp=({0.5:0.3,0.3:0.1,0.1:0.5})[body.stopHp]||0.3; say('info','安全線設為 '+Math.round(body.stopHp*100)+'%。'+(sysIs('idle')?'離線狩獵也用這條線。':'')); N.rift(); }});
   if(canChain()) o.push({t:(body.autoHunt?'● ':'○ ')+'連續狩獵（'+(sysIs('idle')||sysIs('omni')||sysIs('shadow')?'你的能力':'影子軍團替你找下一隻')+'：打完自動下一隻）', ab:1, f:()=>{ body.autoHunt=!body.autoHunt; save(); N.rift(); }});
