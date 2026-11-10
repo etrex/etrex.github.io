@@ -79,6 +79,9 @@
   button.opt.legend{border-color:var(--gold);color:var(--gold);font-weight:bold}
   button.opt.ab::after{content:" — 能力選項";color:var(--gold);font-size:.8rem}
   button.opt:disabled{opacity:.45;cursor:default}
+  #opts button.opt[data-key]::before{content:attr(data-key);display:inline-block;min-width:1.15em;margin-right:.5em;padding:0 .2em;border:1px solid var(--rule);border-radius:3px;font-size:.72em;line-height:1.5;color:var(--paper-dim);text-align:center;vertical-align:.1em}
+  #opts button.opt.kbsel{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
+  @media (hover:none){ #opts button.opt[data-key]::before{display:none} }
   .qtyrow{display:flex;gap:.4rem;margin:0 0 .45rem}
   .qtyrow input{flex:1;margin:0;min-width:0}
   .qtyrow button.opt{width:auto;margin:0;flex:none}
@@ -171,7 +174,7 @@
 
 <script src="story.js"></script>
 <script>
-const VERSION='2.72.0';
+const VERSION='2.73.0';
 /* 手機：以實際可見高度取代 100vh，避免瀏覽器下方工具列蓋住最後一個選項 */
 function fitVH(){ const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight; document.documentElement.style.setProperty('--vh',h+'px'); }
 fitVH(); window.addEventListener('resize',fitVH); if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitVH); window.visualViewport.addEventListener('scroll',fitVH); }
@@ -1078,7 +1081,21 @@ const advEl=document.getElementById('adv');
 function advState(){ if(typing){ advEl.classList.remove('idle'); advEl.textContent=boost?'▼ 再點一下跳過這一段':'▼ 點這裡加速文字（或點紀錄）'; } else { advEl.classList.add('idle'); advEl.textContent='…'; } }
 advEl.addEventListener('click',()=>{ skipTyping(); advState(); });
 log.addEventListener('click',e=>{ if(e.target.closest('button,input,a')) return; skipTyping(); advState(); });
-document.addEventListener('keydown',e=>{ if(e.target&&e.target.tagName==='INPUT') return; if((e.code==='Space'||e.code==='Enter')&&typing){ e.preventDefault(); skipTyping(); } });
+/* 鍵盤：數字／字母鍵直接選、↑↓ 移動亮框、Enter 確定、Esc 返回、空白鍵（或 Enter）跳過文字 */
+const KB_KEYS='1234567890abcdefghijklmnopqrstuvwxyz';
+const KB_BACK=/^(返回|算了|不了|不聊了|離開|不強化了|不煉了|不買了|不賣|不賭|退回|走開|先不|關閉|回大殿|回市集|回王都|回難民營|不碰)/;
+let kbSel=-1;
+function kbButtons(){ return [...opts.querySelectorAll('button.opt')]; }
+function kbMark(){ kbSel=-1; kbButtons().forEach((b,i)=>{ if(i<KB_KEYS.length) b.dataset.key=KB_KEYS[i].toUpperCase(); });
+  if(soul&&!soul.kbHint&&kbButtons().length&&window.matchMedia&&matchMedia('(hover: hover)').matches){ soul.kbHint=1; say('info','鍵盤也能玩：按選項前面的數字或字母直接選，↑↓ 移動、Enter 確定，Esc 返回，空白鍵跳過文字。'); } }
+function kbHighlight(bs){ bs.forEach(b=>b.classList.remove('kbsel')); const b=bs[kbSel]; if(b){ b.classList.add('kbsel'); b.scrollIntoView({block:'nearest'}); } }
+document.addEventListener('keydown',e=>{ if(e.target&&e.target.tagName==='INPUT') return; if(e.ctrlKey||e.metaKey||e.altKey) return;
+  if((e.code==='Space'||e.code==='Enter')&&typing&&!(e.code==='Enter'&&kbSel>=0&&kbButtons().length)){ e.preventDefault(); skipTyping(); return; }
+  const bs=kbButtons(); if(!bs.length) return;
+  if(/^Arrow(Down|Right|Up|Left)$/.test(e.key)){ e.preventDefault(); const d=/Down|Right/.test(e.key)?1:-1; kbSel=kbSel<0?(d>0?0:bs.length-1):(kbSel+d+bs.length)%bs.length; kbHighlight(bs); return; }
+  if(e.key==='Enter'){ const b=bs[kbSel]; if(b&&!b.disabled){ e.preventDefault(); b.click(); } return; }
+  if(e.key==='Escape'){ const b=bs.filter(x=>!x.disabled&&KB_BACK.test(x.textContent.trim())).pop(); if(b){ e.preventDefault(); b.click(); } return; }
+  const i=KB_KEYS.indexOf(e.key.toLowerCase()); if(i>=0&&e.key.length===1){ const b=bs[i]; if(b&&!b.disabled){ e.preventDefault(); b.click(); } } });
 { const b=document.getElementById('spd'); const r=()=>{ b.textContent='文字：'+SPEEDS[speedIdx].n; }; r(); b.onclick=()=>{ speedIdx=(speedIdx+1)%SPEEDS.length; try{localStorage.setItem('ab:speed',speedIdx)}catch(e){} r(); if(SPEEDS[speedIdx].ms===0) flushAll(); }; }
 function sys(ctx){ const p=PERSONA[soul.system.persona]; say('sys',rnd(p[ctx])); }
 function sysText(t){ say('sys',t); }
@@ -1104,6 +1121,7 @@ function setOptions(list,hint,noExtras){
     const b=document.createElement('button'); b.className='opt'+(o.ab?' ab':'')+(o.side?' side':'')+(o.legend?' legend':''); const shown=nameT(o.t); b.textContent=shown; b.disabled=!!o.dis; b.onclick=()=>{ if(o.keep){o.f();return;} if(!o.pack&&!packing&&body&&body.over&&overList().length) overDrop(); opts.innerHTML=''; say('info','— '+shown); o.f(); }; return b; };
   list.filter(o=>!isNav(o)).forEach(o=>opts.appendChild(mk(o)));
   const nav=list.filter(isNav); if(nav.length){ const g=document.createElement('div'); g.className='grid'; nav.forEach(o=>g.appendChild(mk(o))); opts.appendChild(g); }
+  kbMark();
 }
 /* ===== 數量交易：可重複的買賣都能輸入數量（一次性的裝備與劇情物品除外） ===== */
 function qtyMenu(q){
